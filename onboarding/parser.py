@@ -28,6 +28,7 @@ EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 SENHA_RE = re.compile(r"senha\s*(?:certificado)?\s*:?\s*([^\n]+)", re.IGNORECASE)
 CELULAR_RE = re.compile(r"celular\s*:?\s*([\d()\-\s+]{8,})", re.IGNORECASE)
 ANEXOS_LINE_RE = re.compile(r"\d+\s+anexos?\s*\([^)]*\)\s*\n(?P<lista>[^\n]+)", re.IGNORECASE)
+DATA_EMAIL_RE = re.compile(r"Data\s*:?\s*\S+,?\s*(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
 
 REGIME_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("MEI", re.compile(r"\bMEI\b", re.IGNORECASE)),
@@ -106,3 +107,9 @@ def extrair_anexos_email(texto: str) -> list[str]:
     for m in ANEXOS_LINE_RE.finditer(texto):
         anexos.extend(n.strip() for n in m.group("lista").split(";") if n.strip())
     return anexos
+
+
+def extrair_data_email(texto: str) -> str | None:
+    """Retorna a data de envio do e-mail (linha 'Data: ...') no formato DD/MM/AAAA."""
+    m = DATA_EMAIL_RE.search(texto)
+    return m.group(1) if m else None

@@ -43,7 +43,7 @@ def main() -> int:
     alertas: list[str] = []
     for r in resultados:
         status_cert = "OK" if r.certificado_ok else "FALTA CERTIFICADO"
-        print(f"  N°{r.raw.numero}  {r.raw.nome}  [{status_cert}]  -> {r.ficha_path}")
+        print(f"  N°{r.raw.numero}  {r.raw.nome}  [{status_cert}]  -> {r.ficha_pdf}")
         if r.alerta_certificado:
             alertas.append(
                 f"- {r.raw.nome} (N°{r.raw.numero}, CNPJ {r.raw.cnpj}): "

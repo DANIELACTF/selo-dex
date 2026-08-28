@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 fichas/*.md
+fichas/*.pdf
+fichas/preview*.png
 data/*.csv
 !fichas/.gitkeep
 !data/.gitkeep

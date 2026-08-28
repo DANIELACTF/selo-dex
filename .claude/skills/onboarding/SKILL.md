@@ -16,7 +16,8 @@ processar.
 2. Salve o conteúdo em um arquivo temporário `.txt` (ex:
    `/tmp/claude-*/scratchpad/thays_email.txt` se houver diretório de
    scratchpad disponível, senão em qualquer caminho temporário do repo).
-3. Rode:
+3. Garanta a dependência (`pip install -r requirements.txt`, usada para
+   gerar o PDF da ficha) e rode:
 
    ```bash
    python cli.py --input <arquivo.txt>
@@ -27,7 +28,8 @@ processar.
    checagem de Simples Nacional não pôde ser feita desta vez.
 4. Leia a saída do comando e resuma para o usuário:
    - quantas empresas foram processadas;
-   - quais fichas foram geradas (caminho em `fichas/`);
+   - quais fichas foram geradas (`fichas/<nº>_<NOME>.pdf`, com `.md`
+     equivalente mais rápido de conferir sem abrir PDF);
    - **alertas de certificado ausente** — liste as empresas e sugira o
      texto de cobrança para a Thays (algo como: "Fulano, falta o
      certificado digital de <empresa> (CNPJ <...>), pode enviar?");
@@ -41,9 +43,11 @@ processar.
 
 ## Limitações a lembrar o usuário, se relevante
 
-- O padrão da "ficha de onboarding" em `onboarding/ficha_template.py` é
-  uma proposta, não um modelo formal validado pelo time — se o usuário
-  achar que falta ou sobra campo, ajuste o template.
+- A "Ficha de Abertura — Onboarding Fiscal" (`onboarding/ficha_template.py`)
+  já segue o padrão real do Departamento Fiscal (reconstruído a partir de
+  12 fichas de exemplo), mas a seção 5 (particularidades) é gerada por
+  heurística simples — não substitui a análise fiscal completa do
+  analista, é só um ponto de partida.
 - A leitura automática da caixa da Thays ainda não existe; veja o README
   do repositório para os próximos passos.
 

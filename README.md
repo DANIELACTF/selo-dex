@@ -10,8 +10,8 @@ envia sempre que a Moraex fecha um cliente novo, e automatiza os passos 2 a
    pelo Simples Nacional, comparando com o que a Thays informou.
 3. Conferir se o certificado digital (.pfx) veio anexado ao e-mail; se não
    veio, gera um alerta para cobrar a emissão.
-4. Gerar a ficha de onboarding de cada empresa (padrão proposto — veja
-   abaixo).
+4. Gerar a **"Ficha de Abertura — Onboarding Fiscal"** de cada empresa, no
+   padrão real do Departamento Fiscal da Moraex (PDF + Markdown).
 5. Atualizar a lista de empresas pendentes de distribuição
    (`data/empresas_pendentes_distribuicao.csv`), sem duplicar empresas já
    cadastradas.
@@ -21,7 +21,12 @@ novo da Thays, não fica rodando sozinho em segundo plano.
 
 ## Como usar
 
-Requer Python 3.10+ (só biblioteca padrão, sem dependências externas).
+Requer Python 3.10+ e a dependência `reportlab` (usada para gerar o PDF da
+ficha).
+
+```bash
+pip install -r requirements.txt
+```
 
 1. Copie o corpo do e-mail "EMPRESA NOVA" da Thays (texto puro do Outlook)
    para um arquivo `.txt`.
@@ -31,11 +36,13 @@ Requer Python 3.10+ (só biblioteca padrão, sem dependências externas).
    python cli.py --input caminho/para/email_da_thays.txt
    ```
 
-3. Confira no terminal:
-   - a lista de empresas processadas e o status do certificado de cada uma;
-   - os alertas (certificado ausente, divergência de regime tributário);
-   - as fichas geradas em `fichas/<nº cliente>-<nome>.md`;
-   - a atualização de `data/empresas_pendentes_distribuicao.csv`.
+3. Confira:
+   - no terminal: a lista de empresas processadas, status do certificado e
+     os alertas (certificado ausente, divergência de regime tributário);
+   - em `fichas/<nº cliente>_<NOME>.pdf` (e o `.md` equivalente, mais fácil
+     de conferir rápido sem abrir PDF): a ficha de onboarding de cada
+     empresa;
+   - em `data/empresas_pendentes_distribuicao.csv`: a lista atualizada.
 
 Para testar offline (sem consultar a Receita), use `--sem-consulta-cnpj`.
 Os exemplos reais usados para desenvolver e testar o parser estão em
@@ -48,12 +55,54 @@ python cli.py --input fixtures/exemplo_thays_2026-08-25.txt
 ### Rodando os testes
 
 ```bash
-pip install pytest
+pip install -r requirements.txt pytest
 pytest tests/ -v
 ```
 
-Os testes validam o parser e a checagem de certificado contra os 5 e-mails
-reais em `fixtures/`.
+`tests/test_parser.py` valida o parser e a checagem de certificado contra
+os 5 e-mails reais da Thays em `fixtures/`. `tests/test_ficha.py` valida a
+lógica de geração da ficha (tipo Matriz/Filial, regime/enquadramento,
+detecção de grupo econômico, particularidades) — inclusive reproduzindo os
+casos reais que vieram nas 12 fichas de exemplo (TATY matriz+filial, ERFOLG
+rede, JOAO PEDRO BARROS N° fora da série).
+
+## O padrão da ficha
+
+A "Ficha de Abertura — Onboarding Fiscal" (`onboarding/ficha_template.py`)
+foi reconstruída a partir de **12 fichas reais** fornecidas pelo
+Departamento Fiscal (não é mais uma proposta genérica). Estrutura fixa:
+
+1. **Identificação** — Nº cliente, recebido em, razão social, CNPJ, tipo
+   (Matriz/Filial, calculado a partir do CNPJ), abertura, porte,
+   município/UF, grupo econômico, e-mail.
+2. **Atividade e regime** — CNAE principal/secundários (Receita), regime
+   tributário informado + observação padrão por regime (ex: Simples
+   Nacional em atividade de serviço → "avaliar Fator R → Anexo III").
+3. **Documentos, certificado e procuração** — status do certificado A1,
+   senha (cofre), procuração e-CAC (sempre "pendente", não é
+   automatizável a partir do e-mail).
+4. **Consultas preliminares de situação fiscal** — tabela fixa (RFB/e-CAC,
+   Simples Nacional, SEFAZ-RJ, Prefeitura), sempre em branco/não marcada —
+   é o checklist manual do analista, não algo que o e-mail da Thays
+   resolve sozinho.
+5. **Particularidades anotadas** — bullets gerados por heurística: grupo
+   econômico, divergência de regime, empresário individual, UF fora do
+   Rio de Janeiro, Nº de cliente fora da série do lote, certificado
+   recebido (pede validação), CNAE de comércio/serviço.
+6. **Particularidades a levantar / reunião com o Paulo** — sempre em
+   branco, preenchimento manual.
+
+Grupo econômico é detectado de duas formas: (a) quando a Thays escreve
+"mesmo grupo da/do X" no e-mail; (b) automaticamente, quando duas empresas
+do mesmo lote compartilham a raiz do CNPJ (8 primeiros dígitos) — vira
+"Nome (matriz+filial)" se uma delas for matriz, ou "Nome (rede)" se todas
+forem filiais (replica os casos reais TATY e ERFOLG vistos nos exemplos).
+
+O nome do arquivo (`<nº>_<SLUG>.pdf`) é uma aproximação automática (2
+primeiras palavras significativas da razão social, sem sufixos como LTDA) —
+o padrão real observado tem escolhas mais "humanas" (ex: usar o bairro da
+filial, ou LTDA/EIRELI para desambiguar matriz+filial); ajuste manualmente
+se precisar bater 100% com o nome que o time usaria.
 
 ## Limitações conhecidas
 
@@ -69,17 +118,23 @@ reais em `fixtures/`.
   desenvolvimento — o ambiente onde isso foi escrito bloqueia acesso a
   domínios externos. O código segue o formato de resposta documentado e
   estável da BrasilAPI; rode `python -m onboarding.cnpj_api <cnpj>` na
-  primeira execução real para confirmar.
-- **Não existe hoje um modelo formal de "ficha de onboarding" disponível**
-  para este projeto seguir. A estrutura em `onboarding/ficha_template.py`
-  é uma **proposta**, montada a partir dos campos que aparecem de forma
-  consistente nos e-mails reais da Thays. Ajuste depois de validar com o
-  time.
-- **Parsing é por heurística de regex**, não NLP — cobre bem os 5 formatos
-  de e-mail vistos até agora (com/sem "CNPJ:", com/sem bullet, "N°"/"n°"),
-  mas se a Thays mudar o padrão de digitação, os testes em
-  `tests/test_parser.py` vão pegar a quebra — ajuste `onboarding/parser.py`
-  e rode `pytest` de novo.
+  primeira execução real para confirmar, especialmente os campos
+  `opcao_pelo_simples`/`opcao_pelo_mei` e a lista `cnaes_secundarios`.
+- **A reprodução visual do PDF é uma aproximação fiel, não um clone
+  byte-a-byte** — não tínhamos acesso a um arquivo-fonte editável do
+  template, só aos PDFs finais. As fontes DejaVu Sans usadas para os
+  checkboxes (☐/☑) e acentuação estão embutidas em `onboarding/fonts/`
+  para funcionar em qualquer máquina.
+- **Parsing do e-mail da Thays é por heurística de regex**, não NLP —
+  cobre bem os 5 formatos de e-mail vistos até agora (com/sem "CNPJ:",
+  com/sem bullet, "N°"/"n°"), mas se a Thays mudar o padrão de digitação,
+  os testes em `tests/test_parser.py` vão pegar a quebra — ajuste
+  `onboarding/parser.py` e rode `pytest` de novo.
+- **As "particularidades" (seção 5) são geradas por regras simples**, não
+  reproduzem o julgamento fiscal completo de um analista (ex: ST, FECP-RJ,
+  itens específicos da lista de ISS não são cobertos) — é um ponto de
+  partida para a seção 6 ("a levantar"), não um substituto da análise
+  humana.
 - **MEI não gera alerta de certificado ausente por padrão** (constante
   `MEI_EXIGE_CERTIFICADO` em `onboarding/pipeline.py`) — assumi que MEI não
   costuma precisar de e-CNPJ no dia a dia do escritório. Mude para `True`
@@ -91,12 +146,13 @@ reais em `fixtures/`.
 onboarding/
   parser.py          # extrai empresas do texto do e-mail da Thays
   cnpj_api.py         # consulta CNPJ/Simples Nacional na BrasilAPI
-  ficha_template.py   # gera a ficha de onboarding em Markdown
+  ficha_template.py   # modelo de dados + renderização da ficha (PDF/Markdown)
   pipeline.py          # orquestra: parse -> CNPJ -> certificado -> ficha -> pendentes
+  fonts/               # DejaVu Sans embutida (checkboxes/acentuação no PDF)
 cli.py                 # comando manual (python cli.py --input ...)
 fixtures/               # 5 e-mails reais da Thays usados para validar o parser
 tests/                  # testes automatizados contra os exemplos reais
-fichas/                 # saída: uma ficha .md por empresa (gerado, git-ignored)
+fichas/                 # saída: uma ficha .pdf + .md por empresa (gerado, git-ignored)
 data/empresas_pendentes_distribuicao.csv  # saída (gerado, git-ignored)
 ```
 
@@ -104,8 +160,10 @@ data/empresas_pendentes_distribuicao.csv  # saída (gerado, git-ignored)
 
 - Conectar a caixa da Thays (Outlook/Microsoft 365) como conector desta
   sessão para automatizar de fato o passo 1.
-- Validar e ajustar o padrão da ficha (`ficha_template.py`) com quem já usa
-  o fluxo hoje.
+- Confirmar com o Departamento Fiscal se as regras da seção "Regime /
+  enquadramento" e "Particularidades" (`onboarding/pipeline.py`) batem com
+  o critério real deles — em especial a heurística de Fator R por
+  palavra-chave de CNAE.
 - Decidir onde a lista de pendentes deve realmente morar em produção
   (planilha compartilhada, Google Sheets, etc.) em vez do CSV local —
   trocar `_atualizar_pendentes_csv` em `onboarding/pipeline.py` pela
