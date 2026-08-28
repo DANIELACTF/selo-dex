@@ -57,7 +57,7 @@ ORGAOS_CONSULTA_MANUAIS = [
     ("Prefeitura / Município", "Inscrição municipal, ISS, situação cadastral, débitos"),
 ]
 SIMPLES_LABEL = "Simples Nacional"
-SIMPLES_OQUE_CONSULTAR = "Opção/optante, débitos (PGDAS/DAS), exclusão, sublimite"
+SIMPLES_OQUE_CONSULTAR = "Opção/optante (PGDAS/DAS), débitos, exclusão, sublimite"
 
 
 @dataclass

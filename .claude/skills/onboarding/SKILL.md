@@ -128,7 +128,12 @@ Marque com a classe `atencao` os que forem risco/divergência:
 - Nº de cliente fora da série do restante do lote → confirmar se é
   reativação/registro antigo
 - Empresa do mesmo grupo econômico → citar o grupo
+- Domínio do e-mail do cliente que não bate com o nome da empresa (ex.:
+  `financeiro@fhb1937.com.br` numa empresa chamada ELLEVARE) → pode indicar
+  grupo econômico; registrar como "confirmar vínculo", sem afirmar o grupo
 - CNAE de comércio → ICMS, atenção a ST/FECP-RJ; CNAE de serviço → ISS/NFS-e
+- Endereço completo, quando for relevante para a apuração (outro município,
+  sala/loja específica em endereço compartilhado por várias empresas)
 - Certificado anexado → "validar titularidade e validade"
 - Alguma consulta que falhou → dizer qual campo ficou por conferir
 

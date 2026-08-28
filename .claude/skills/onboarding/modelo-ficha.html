@@ -107,6 +107,13 @@
   da Moraex. A skill `onboarding` copia esta estrutura e substitui os
   valores entre {{ }} pelos dados de cada empresa do e-mail da Thays.
 
+  Conferido contra as fichas reais do Departamento Fiscal — a mais
+  recente é a N°1060 (ELLEVARE, recebida em 17/07/2026), que trouxe a
+  redação atual da linha "Simples Nacional" da seção 4. Ao receber uma
+  ficha real mais nova que esta, comparar e atualizar aqui e em
+  onboarding/ficha_template.py (o CLI Python), para os dois caminhos não
+  divergirem.
+
   Regras de preenchimento:
   - Checkbox marcado: ☑   |   não marcado: ☐
   - Campo sem informação disponível: "-"
@@ -193,7 +200,7 @@
         </tr>
         <tr>
           <td>Simples Nacional</td>
-          <td class="oque">Opção/optante, débitos (PGDAS/DAS), exclusão, sublimite</td>
+          <td class="oque">Opção/optante (PGDAS/DAS), débitos, exclusão, sublimite</td>
           <td>{{RESULTADO_DA_CONSULTA_OFICIAL}}</td><td class="ok">{{CHECKBOX}}</td>
         </tr>
         <tr>
