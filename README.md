@@ -27,7 +27,7 @@ novo da Thays, não fica rodando sozinho em segundo plano.
 Este é o caminho recomendado para o dia a dia: **não precisa de Python,
 nem clonar o repositório, nem rodar comando.**
 
-1. Numa sessão do Claude, digite `/onboarding` (ou peça "processa essa
+1. Numa sessão do Claude, digite `/ficha-abertura-fiscal` (ou peça "processa essa
    empresa nova").
 2. Cole o corpo do e-mail "EMPRESA NOVA" da Thays — incluindo a linha de
    anexos, que é de onde sai a checagem de certificado.
@@ -36,7 +36,7 @@ nem clonar o repositório, nem rodar comando.**
    distribuição. A página já vem formatada para A4: imprimir ou salvar em
    PDF é direto pelo navegador.
 
-A skill fica em `.claude/skills/onboarding/` — `SKILL.md` tem o
+A skill fica em `.claude/skills/ficha-abertura-fiscal/` — `SKILL.md` tem o
 procedimento e as regras de negócio, `modelo-ficha.html` é o gabarito
 visual da ficha. Para usar no app do Claude/Cowork (fora do Claude Code),
 basta subir essa pasta como skill.
@@ -185,7 +185,7 @@ se precisar bater 100% com o nome que o time usaria.
 ## Estrutura
 
 ```
-.claude/skills/onboarding/
+.claude/skills/ficha-abertura-fiscal/
   SKILL.md             # procedimento + regras de negócio (caminho sem Python)
   modelo-ficha.html    # gabarito visual da ficha, no padrão do Dep. Fiscal
 onboarding/            # ---- CLI Python opcional, para uso em lote ----
@@ -214,6 +214,32 @@ data/empresas_pendentes_distribuicao.csv  # saída (gerado, git-ignored)
   (planilha compartilhada, Google Sheets, etc.) em vez do CSV local —
   trocar `_atualizar_pendentes_csv` em `onboarding/pipeline.py` pela
   integração escolhida.
-- Depois de validar tudo isso, publicar como Skill do Claude Code
-  (`.claude/skills/onboarding/SKILL.md`, já incluído neste repo) para que o
-  fluxo vire um comando `/onboarding` dentro de uma sessão.
+- Subir a skill para o projeto **Rotinas de Escritório** (ver abaixo), para
+  ficar junto das demais rotinas do escritório.
+
+## Incorporando ao projeto "Rotinas de Escritório"
+
+A skill foi escrita no mesmo padrão das outras rotinas do escritório
+(`onboarding-cliente`, `apuracao-simples-nacional`, `fechamento-mensal`…):
+descrição com gatilhos `Use proativamente quando…`, exclusões
+`NÃO use para… (chame X)` e seção `Entrega obrigatória final`.
+
+Ela cobre a etapa de **triagem fiscal** — o e-mail do administrativo vira
+ficha e lista de pendências. É a etapa anterior ao `onboarding-cliente`
+(contrato, procuração e-CAC, pasta digital, cadastro no software), e as
+duas se referenciam para não competirem pelo mesmo gatilho.
+
+Encadeamento previsto na skill:
+
+| Momento | Skill |
+|---|---|
+| E-mail "EMPRESA NOVA" chega → ficha + distribuição | `ficha-abertura-fiscal` |
+| Empresa distribuída → formalização do cliente | `onboarding-cliente` |
+| Dúvida de enquadramento (Fator R, anexo, regime) | `analise-tributaria-regime` |
+| Empresa na rotina → DAS mensal | `apuracao-simples-nacional` |
+
+Para subir: pegue a pasta `.claude/skills/ficha-abertura-fiscal/`
+(`SKILL.md` + `modelo-ficha.html`) e adicione como skill na conta/projeto.
+Se a biblioteca usar prefixo numérico, renomeie a pasta com o próximo
+número da sequência (ex.: `21-ficha-abertura-fiscal`) e ajuste o campo
+`name:` do `SKILL.md` para bater com o nome da pasta.

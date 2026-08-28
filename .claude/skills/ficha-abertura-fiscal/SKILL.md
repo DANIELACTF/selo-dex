@@ -1,12 +1,19 @@
 ---
-name: onboarding
-description: Processa um e-mail "EMPRESA NOVA" da Thays (Moraex) — confere CNPJ e opção pelo Simples Nacional na Receita, checa se o certificado digital veio anexado, gera as Fichas de Abertura (Onboarding Fiscal) e a lista de empresas pendentes de distribuição. Use quando o usuário colar ou anexar um e-mail novo da Thays, ou pedir para "rodar o onboarding" / "processar empresa nova" / "fazer as fichas".
+name: ficha-abertura-fiscal
+description: Especialista em triagem fiscal de empresa nova a partir do e-mail "EMPRESA NOVA" do administrativo (Thays/Moraex) — extrai as empresas do e-mail, confere dados cadastrais do CNPJ e opção pelo Simples Nacional na consulta oficial da Receita, valida se o certificado digital A1 veio anexado, aponta divergência entre o regime informado e o que consta na Receita, e emite a Ficha de Abertura (Onboarding Fiscal) no padrão do Departamento Fiscal. Use proativamente quando o usuário (a) colar ou anexar um e-mail "EMPRESA NOVA" do administrativo, (b) mencionar empresa nova para cadastrar/colocar nas rotinas, ficha de abertura, ficha de onboarding fiscal, (c) precisar conferir se a empresa é optante pelo Simples ou se o certificado chegou, (d) precisar atualizar a lista de empresas pendentes de distribuição. NÃO use para o onboarding formal do cliente — contrato, procuração e-CAC, pasta digital, cadastro no software contábil (chame onboarding-cliente), nem para apuração de DAS (chame apuracao-simples-nacional). Entrega obrigatória final: uma Ficha de Abertura por empresa no padrão do Dep. Fiscal (HTML pronto para A4) + bloco de alertas (certificado ausente/não identificado, divergência de regime, consulta que falhou) + tabela de empresas pendentes de distribuição + texto pronto de cobrança ao administrativo quando faltar certificado.
 ---
 
-# Onboarding Fiscal — Moraex
+# Ficha de Abertura — Onboarding Fiscal (Moraex)
 
 Disparo manual: o usuário traz o texto de um e-mail "EMPRESA NOVA" (Thays
 Oliveira, secretaria@moraex.com.br) e você produz as fichas.
+
+**Onde esta skill entra na rotina do escritório:** ela é o *primeiro* passo,
+o da triagem fiscal — o e-mail chega, e ela transforma isso em ficha e em
+lista de pendências para o Dep. Fiscal distribuir. O onboarding formal do
+cliente (contrato, procuração e-CAC, pasta digital, cadastro no Domínio/G
+Click) é a etapa seguinte e fica com a skill `onboarding-cliente`. Quando o
+usuário pedir as duas coisas, rode esta primeiro e depois chame a outra.
 
 **Execute tudo você mesmo — não rode script Python, não peça para o
 usuário instalar nada.** Você lê o e-mail, faz as consultas e monta o
@@ -168,3 +175,36 @@ Responda ao usuário com:
 
 Nunca envie e-mail para a Thays nem para o cliente por conta própria —
 monte o texto e deixe o envio com o usuário.
+
+## Entrega obrigatória final
+
+Não encerre sem entregar:
+
+1. **Uma Ficha de Abertura por empresa**, no padrão do Departamento Fiscal
+   (as 6 seções, na ordem, sem alterar layout/cores), publicada como
+   Artifact pronto para impressão em A4.
+2. **Bloco de alertas** no topo, cobrindo: certificado ausente, certificado
+   não identificado (anexo de nome opaco), divergência entre o regime
+   informado e o que consta na Receita, e qualquer consulta que não pôde
+   ser feita.
+3. **Tabela de empresas pendentes de distribuição** — Nº, empresa, CNPJ,
+   regime informado, Simples (RFB), certificado, status.
+4. **Texto pronto de cobrança** ao administrativo para cada certificado
+   faltante, para o usuário só copiar e enviar.
+5. **Lista do que ficou para conferência manual** — seções 4 (RFB/e-CAC,
+   SEFAZ-RJ, Prefeitura) e 6 são sempre do analista, e mais o que tiver
+   falhado nas consultas.
+
+Nunca dê por confirmado um dado que não veio do e-mail nem de uma consulta
+bem-sucedida: campo sem fonte é `-` ou `(não consultado)`, com o registro
+correspondente no alerta.
+
+## Encadeamento com as outras rotinas do escritório
+
+- Terminada a triagem e distribuída a empresa, o onboarding formal
+  (contrato, procuração e-CAC, pasta digital, cadastro no software) é a
+  skill `onboarding-cliente`.
+- Dúvida de enquadramento que apareça aqui (Fator R, anexo do Simples,
+  Simples × Presumido × Real) é `analise-tributaria-regime`.
+- A apuração mensal do DAS, depois que a empresa entra na rotina, é
+  `apuracao-simples-nacional`.
