@@ -1,55 +1,165 @@
 ---
 name: onboarding
-description: Processa um e-mail "EMPRESA NOVA" da Thays (Moraex) — confere CNPJ/Simples Nacional, checa certificado digital anexado, gera fichas de onboarding e atualiza a lista de empresas pendentes de distribuição. Use quando o usuário colar ou anexar um e-mail novo da Thays, ou pedir para "rodar o onboarding" / "processar empresa nova".
+description: Processa um e-mail "EMPRESA NOVA" da Thays (Moraex) — confere CNPJ e opção pelo Simples Nacional na Receita, checa se o certificado digital veio anexado, gera as Fichas de Abertura (Onboarding Fiscal) e a lista de empresas pendentes de distribuição. Use quando o usuário colar ou anexar um e-mail novo da Thays, ou pedir para "rodar o onboarding" / "processar empresa nova" / "fazer as fichas".
 ---
 
-# Onboarding Moraex
+# Onboarding Fiscal — Moraex
 
-Disparo manual (não roda sozinho): o usuário traz o texto de um e-mail
-"EMPRESA NOVA" (Thays Oliveira, secretaria@moraex.com.br) e pede para
-processar.
+Disparo manual: o usuário traz o texto de um e-mail "EMPRESA NOVA" (Thays
+Oliveira, secretaria@moraex.com.br) e você produz as fichas.
 
-## Passos
+**Execute tudo você mesmo — não rode script Python, não peça para o
+usuário instalar nada.** Você lê o e-mail, faz as consultas e monta o
+documento. (Existe um CLI Python opcional no repositório para uso em lote;
+ignore-o a menos que o usuário peça explicitamente.)
 
-1. Se o usuário ainda não colou/anexou o texto do e-mail, peça para colar o
-   corpo em texto puro (copiar do Outlook) ou anexar um arquivo.
-2. Salve o conteúdo em um arquivo temporário `.txt` (ex:
-   `/tmp/claude-*/scratchpad/thays_email.txt` se houver diretório de
-   scratchpad disponível, senão em qualquer caminho temporário do repo).
-3. Garanta a dependência (`pip install -r requirements.txt`, usada para
-   gerar o PDF da ficha) e rode:
+## 1. Obter o e-mail
 
-   ```bash
-   python cli.py --input <arquivo.txt>
-   ```
+Se o usuário ainda não trouxe o conteúdo, peça para colar o corpo do
+e-mail em texto puro (copiado do Outlook) ou anexar o arquivo. Precisa
+incluir a **lista de anexos** (linha "N anexos (...)" com os nomes dos
+`.pfx`) — é dela que sai a checagem de certificado.
 
-   Se a consulta de CNPJ falhar por falta de acesso à internet no ambiente
-   atual, rode de novo com `--sem-consulta-cnpj` e avise o usuário que a
-   checagem de Simples Nacional não pôde ser feita desta vez.
-4. Leia a saída do comando e resuma para o usuário:
-   - quantas empresas foram processadas;
-   - quais fichas foram geradas (`fichas/<nº>_<NOME>.pdf`, com `.md`
-     equivalente mais rápido de conferir sem abrir PDF);
-   - **alertas de certificado ausente** — liste as empresas e sugira o
-     texto de cobrança para a Thays (algo como: "Fulano, falta o
-     certificado digital de <empresa> (CNPJ <...>), pode enviar?");
-   - **divergências de regime tributário** (Thays informou um regime, mas
-     a Receita não confirma) — chame atenção para essas, podem indicar
-     erro de digitação ou mudança recente de regime.
-5. Confirme que `data/empresas_pendentes_distribuicao.csv` foi atualizado.
-6. Não envie e-mails automaticamente para a Thays nem para ninguém —
-   apenas monte o texto de cobrança e deixe o usuário decidir se e como
-   enviar (a caixa da Thays é Outlook, não está conectada a esta sessão).
+## 2. Extrair os dados de cada empresa
 
-## Limitações a lembrar o usuário, se relevante
+Leia o e-mail e monte, para cada empresa citada:
 
-- A "Ficha de Abertura — Onboarding Fiscal" (`onboarding/ficha_template.py`)
-  já segue o padrão real do Departamento Fiscal (reconstruído a partir de
-  12 fichas de exemplo), mas a seção 5 (particularidades) é gerada por
-  heurística simples — não substitui a análise fiscal completa do
-  analista, é só um ponto de partida.
-- A leitura automática da caixa da Thays ainda não existe; veja o README
-  do repositório para os próximos passos.
+| Campo | Onde está |
+|---|---|
+| Nº de cliente | depois do CNPJ, como `N°1091` ou `n°1091` |
+| Razão social | antes do CNPJ |
+| CNPJ | com ou sem o rótulo `CNPJ:` |
+| Regime informado | linha própria: Simples Nacional / "Optante pelo Simples" / Lucro Presumido / Lucro Real / MEI |
+| E-mail do cliente | linha `E mail :` (pode ter mais de um, separados por `/`) |
+| Senha do certificado | linha `Senha certificado :` (pode não existir) |
+| Observação de grupo | "Obs. mesmo grupo da X" / "Todas são do mesmo grupo" |
 
-Veja `README.md` na raiz do repositório para a documentação completa do
-pipeline.
+O formato varia entre e-mails (com e sem bullet, com e sem `CNPJ:`,
+`N°`/`n°`, acentuação inconsistente) — interprete pelo sentido, não por
+posição fixa. Se algum campo não aparecer, trate como não informado; não
+invente.
+
+## 3. Consultar a Receita Federal
+
+**Antes de consultar, olhe o próprio e-mail.** A Thays quase sempre cola o
+"COMPROVANTE DE INSCRIÇÃO E DE SITUAÇÃO CADASTRAL" de cada empresa no
+corpo da mensagem — ele já traz razão social, nome fantasia, data de
+abertura, porte, CNAE principal e secundários, natureza jurídica e
+endereço. Use esses dados quando existirem; as consultas abaixo servem
+para preencher o que faltar e para confirmar a opção pelo Simples (que o
+comprovante **não** informa).
+
+Para cada CNPJ, faça as duas consultas:
+
+**a) Dados cadastrais** — `https://brasilapi.com.br/api/cnpj/v1/<cnpj só dígitos>`
+Retire dali: razão social, data de abertura (`data_inicio_atividade`),
+porte, município, UF, CNAE principal (código + descrição), CNAEs
+secundários, natureza jurídica e situação cadastral.
+
+**b) Opção pelo Simples Nacional** —
+`https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21`
+(consulta pública oficial, sem captcha; é a fonte que o escritório já
+usa). Informe o CNPJ e leia o resultado.
+
+Se uma consulta falhar (rede, site fora do ar, formato inesperado), **não
+pare e não invente o dado**: preencha o campo com `-` ou
+`(não consultado)`, registre isso nas particularidades da ficha e avise o
+usuário no resumo final. A consulta oficial (b) tem prioridade sobre o
+campo `opcao_pelo_simples` da BrasilAPI; use o da BrasilAPI só se a
+oficial falhar.
+
+## 4. Aplicar as regras da ficha
+
+**Tipo** — dígitos 9 a 12 do CNPJ iguais a `0001` → `Matriz`; senão `Filial`.
+
+**Grupo econômico**
+- Se a Thays escreveu "mesmo grupo da X" → use `X`.
+- Senão, se duas ou mais empresas **do mesmo lote** compartilham a raiz do
+  CNPJ (8 primeiros dígitos) → `<Primeira palavra do nome> (matriz+filial)`
+  se alguma delas for matriz, ou `<Primeira palavra> (rede)` se forem
+  todas filiais.
+- Senão → `—`.
+
+**Regime / enquadramento** (regime informado + observação padrão):
+- Lucro Real → `Lucro Real — PIS/COFINS não-cumulativo; apuração IRPJ/CSLL`
+- Lucro Presumido → `Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral`
+- MEI → `MEI — DAS-MEI fixo mensal`
+- Simples Nacional, quando o CNAE principal for de **serviço tipicamente
+  sujeito a Fator R** (escritório/apoio administrativo, intermediação,
+  agenciamento, consultoria, assessoria, auditoria, engenharia,
+  arquitetura, advocacia, medicina e demais serviços de saúde,
+  odontologia, fisioterapia, psicologia, TI/desenvolvimento de software,
+  publicidade, ensino/treinamento, representação comercial) →
+  `Simples Nacional — avaliar Fator R → Anexo III (folha ≥ 28% RBT12)`
+- Simples Nacional, demais atividades →
+  `Simples Nacional — confirmar anexo pela atividade`
+
+  A indicação de Fator R é um **lembrete de conferência**, não um
+  enquadramento definitivo — quem decide o anexo é o analista fiscal.
+- Não informado no e-mail →
+  `A definir — definir regime (não informado no e-mail)`
+
+**Certificado digital** — procure, na lista de anexos, um `.pfx` que
+corresponda à empresa: primeiro pelos dígitos do CNPJ dentro do nome do
+arquivo, depois pelo nome da empresa (os nomes vêm truncados ou com
+sufixos cortados). Achou → `☑ recebido`; não achou → `☐ pendente` **e gere
+um alerta de cobrança**. Exceção: MEI não gera alerta de certificado
+ausente (não costuma usar e-CNPJ na rotina do escritório) — se o
+escritório mudar esse critério, ajuste aqui.
+
+Se sobrar anexo `.pfx` com nome opaco (só um hash, ex.:
+`170226042238ff60.pfx`) sem dono identificado, **não chute a quem
+pertence**: registre nas particularidades das empresas ainda sem
+certificado que existe um anexo não identificado a conferir, e cite isso
+no alerta.
+
+**Senha (cofre)** — `☑ arquivada` se a senha veio no e-mail; senão
+`☐ pendente`. A senha às vezes vem no **nome do próprio arquivo** (ex.:
+`... - senha 12345678.pfx`) — vale como informada.
+
+**Particularidades (seção 5)** — no máximo 5 bullets, os mais relevantes.
+Marque com a classe `atencao` os que forem risco/divergência:
+- Divergência entre o regime que a Thays informou e o que a Receita
+  mostra (ex.: informou Lucro Real, mas consta como optante pelo Simples) → **atenção**
+- Natureza jurídica de empresário individual → "EMPRESÁRIO INDIVIDUAL — não é
+  sociedade; cadastro/procuração próprios do EI"
+- Município/UF fora do Rio de Janeiro → **atenção**, ISS/IM no município de
+  origem e SEFAZ do estado correspondente
+- Nº de cliente fora da série do restante do lote → confirmar se é
+  reativação/registro antigo
+- Empresa do mesmo grupo econômico → citar o grupo
+- CNAE de comércio → ICMS, atenção a ST/FECP-RJ; CNAE de serviço → ISS/NFS-e
+- Certificado anexado → "validar titularidade e validade"
+- Alguma consulta que falhou → dizer qual campo ficou por conferir
+
+Seções **4** (linhas RFB, SEFAZ, Prefeitura) e **6** ficam em branco: são
+o checklist manual do analista. Só a linha **Simples Nacional** da seção 4
+você preenche, com o resultado da consulta oficial.
+
+## 5. Montar o documento
+
+Use `modelo-ficha.html` (nesta mesma pasta) como gabarito: copie a
+estrutura, substitua os `{{...}}` e repita o bloco `<section class="folha">`
+uma vez por empresa. No topo vai um bloco `.resumo` único com os alertas e
+a tabela de empresas pendentes de distribuição.
+
+Publique como Artifact (`Artifact`, favicon `📋`). A página já vem
+formatada para impressão em A4 — uma ficha por página, e o resumo não sai
+na impressão —, então o usuário imprime ou salva em PDF direto do
+navegador.
+
+Não altere o layout, as cores nem a ordem das seções do modelo: é o padrão
+do Departamento Fiscal.
+
+## 6. Fechar
+
+Responda ao usuário com:
+- o link do Artifact;
+- quantas empresas foram processadas;
+- **alertas de certificado ausente** — liste as empresas e ofereça um texto
+  pronto de cobrança para a Thays;
+- **divergências de regime** encontradas;
+- qualquer consulta que tenha falhado e ficou para conferência manual.
+
+Nunca envie e-mail para a Thays nem para o cliente por conta própria —
+monte o texto e deixe o envio com o usuário.

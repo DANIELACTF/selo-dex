@@ -22,10 +22,32 @@ envia sempre que a Moraex fecha um cliente novo, e automatiza os passos 2 a
 Disparo **manual**: você roda o comando quando quiser processar um e-mail
 novo da Thays, não fica rodando sozinho em segundo plano.
 
-## Como usar
+## Como usar — dentro do Claude, sem instalar nada
 
-Requer Python 3.10+ e a dependência `reportlab` (usada para gerar o PDF da
-ficha).
+Este é o caminho recomendado para o dia a dia: **não precisa de Python,
+nem clonar o repositório, nem rodar comando.**
+
+1. Numa sessão do Claude, digite `/onboarding` (ou peça "processa essa
+   empresa nova").
+2. Cole o corpo do e-mail "EMPRESA NOVA" da Thays — incluindo a linha de
+   anexos, que é de onde sai a checagem de certificado.
+3. O Claude lê o e-mail, consulta a Receita, monta as fichas e devolve uma
+   página pronta com todas elas + os alertas + a lista de pendentes de
+   distribuição. A página já vem formatada para A4: imprimir ou salvar em
+   PDF é direto pelo navegador.
+
+A skill fica em `.claude/skills/onboarding/` — `SKILL.md` tem o
+procedimento e as regras de negócio, `modelo-ficha.html` é o gabarito
+visual da ficha. Para usar no app do Claude/Cowork (fora do Claude Code),
+basta subir essa pasta como skill.
+
+Exemplo do resultado:
+[Fichas de Onboarding Fiscal — lote de 20/08/2026](https://claude.ai/code/artifact/5e543225-3f21-45de-90db-3bde1a2b0ed5)
+
+## Alternativa: CLI em Python (uso em lote)
+
+Opcional — serve para processar vários e-mails de uma vez ou rodar em
+automação própria. Requer Python 3.10+ e `reportlab` (para gerar o PDF).
 
 ```bash
 pip install -r requirements.txt
@@ -163,7 +185,10 @@ se precisar bater 100% com o nome que o time usaria.
 ## Estrutura
 
 ```
-onboarding/
+.claude/skills/onboarding/
+  SKILL.md             # procedimento + regras de negócio (caminho sem Python)
+  modelo-ficha.html    # gabarito visual da ficha, no padrão do Dep. Fiscal
+onboarding/            # ---- CLI Python opcional, para uso em lote ----
   parser.py          # extrai empresas do texto do e-mail da Thays
   cnpj_api.py         # consulta dados cadastrais do CNPJ na BrasilAPI
   simples_rfb.py       # consulta oficial de opção pelo Simples Nacional (Receita)

@@ -1,0 +1,230 @@
+<title>Fichas de Onboarding Fiscal</title>
+<style>
+  /* Paleta e tipografia vêm do padrão real da ficha da Moraex (PDFs do
+     Departamento Fiscal): barra azul-marinho, células de rótulo cinza,
+     texto preto sobre papel branco, fonte grotesca neutra. A "folha"
+     permanece branca em qualquer tema porque a ficha é feita para ser
+     impressa/arquivada; só o fundo ao redor acompanha o tema do leitor. */
+  :root {
+    --ao-redor: #E8EAED;
+    --papel: #FFFFFF;
+    --tinta: #111111;
+    --navy: #1B3A5C;
+    --rotulo-fundo: #EAEDF0;
+    --linha: #9AA3AC;
+    --apagado: #5A6470;
+    --alerta: #A32020;
+    --alerta-fundo: #FBEDED;
+    --ok: #1F6B3A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ao-redor: #22262B; }
+  }
+  :root[data-theme="dark"] { --ao-redor: #22262B; }
+
+  body {
+    background: var(--ao-redor);
+    color: var(--tinta);
+    font-family: Arial, Helvetica, "Liberation Sans", sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0;
+    padding: 24px 16px;
+  }
+
+  .folha {
+    background: var(--papel);
+    color: var(--tinta);
+    max-width: 820px;
+    margin: 0 auto 28px;
+    padding: 26px 30px 34px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
+  }
+
+  /* ---- Resumo do lote (não faz parte da ficha; some na impressão) ---- */
+  .resumo { max-width: 820px; margin: 0 auto 28px; background: var(--papel); padding: 22px 30px 26px; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+  .resumo h1 { font-size: 17px; margin: 0 0 4px; letter-spacing: .01em; }
+  .resumo .meta { color: var(--apagado); font-size: 12px; margin: 0 0 16px; }
+  .resumo h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--apagado); margin: 18px 0 8px; font-weight: 700; }
+  .resumo ul { margin: 0; padding-left: 18px; }
+  .resumo li { margin-bottom: 5px; }
+  .tag-alerta { color: var(--alerta); font-weight: 700; }
+  .caixa-alerta { background: var(--alerta-fundo); border-left: 3px solid var(--alerta); padding: 10px 14px; margin: 0 0 6px; }
+  .tabela-lote { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tabela-lote th, .tabela-lote td { border: 1px solid var(--linha); padding: 5px 7px; text-align: left; vertical-align: top; }
+  .tabela-lote th { background: var(--rotulo-fundo); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .rolagem { overflow-x: auto; }
+
+  /* ---- Ficha ---- */
+  .cabecalho { background: var(--navy); color: #fff; text-align: center; padding: 9px 10px 10px; }
+  .cabecalho .titulo { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+  .cabecalho .sub { font-size: 11px; opacity: .92; margin-top: 1px; }
+
+  .secao { background: var(--navy); color: #fff; font-size: 11.5px; font-weight: 700; padding: 4px 8px; letter-spacing: .02em; }
+
+  table.grade { width: 100%; border-collapse: collapse; }
+  table.grade th, table.grade td { border: 1px solid var(--linha); padding: 5px 8px; vertical-align: top; font-size: 12px; }
+  table.grade th { background: var(--rotulo-fundo); text-align: left; font-weight: 700; width: 21%; }
+  table.grade td { background: var(--papel); }
+  table.grade td.par { width: 29%; }
+
+  table.orgaos { width: 100%; border-collapse: collapse; }
+  table.orgaos th, table.orgaos td { border: 1px solid var(--linha); padding: 5px 8px; font-size: 12px; text-align: left; vertical-align: top; }
+  table.orgaos thead th { background: var(--rotulo-fundo); font-weight: 700; }
+  table.orgaos td.ok { text-align: center; width: 42px; }
+  table.orgaos .oque { color: var(--apagado); }
+
+  ul.particularidades { list-style: none; margin: 0; padding: 0; }
+  ul.particularidades li { border: 1px solid var(--linha); border-top: none; padding: 4px 8px; font-size: 12px; }
+  ul.particularidades li:first-child { border-top: 1px solid var(--linha); }
+  ul.particularidades li::before { content: "• "; color: var(--navy); font-weight: 700; }
+  ul.particularidades li.atencao::before { content: "▲ "; color: var(--alerta); }
+  ul.particularidades li.atencao { color: var(--alerta); }
+
+  .linhas-livres { border: 1px solid var(--linha); border-top: none; padding: 10px 8px 4px; }
+  .linhas-livres div { border-bottom: 1px solid var(--linha); height: 21px; }
+
+  .rodape-ficha { display: flex; flex-wrap: wrap; gap: 20px; font-size: 12px; margin-top: 14px; }
+  .assinatura { color: var(--apagado); text-align: center; font-size: 10.5px; margin-top: 16px; }
+
+  .marca-ok { color: var(--ok); font-weight: 700; }
+  .marca-pendente { color: var(--alerta); }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .resumo { display: none; }
+    .folha { box-shadow: none; margin: 0; max-width: none; padding: 0; page-break-after: always; }
+    .folha:last-child { page-break-after: auto; }
+  }
+  @page { size: A4; margin: 12mm; }
+</style>
+
+<!--
+  ============================================================
+  MODELO — como usar
+  ============================================================
+  Este arquivo é o gabarito da "Ficha de Abertura — Onboarding Fiscal"
+  da Moraex. A skill `onboarding` copia esta estrutura e substitui os
+  valores entre {{ }} pelos dados de cada empresa do e-mail da Thays.
+
+  Regras de preenchimento:
+  - Checkbox marcado: ☑   |   não marcado: ☐
+  - Campo sem informação disponível: "-"
+  - E-mail não informado no e-mail da Thays: "(não informado)"
+  - Repetir o bloco <section class="folha"> uma vez por empresa.
+  - O bloco .resumo aparece UMA vez, no topo, e some na impressão.
+  ============================================================
+-->
+
+<section class="resumo">
+  <h1>Fichas de Onboarding Fiscal — lote de {{DATA_DO_EMAIL}}</h1>
+  <p class="meta">{{N}} empresa(s) processada(s) a partir do e-mail “EMPRESA NOVA” da Thays · Moraex Consultoria Empresarial</p>
+
+  <h2>Alertas</h2>
+  <!-- Um .caixa-alerta por pendência. Se não houver nenhuma, substituir
+       todo este bloco por: <p>Nenhum alerta neste lote.</p> -->
+  <div class="caixa-alerta">
+    <span class="tag-alerta">Certificado digital ausente</span> — {{EMPRESA}} (N°{{NUMERO}}, CNPJ {{CNPJ}}): cobrar emissão/envio com a Thays.
+  </div>
+  <div class="caixa-alerta">
+    <span class="tag-alerta">Divergência de regime</span> — {{EMPRESA}} (N°{{NUMERO}}): {{DESCRICAO_DA_DIVERGENCIA}}.
+  </div>
+
+  <h2>Empresas pendentes de distribuição</h2>
+  <div class="rolagem">
+    <table class="tabela-lote">
+      <thead>
+        <tr><th>N°</th><th>Empresa</th><th>CNPJ</th><th>Regime</th><th>Simples (RFB)</th><th>Certificado</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{NUMERO}}</td><td>{{EMPRESA}}</td><td>{{CNPJ}}</td><td>{{REGIME_INFORMADO}}</td>
+          <td>{{SIM_NAO_OU_INTERROGACAO}}</td><td>{{SIM_NAO}}</td><td>Pendente</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== Uma <section class="folha"> por empresa ===== -->
+<section class="folha">
+  <div class="cabecalho">
+    <div class="titulo">FICHA DE ABERTURA — ONBOARDING FISCAL</div>
+    <div class="sub">Moraex Consultoria Empresarial · Departamento Fiscal</div>
+  </div>
+
+  <div class="secao">1 · IDENTIFICAÇÃO</div>
+  <table class="grade">
+    <tr><th>N° Cliente</th><td class="par">{{NUMERO}}</td><th>Recebido em</th><td class="par">{{DATA_DO_EMAIL}}</td></tr>
+    <tr><th>Razão social</th><td colspan="3">{{RAZAO_SOCIAL}}</td></tr>
+    <tr><th>CNPJ</th><td class="par">{{CNPJ}}</td><th>Tipo</th><td class="par">{{MATRIZ_OU_FILIAL}}</td></tr>
+    <tr><th>Abertura</th><td class="par">{{DATA_ABERTURA}}</td><th>Porte</th><td class="par">{{PORTE}}</td></tr>
+    <tr><th>Município / UF</th><td class="par">{{MUNICIPIO_UF}}</td><th>Grupo econômico</th><td class="par">{{GRUPO_ECONOMICO}}</td></tr>
+    <tr><th>E-mail do cliente</th><td colspan="3">{{EMAIL_CLIENTE}}</td></tr>
+  </table>
+
+  <div class="secao">2 · ATIVIDADE E REGIME</div>
+  <table class="grade">
+    <tr><th>CNAE principal</th><td colspan="3">{{CNAE_PRINCIPAL}}</td></tr>
+    <tr><th>CNAEs secundários</th><td colspan="3">{{CNAES_SECUNDARIOS}}</td></tr>
+    <tr><th>Regime / enquadramento</th><td colspan="3">{{REGIME_ENQUADRAMENTO}}</td></tr>
+  </table>
+
+  <div class="secao">3 · DOCUMENTOS, CERTIFICADO E PROCURAÇÃO</div>
+  <table class="grade">
+    <tr>
+      <th>Certificado A1 (.pfx)</th><td class="par">{{CHECKBOX}} {{recebido_ou_pendente}}</td>
+      <th>Senha (cofre)</th><td class="par">{{CHECKBOX}} {{arquivada_ou_pendente}}</td>
+    </tr>
+    <tr><th>Procuração e-CAC</th><td class="par">☐ pendente</td><th>Validade do cert.</th><td class="par">-</td></tr>
+  </table>
+
+  <div class="secao">4 · CONSULTAS PRELIMINARES DE SITUAÇÃO FISCAL (ÓRGÃOS)</div>
+  <div class="rolagem">
+    <table class="orgaos">
+      <thead>
+        <tr><th>Órgão / Sistema</th><th>O que consultar</th><th>Situação encontrada</th><th class="ok">OK</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RFB / e-CAC</td>
+          <td class="oque">Situação cadastral, pendências, DTE (caixa postal), parcelamentos</td>
+          <td>{{SITUACAO_CADASTRAL_OU_VAZIO}}</td><td class="ok">☐</td>
+        </tr>
+        <tr>
+          <td>Simples Nacional</td>
+          <td class="oque">Opção/optante, débitos (PGDAS/DAS), exclusão, sublimite</td>
+          <td>{{RESULTADO_DA_CONSULTA_OFICIAL}}</td><td class="ok">{{CHECKBOX}}</td>
+        </tr>
+        <tr>
+          <td>SEFAZ-RJ</td>
+          <td class="oque">Inscrição estadual, situação, DeC-RJ, débitos de ICMS</td>
+          <td></td><td class="ok">☐</td>
+        </tr>
+        <tr>
+          <td>Prefeitura / Município</td>
+          <td class="oque">Inscrição municipal, ISS, situação cadastral, débitos</td>
+          <td></td><td class="ok">☐</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="secao">5 · PARTICULARIDADES ANOTADAS NO E-MAIL / IDENTIFICADAS</div>
+  <ul class="particularidades">
+    <li class="atencao">{{PARTICULARIDADE_DE_ATENCAO}}</li>
+    <li>{{PARTICULARIDADE}}</li>
+  </ul>
+
+  <div class="secao">6 · PARTICULARIDADES A LEVANTAR — REUNIÃO COM O PAULO</div>
+  <div class="linhas-livres">
+    <div></div><div></div><div></div><div></div><div></div>
+  </div>
+
+  <div class="rodape-ficha">
+    <span>Responsável: ______________________</span>
+    <span>Data da consulta: ____/____/______</span>
+    <span>Onboarding concluído: ☐</span>
+  </div>
+  <div class="assinatura">Moraex Consultoria Empresarial — Ficha de Onboarding Fiscal</div>
+</section>
