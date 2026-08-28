@@ -47,12 +47,17 @@ CINZA_TEXTO = colors.HexColor("#555555")
 LARGURA_CONTEUDO = 18.0 * cm
 COLS_2PAR = [3.3 * cm, 5.7 * cm, 3.3 * cm, 5.7 * cm]
 
-ORGAOS_CONSULTA = [
+# As outras 3 linhas continuam manuais (não há fonte automatizada
+# plugada para elas ainda); a linha "Simples Nacional" é preenchida a
+# partir da consulta oficial em onboarding/simples_rfb.py — ver campos
+# simples_situacao/simples_ok em FichaOnboarding.
+ORGAOS_CONSULTA_MANUAIS = [
     ("RFB / e-CAC", "Situação cadastral, pendências, DTE (caixa postal), parcelamentos"),
-    ("Simples Nacional", "Opção/optante, débitos (PGDAS/DAS), exclusão, sublimite"),
     ("SEFAZ-RJ", "Inscrição estadual, situação, DeC-RJ, débitos de ICMS"),
     ("Prefeitura / Município", "Inscrição municipal, ISS, situação cadastral, débitos"),
 ]
+SIMPLES_LABEL = "Simples Nacional"
+SIMPLES_OQUE_CONSULTAR = "Opção/optante, débitos (PGDAS/DAS), exclusão, sublimite"
 
 
 @dataclass
@@ -72,6 +77,8 @@ class FichaOnboarding:
     regime_enquadramento: str
     certificado_status: str  # "recebido" | "pendente"
     senha_status: str  # "arquivada" | "pendente"
+    simples_situacao: str = "(a preencher)"
+    simples_ok: bool = False
     particularidades: list[str] = field(default_factory=list)
 
 
@@ -104,7 +111,13 @@ def gerar_ficha_markdown(ficha: FichaOnboarding) -> str:
         "",
         "## 4 · CONSULTAS PRELIMINARES DE SITUAÇÃO FISCAL (ÓRGÃOS)",
     ]
-    for orgao, oque in ORGAOS_CONSULTA:
+    orgao, oque = ORGAOS_CONSULTA_MANUAIS[0]
+    linhas.append(f"- **{orgao}** — {oque} — situação encontrada: _(a preencher)_ — {_checkbox(False)}")
+    linhas.append(
+        f"- **{SIMPLES_LABEL}** — {SIMPLES_OQUE_CONSULTAR} — "
+        f"situação encontrada: {ficha.simples_situacao} — {_checkbox(ficha.simples_ok)}"
+    )
+    for orgao, oque in ORGAOS_CONSULTA_MANUAIS[1:]:
         linhas.append(f"- **{orgao}** — {oque} — situação encontrada: _(a preencher)_ — {_checkbox(False)}")
     linhas += [
         "",
@@ -258,7 +271,15 @@ def gerar_ficha_pdf(ficha: FichaOnboarding, caminho: Path) -> None:
     L, V = _label_style(), _valor_style()
     header = [Paragraph(h, L) for h in ["Órgão / Sistema", "O que consultar", "Situação encontrada", "OK"]]
     linhas4 = [header]
-    for orgao, oque in ORGAOS_CONSULTA:
+    orgao, oque = ORGAOS_CONSULTA_MANUAIS[0]
+    linhas4.append([Paragraph(orgao, V), Paragraph(oque, V), Paragraph("", V), Paragraph(_checkbox(False), V)])
+    linhas4.append([
+        Paragraph(SIMPLES_LABEL, V),
+        Paragraph(SIMPLES_OQUE_CONSULTAR, V),
+        Paragraph(ficha.simples_situacao, V),
+        Paragraph(_checkbox(ficha.simples_ok), V),
+    ])
+    for orgao, oque in ORGAOS_CONSULTA_MANUAIS[1:]:
         linhas4.append([Paragraph(orgao, V), Paragraph(oque, V), Paragraph("", V), Paragraph(_checkbox(False), V)])
     t4 = Table(linhas4, colWidths=[3.6 * cm, 9.4 * cm, 3.5 * cm, 1.5 * cm])
     t4.setStyle(

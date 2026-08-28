@@ -1,13 +1,17 @@
 from onboarding.cnpj_api import CnaeSecundario, DadosCnpj, tipo_estabelecimento
 from onboarding.parser import EmpresaRaw
 from onboarding.pipeline import (
+    _checar_divergencia,
     _detectar_grupo_economico,
     _formatar_cnae_principal,
     _formatar_cnaes_secundarios,
+    _optante_simples_resolvido,
     _particularidades,
     _regime_enquadramento,
+    _simples_para_ficha,
     slug_ficha,
 )
+from onboarding.simples_rfb import SimplesConsulta
 
 
 def _dados(**kwargs) -> DadosCnpj:
@@ -132,3 +136,48 @@ def test_particularidades_numero_fora_de_serie():
     dados = _dados()
     bullets = _particularidades(raw, dados, "—", None, False, ["717", "1047", "1048"])
     assert any("fora da série" in b for b in bullets)
+
+
+def _simples(**kwargs) -> SimplesConsulta:
+    base = dict(cnpj="00.000.000/0001-00", optante=None, mensagem=None, erro=None)
+    base.update(kwargs)
+    return SimplesConsulta(**base)
+
+
+def test_optante_simples_prioriza_consulta_oficial_sobre_brasilapi():
+    dados = _dados(optante_simples=True)  # BrasilAPI diz que é optante
+    simples = _simples(optante=False)  # mas a consulta oficial diz que não é
+    assert _optante_simples_resolvido(dados, simples) is False
+
+
+def test_optante_simples_cai_para_brasilapi_quando_consulta_oficial_falha():
+    dados = _dados(optante_simples=True)
+    simples = _simples(optante=None, erro="Falha ao abrir a página de consulta")
+    assert _optante_simples_resolvido(dados, simples) is True
+
+
+def test_checar_divergencia_usa_consulta_oficial():
+    raw = _raw(regime_informado="Simples Nacional")
+    dados = _dados(optante_simples=True)  # BrasilAPI diz que sim
+    simples = _simples(optante=False)  # Receita (oficial) diz que não
+    divergencia = _checar_divergencia(raw.regime_informado, dados, simples)
+    assert divergencia is not None
+    assert "Simples" in divergencia
+
+
+def test_simples_para_ficha_optante():
+    situacao, ok = _simples_para_ficha(_simples(optante=True, mensagem="É optante pelo Simples Nacional."))
+    assert ok is True
+    assert "optante" in situacao.lower()
+
+
+def test_simples_para_ficha_nao_consultado():
+    situacao, ok = _simples_para_ficha(_simples(optante=None, erro="Falha ao abrir a página de consulta"))
+    assert ok is False
+    assert "Não consultado" in situacao
+
+
+def test_simples_para_ficha_none():
+    situacao, ok = _simples_para_ficha(None)
+    assert ok is False
+    assert situacao == "(a preencher)"

@@ -1,9 +1,10 @@
 """Orquestra o processamento de um e-mail 'EMPRESA NOVA' da Thays:
 
 1. Faz o parsing das empresas citadas no e-mail.
-2. Consulta a Receita Federal (via BrasilAPI) para cada CNPJ: situação
-   cadastral, atividade, porte, endereço e opção pelo Simples Nacional,
-   comparando com o que a Thays informou.
+2. Consulta a Receita Federal para cada CNPJ: situação cadastral,
+   atividade, porte e endereço via BrasilAPI, e a opção pelo Simples
+   Nacional via consulta oficial (onboarding/simples_rfb.py, a mesma fonte
+   usada numa automação do Cowork) — comparando com o que a Thays informou.
 3. Verifica se o certificado digital (.pfx) da empresa veio anexado ao
    e-mail; se não veio, gera um alerta para cobrança.
 4. Monta a "FICHA DE ABERTURA — ONBOARDING FISCAL" de cada empresa, no
@@ -24,6 +25,7 @@ from pathlib import Path
 from onboarding.cnpj_api import CnaeSecundario, DadosCnpj, consultar_cnpj, tipo_estabelecimento
 from onboarding.ficha_template import FichaOnboarding, gerar_ficha_markdown, gerar_ficha_pdf
 from onboarding.parser import EmpresaRaw, extrair_anexos_email, extrair_data_email, parse_email
+from onboarding.simples_rfb import SimplesConsulta, consultar_optante_simples
 
 # MEI normalmente não opera com e-CNPJ no dia a dia do escritório; ajuste
 # para True se a Moraex também exigir certificado digital para MEIs.
@@ -85,16 +87,48 @@ def certificado_presente(nome_empresa: str, cnpj: str, anexos: list[str]) -> tup
     return False, None
 
 
-def _checar_divergencia(regime_informado: str | None, dados: DadosCnpj) -> str | None:
-    if dados.erro or regime_informado is None:
+def _optante_simples_resolvido(dados: DadosCnpj, simples: SimplesConsulta | None) -> bool | None:
+    """Prioriza a consulta oficial (onboarding/simples_rfb.py); cai para o
+    campo opcao_pelo_simples da BrasilAPI se a consulta oficial falhar ou
+    não tiver sido feita."""
+    if simples is not None and simples.optante is not None:
+        return simples.optante
+    return dados.optante_simples
+
+
+def _checar_divergencia(
+    regime_informado: str | None, dados: DadosCnpj, simples: SimplesConsulta | None
+) -> str | None:
+    if regime_informado is None:
         return None
-    if regime_informado == "Simples Nacional" and dados.optante_simples is False:
+    optante = _optante_simples_resolvido(dados, simples)
+    if optante is None:
+        return None
+    if regime_informado == "Simples Nacional" and optante is False:
         return "Thays informou Simples Nacional, mas a Receita não confirma opção pelo Simples"
-    if regime_informado in ("Lucro Presumido", "Lucro Real") and dados.optante_simples:
+    if regime_informado in ("Lucro Presumido", "Lucro Real") and optante:
         return f"Thays informou {regime_informado}, mas a empresa consta como optante pelo Simples Nacional"
     if regime_informado == "MEI" and dados.optante_mei is False:
         return "Thays informou MEI, mas a Receita não confirma opção pelo MEI"
     return None
+
+
+def _simples_para_ficha(simples: SimplesConsulta | None) -> tuple[str, bool]:
+    """Monta o texto/checkbox da linha 'Simples Nacional' da seção 4 da
+    ficha a partir do resultado da consulta oficial."""
+    if simples is None:
+        return "(a preencher)", False
+    if simples.optante is True:
+        return simples.mensagem or "Optante pelo Simples Nacional (confirmado na Receita).", True
+    if simples.optante is False:
+        return simples.mensagem or "Não optante pelo Simples Nacional (confirmado na Receita).", True
+    if simples.erro:
+        return f"Não consultado ({simples.erro})", False
+    return "(a preencher)", False
+
+
+def _simples_vazio(cnpj: str, motivo: str) -> SimplesConsulta:
+    return SimplesConsulta(cnpj=cnpj, optante=None, mensagem=None, erro=motivo)
 
 
 def slug_ficha(razao_social: str) -> str:
@@ -251,6 +285,7 @@ def _dados_cnpj_vazios(cnpj: str, motivo: str) -> DadosCnpj:
 class ResultadoEmpresa:
     raw: EmpresaRaw
     dados_cnpj: DadosCnpj
+    simples_consulta: SimplesConsulta
     certificado_ok: bool
     certificado_arquivo: str | None
     alerta_certificado: bool
@@ -276,17 +311,21 @@ def processar_email(
     recebido_em = data_email or dt.date.today().strftime("%d/%m/%Y")
     todos_numeros = [e.numero for e in empresas]
 
-    # 1ª passada: CNPJ + tipo de estabelecimento para todas as empresas do
-    # lote, necessário para detectar matriz/filial do mesmo grupo.
+    # 1ª passada: CNPJ + Simples Nacional + tipo de estabelecimento para
+    # todas as empresas do lote, necessário para detectar matriz/filial do
+    # mesmo grupo.
     lista_dados: list[DadosCnpj] = []
+    lista_simples: list[SimplesConsulta] = []
     lista_tipos: list[str] = []
     for raw in empresas:
-        dados = (
-            consultar_cnpj(raw.cnpj)
-            if consultar
-            else _dados_cnpj_vazios(raw.cnpj, "Consulta de CNPJ desabilitada nesta execução")
-        )
+        if consultar:
+            dados = consultar_cnpj(raw.cnpj)
+            simples = consultar_optante_simples(raw.cnpj)
+        else:
+            dados = _dados_cnpj_vazios(raw.cnpj, "Consulta de CNPJ desabilitada nesta execução")
+            simples = _simples_vazio(raw.cnpj, "Consulta de Simples Nacional desabilitada nesta execução")
         lista_dados.append(dados)
+        lista_simples.append(simples)
         lista_tipos.append(tipo_estabelecimento(raw.cnpj))
 
     resultados: list[ResultadoEmpresa] = []
@@ -294,6 +333,7 @@ def processar_email(
 
     for i, raw in enumerate(empresas):
         dados = lista_dados[i]
+        simples = lista_simples[i]
         tipo = lista_tipos[i]
 
         cert_ok, cert_arquivo = certificado_presente(raw.nome, raw.cnpj, anexos)
@@ -302,8 +342,9 @@ def processar_email(
         else:
             alerta_cert = not cert_ok
 
-        divergencia = _checar_divergencia(raw.regime_informado, dados)
+        divergencia = _checar_divergencia(raw.regime_informado, dados, simples)
         grupo = _detectar_grupo_economico(i, empresas, lista_tipos)
+        simples_situacao, simples_ok = _simples_para_ficha(simples)
 
         ficha = FichaOnboarding(
             numero=raw.numero,
@@ -321,6 +362,8 @@ def processar_email(
             regime_enquadramento=_regime_enquadramento(raw.regime_informado, dados),
             certificado_status="recebido" if cert_ok else "pendente",
             senha_status="arquivada" if raw.senha_certificado else "pendente",
+            simples_situacao=simples_situacao,
+            simples_ok=simples_ok,
             particularidades=_particularidades(raw, dados, grupo, divergencia, cert_ok, todos_numeros),
         )
 
@@ -330,9 +373,10 @@ def processar_email(
         gerar_ficha_pdf(ficha, ficha_pdf)
         ficha_md.write_text(gerar_ficha_markdown(ficha), encoding="utf-8")
 
+        optante_resolvido = _optante_simples_resolvido(dados, simples)
         regime_simples_api = (
-            "Sim" if dados.optante_simples is True
-            else "Não" if dados.optante_simples is False
+            "Sim" if optante_resolvido is True
+            else "Não" if optante_resolvido is False
             else "?"
         )
         novas_linhas.append([
@@ -353,7 +397,7 @@ def processar_email(
 
         resultados.append(
             ResultadoEmpresa(
-                raw, dados, cert_ok, cert_arquivo, alerta_cert, divergencia, ficha, ficha_pdf, ficha_md
+                raw, dados, simples, cert_ok, cert_arquivo, alerta_cert, divergencia, ficha, ficha_pdf, ficha_md
             )
         )
 

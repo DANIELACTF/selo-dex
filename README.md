@@ -6,8 +6,11 @@ envia sempre que a Moraex fecha um cliente novo, e automatiza os passos 2 a
 
 1. ~~Receber os e-mails da Thays~~ — **manual por enquanto** (veja
    [Limitações](#limitações-conhecidas)).
-2. Conferir os dados do CNPJ na Receita Federal e se a empresa é optante
-   pelo Simples Nacional, comparando com o que a Thays informou.
+2. Conferir os dados do CNPJ na Receita Federal (BrasilAPI) e se a empresa
+   é optante pelo Simples Nacional — via a mesma [Consulta Optante do
+   Simples Nacional](https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21)
+   oficial que uma automação do Cowork já usa — comparando com o que a
+   Thays informou.
 3. Conferir se o certificado digital (.pfx) veio anexado ao e-mail; se não
    veio, gera um alerta para cobrar a emissão.
 4. Gerar a **"Ficha de Abertura — Onboarding Fiscal"** de cada empresa, no
@@ -82,9 +85,11 @@ Departamento Fiscal (não é mais uma proposta genérica). Estrutura fixa:
    senha (cofre), procuração e-CAC (sempre "pendente", não é
    automatizável a partir do e-mail).
 4. **Consultas preliminares de situação fiscal** — tabela fixa (RFB/e-CAC,
-   Simples Nacional, SEFAZ-RJ, Prefeitura), sempre em branco/não marcada —
-   é o checklist manual do analista, não algo que o e-mail da Thays
-   resolve sozinho.
+   Simples Nacional, SEFAZ-RJ, Prefeitura). A linha **Simples Nacional** é
+   preenchida automaticamente com o resultado da consulta oficial
+   (`onboarding/simples_rfb.py`) e marcada como conferida quando a consulta
+   funciona; as outras três continuam em branco/não marcadas — é o
+   checklist manual do analista, sem fonte automatizada plugada ainda.
 5. **Particularidades anotadas** — bullets gerados por heurística: grupo
    econômico, divergência de regime, empresário individual, UF fora do
    Rio de Janeiro, Nº de cliente fora da série do lote, certificado
@@ -120,6 +125,21 @@ se precisar bater 100% com o nome que o time usaria.
   estável da BrasilAPI; rode `python -m onboarding.cnpj_api <cnpj>` na
   primeira execução real para confirmar, especialmente os campos
   `opcao_pelo_simples`/`opcao_pelo_mei` e a lista `cnaes_secundarios`.
+- **A consulta oficial de Simples Nacional (`onboarding/simples_rfb.py`)
+  também não pôde ser testada ao vivo** — mesmo bloqueio de rede do
+  sandbox, agora para `receita.fazenda.gov.br`. A página é um formulário
+  ASP.NET WebForms clássico; em vez de fixar os nomes dos campos "na
+  marra" (arriscado sem poder testar), o módulo descobre o campo de CNPJ,
+  o botão e os campos ocultos direto do HTML a cada consulta. Rode
+  `python -m onboarding.simples_rfb <cnpj> --debug` na primeira execução
+  real — se `optante` vier `None` com erro de "não consegui identificar"
+  ou "não consegui interpretar o resultado", o `--debug` mostra o que a
+  página realmente devolveu para eu ajustar `_descobrir_campo_cnpj`,
+  `_descobrir_botao` ou os regexes de `_interpretar_resultado`. Quando
+  essa consulta funciona, ela tem prioridade sobre o campo
+  `opcao_pelo_simples` da BrasilAPI (que serve de resposta alternativa se
+  a consulta oficial falhar) — ver `_optante_simples_resolvido()` em
+  `onboarding/pipeline.py`.
 - **A reprodução visual do PDF é uma aproximação fiel, não um clone
   byte-a-byte** — não tínhamos acesso a um arquivo-fonte editável do
   template, só aos PDFs finais. As fontes DejaVu Sans usadas para os
@@ -145,7 +165,8 @@ se precisar bater 100% com o nome que o time usaria.
 ```
 onboarding/
   parser.py          # extrai empresas do texto do e-mail da Thays
-  cnpj_api.py         # consulta CNPJ/Simples Nacional na BrasilAPI
+  cnpj_api.py         # consulta dados cadastrais do CNPJ na BrasilAPI
+  simples_rfb.py       # consulta oficial de opção pelo Simples Nacional (Receita)
   ficha_template.py   # modelo de dados + renderização da ficha (PDF/Markdown)
   pipeline.py          # orquestra: parse -> CNPJ -> certificado -> ficha -> pendentes
   fonts/               # DejaVu Sans embutida (checkboxes/acentuação no PDF)
