@@ -1,3 +1,12 @@
+# Automação de onboarding (Python) — saídas geradas pelo pipeline
+__pycache__/
+*.pyc
+.pytest_cache/
+fichas/*.md
+data/*.csv
+!fichas/.gitkeep
+!data/.gitkeep
+
 # Built application files
 *.apk
 *.ap_
