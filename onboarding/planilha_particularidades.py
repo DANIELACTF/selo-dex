@@ -21,6 +21,8 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+from onboarding.competencia import MESES_CARENCIA, competencia_atual, competencia_liberacao
+
 NAVY = "1B3A5C"
 CINZA_CAB = "EAEDF0"
 AMARELO_PREENCHER = "FFF7E0"
@@ -69,6 +71,7 @@ COLUNAS = [
     ("Backup / apoio", 20, None, ANALISTAS),
     ("Segmento", 13, None, SEGMENTOS),
     ("Regime confirmado", 18, "regime", REGIMES),
+    ("Competência entrada", 18, "competencia", None),
     ("Obs. para a carteira", 40, None, None),
 ]
 
@@ -108,6 +111,15 @@ def _aba_instrucoes(wb: Workbook) -> None:
         ("5. 'Responsável (analista)' e 'Nível / equipe' definem quem assume a empresa;", False),
         ("   enquanto não houver definição, mantenha Situação = 'Pendente distribuição'.", False),
         ("", False),
+        (f"Carência de {MESES_CARENCIA} competências", True),
+        ("A empresa nova NÃO vai direto para a carteira do analista: fica sob a Gestão", False),
+        (f"Fiscal (aba 'Pendentes Daniela') por {MESES_CARENCIA} competências e só depois é distribuída.", False),
+        ("'Competência entrada' já vem preenchida com a competência do lote — altere só se", False),
+        ("a empresa entrou em outro mês. A competência de liberação é calculada a partir", False),
+        (f"dela: entrou em 08/2026 → libera em {competencia_liberacao('08/2026')}.", False),
+        ("Preencher 'Responsável (analista)' não antecipa a distribuição: enquanto a", False),
+        ("carência não vencer, a empresa continua em 'Pendentes Daniela'.", False),
+        ("", False),
         ("Depois de preencher", True),
         ("Suba a planilha no Claude e peça as fichas definitivas. Serão geradas as fichas,", False),
         ("a estrutura de pastas da rede, o roteiro de cadastro no G-Click e as linhas para", False),
@@ -134,8 +146,9 @@ def _aba_listas(wb: Workbook) -> None:
     ws.sheet_state = "hidden"
 
 
-def gerar(csv_path: Path, saida: Path) -> Path:
+def gerar(csv_path: Path, saida: Path, competencia: str | None = None) -> Path:
     empresas = _ler_pendentes(csv_path)
+    competencia = competencia or competencia_atual()
     wb = Workbook()
     wb.remove(wb.active)
     _aba_instrucoes(wb)
@@ -164,6 +177,8 @@ def gerar(csv_path: Path, saida: Path) -> Path:
                 valor = "recebido" if emp.get("certificado_recebido") == "Sim" else "pendente"
             elif chave == "regime":
                 valor = emp.get("regime_informado") or "⚠ A confirmar"
+            elif chave == "competencia":
+                valor = competencia
 
             c = ws.cell(row=linha, column=i, value=valor)
             c.border = BORDA

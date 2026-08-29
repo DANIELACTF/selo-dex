@@ -94,8 +94,15 @@ Da **seção 6** da ficha, em `‹confirmar: Responsáveis / Equipe›`:
 - [ ] Analista responsável
 - [ ] Nível / equipe
 - [ ] Backup / apoio, quando houver
-- [ ] Situação: enquanto for "Pendente distribuição", mantenha na Gestão
-      Fiscal (Daniela) — não atribua a um analista antes da definição
+- [ ] Situação
+
+⚠ **Cliente novo cumpre três competências sob a Gestão Fiscal (Daniela)
+antes de ser distribuído.** No cadastro inicial, o responsável é a Gestão
+Fiscal, mesmo que a ficha já traga um analista sugerido — o nome ali é
+para quando a carência vencer. Registre a competência de liberação junto
+com a anotação, e só troque o responsável no G-Click na competência em que
+a empresa for efetivamente distribuída (é quando ela sai de "Pendentes
+Daniela" e entra na Carteira Completa).
 
 ## 6 · Certificado digital
 

@@ -1,17 +1,25 @@
-"""Alimenta a Carteira Tributária Fiscal com as empresas já implantadas.
+"""Alimenta a Carteira Tributária Fiscal respeitando a carência.
 
-Entrada: a planilha de particularidades preenchida + a Carteira atual.
-Saída:   uma CÓPIA nova da Carteira, com as empresas acrescentadas.
+Empresa nova não entra direto na carteira do analista. Ela cumpre
+`MESES_CARENCIA` competências sob a Gestão Fiscal, na aba "Pendentes
+Daniela", e só depois é distribuída. A rotina faz os dois movimentos:
 
-Nunca sobrescreve o arquivo original — grava sempre em arquivo novo, para
-a versão anterior continuar disponível se algo sair errado.
+1. **Entrada em carência** — empresa da planilha que ainda não está em
+   lugar nenhum entra em "Pendentes Daniela" com a competência de entrada
+   e a competência em que libera.
+2. **Distribuição** — empresa em "Pendentes Daniela" cuja carência já
+   venceu E que tenha responsável definido na planilha sai de lá e entra
+   na "Carteira Completa".
 
-A aba "Resumo Equipe" se recalcula sozinha: as células de Total e de
-regime são COUNTIF/COUNTIFS sobre a "Carteira Completa". Ao abrir no
-Excel, os números da equipe já vêm atualizados — não mexemos neles.
+Grava sempre em arquivo NOVO — a carteira original nunca é sobrescrita.
+
+A aba "Resumo Equipe" é COUNTIF sobre a "Carteira Completa": recalcula
+sozinha ao abrir no Excel. Empresa em carência não conta para nenhum
+analista, que é o comportamento correto — ela ainda não é de ninguém.
 """
 from __future__ import annotations
 
+import copy as _copy
 import datetime as dt
 import sys
 from pathlib import Path
@@ -19,12 +27,23 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
+from onboarding.competencia import (
+    MESES_CARENCIA,
+    competencia_atual,
+    competencia_liberacao,
+    competencias_restantes,
+    liberada,
+    validar,
+)
+
 ABA_CARTEIRA = "Carteira Completa"
 ABA_PENDENTES = "Pendentes Daniela"
 ABA_PARTICULARIDADES = "Particularidades"
 
 STATUS_NOVO = "🆕 Novo"
-SITUACAO_PENDENTE = "Pendente distribuição"
+ORIGEM_ONBOARDING = "🆕 Onboarding"
+COL_COMPETENCIA = "Competência entrada"
+COL_LIBERA = "Libera em"
 
 
 def _indices(ws) -> dict[str, int]:
@@ -35,14 +54,31 @@ def _indices(ws) -> dict[str, int]:
     }
 
 
+def _garantir_colunas(ws, colunas: list[str]) -> dict[str, int]:
+    """Acrescenta ao fim da aba as colunas de controle que faltarem.
+
+    Aditivo de propósito: não mexe nas colunas que o escritório já usa.
+    """
+    idx = _indices(ws)
+    for nome in colunas:
+        if nome not in idx:
+            nova = ws.max_column + 1
+            cabecalho = ws.cell(row=1, column=nova, value=nome)
+            modelo = ws.cell(row=1, column=1)
+            cabecalho.font = _copy.copy(modelo.font)
+            cabecalho.fill = _copy.copy(modelo.fill)
+            ws.column_dimensions[get_column_letter(nova)].width = 18
+            idx[nome] = nova
+    return idx
+
+
 def _ler_particularidades(path: Path) -> list[dict]:
     wb = load_workbook(path, data_only=True)
     if ABA_PARTICULARIDADES not in wb.sheetnames:
         raise SystemExit(f"A planilha {path} não tem a aba '{ABA_PARTICULARIDADES}'.")
     ws = wb[ABA_PARTICULARIDADES]
     idx = _indices(ws)
-    obrigatorias = ["N° Cliente", "Razão social", "CNPJ"]
-    faltando = [c for c in obrigatorias if c not in idx]
+    faltando = [c for c in ("N° Cliente", "Razão social", "CNPJ") if c not in idx]
     if faltando:
         raise SystemExit(f"Colunas ausentes na planilha de particularidades: {faltando}")
 
@@ -64,115 +100,190 @@ def _ler_particularidades(path: Path) -> list[dict]:
             "analista": val("Responsável (analista)"),
             "nivel": val("Nível / equipe"),
             "situacao": val("Situação"),
+            "competencia": val(COL_COMPETENCIA),
             "obs": val("Obs. para a carteira"),
         })
     return empresas
 
 
-def _numeros_existentes(ws, col_numero: int) -> set[str]:
+def _numeros(ws, col: int) -> set[str]:
     return {
-        str(r[col_numero - 1].value).strip()
+        str(r[col - 1].value).strip()
         for r in ws.iter_rows(min_row=2)
-        if r[col_numero - 1].value not in (None, "")
+        if r[col - 1].value not in (None, "")
     }
 
 
 def _estender_filtro(ws, ultima_linha: int) -> None:
     if ws.auto_filter.ref:
-        largura = ws.max_column
-        ws.auto_filter.ref = f"A1:{get_column_letter(largura)}{ultima_linha}"
+        ws.auto_filter.ref = f"A1:{get_column_letter(ws.max_column)}{max(ultima_linha, 1)}"
 
 
-def alimentar(particularidades: Path, carteira: Path, saida: Path) -> dict:
+def alimentar(
+    particularidades: Path,
+    carteira: Path,
+    saida: Path,
+    referencia: str | None = None,
+) -> dict:
+    referencia = referencia or competencia_atual()
+    validar(referencia)
+
     empresas = _ler_particularidades(particularidades)
+    por_numero = {e["numero"]: e for e in empresas}
     wb = load_workbook(carteira)  # data_only=False: preserva as fórmulas do Resumo
 
-    if ABA_CARTEIRA not in wb.sheetnames:
-        raise SystemExit(f"A carteira {carteira} não tem a aba '{ABA_CARTEIRA}'.")
+    for aba in (ABA_CARTEIRA, ABA_PENDENTES):
+        if aba not in wb.sheetnames:
+            raise SystemExit(f"A carteira {carteira} não tem a aba '{aba}'.")
 
     ws = wb[ABA_CARTEIRA]
-    idx = _indices(ws)
-    ja_na_carteira = _numeros_existentes(ws, idx["N° Cliente"])
+    idx_cart = _indices(ws)
+    wsp = wb[ABA_PENDENTES]
+    idx_pend = _garantir_colunas(wsp, [COL_COMPETENCIA, COL_LIBERA])
 
-    acrescentadas, ja_existiam, sem_analista = [], [], []
-    linha = ws.max_row
+    ja_na_carteira = _numeros(ws, idx_cart["N° Cliente"])
+    ja_em_pendentes = _numeros(wsp, idx_pend["N° Cliente"])
 
+    r: dict[str, list] = {
+        "entraram_carencia": [], "distribuidas": [], "em_carencia": [],
+        "liberadas_sem_responsavel": [], "ja_na_carteira": [], "competencia_invalida": [],
+    }
+
+    # ---- 1. entrada em carência -------------------------------------
+    linha_p = wsp.max_row
     for emp in empresas:
         if emp["numero"] in ja_na_carteira:
-            ja_existiam.append(emp["numero"])
+            r["ja_na_carteira"].append(emp["numero"])
             continue
-        if not emp["analista"]:
-            # Sem responsável definido a empresa não entra na carteira: ela
-            # ficaria fora das contagens por analista do Resumo Equipe.
-            sem_analista.append(emp["numero"])
+        if emp["numero"] in ja_em_pendentes:
             continue
 
-        linha += 1
+        competencia = emp["competencia"] or referencia
+        try:
+            validar(competencia)
+        except ValueError as exc:
+            r["competencia_invalida"].append(f"{emp['numero']}: {exc}")
+            continue
+
+        linha_p += 1
         valores = {
-            "N° Cliente": emp["numero"],
-            "Nome": emp["nome"],
-            "CNPJ": emp["cnpj"],
-            "Regime Tributário": emp["regime"],
-            "Segmento": emp["segmento"],
-            "Analista Responsável": emp["analista"],
-            "Nível": emp["nivel"],
+            "N° Cliente": emp["numero"], "Nome": emp["nome"], "CNPJ": emp["cnpj"],
+            "Regime Tributário": emp["regime"], "Segmento": emp["segmento"],
+            "Sugestão Analista": (
+                f"{emp['analista']} ({emp['nivel']})" if emp["analista"] and emp["nivel"]
+                else emp["analista"]
+            ),
+            "Origem": ORIGEM_ONBOARDING,
+            "Observação": emp["obs"],
+            COL_COMPETENCIA: competencia,
+            COL_LIBERA: competencia_liberacao(competencia),
+        }
+        for coluna, col_idx in idx_pend.items():
+            if coluna in valores and valores[coluna]:
+                wsp.cell(row=linha_p, column=col_idx, value=valores[coluna])
+        r["entraram_carencia"].append(f"{emp['numero']} (libera em {valores[COL_LIBERA]})")
+        ja_em_pendentes.add(emp["numero"])
+
+    # ---- 2. distribuição de quem venceu a carência ------------------
+    # Varre de cima para baixo para a carteira sair na mesma ordem da aba
+    # de pendentes; só depois apaga as linhas, de baixo para cima, para os
+    # índices não escorregarem durante a remoção.
+    a_distribuir: list[tuple[int, dict]] = []
+
+    for linha in range(2, wsp.max_row + 1):
+        numero = wsp.cell(row=linha, column=idx_pend["N° Cliente"]).value
+        if numero in (None, ""):
+            continue
+        numero = str(numero).strip()
+        entrada = wsp.cell(row=linha, column=idx_pend[COL_COMPETENCIA]).value
+
+        if not entrada:
+            # Linha antiga, anterior ao controle de carência: sem competência
+            # registrada não dá para saber quando vence — não mexemos nela.
+            continue
+        entrada = str(entrada).strip()
+        try:
+            validar(entrada)
+        except ValueError as exc:
+            r["competencia_invalida"].append(f"{numero}: {exc}")
+            continue
+
+        if not liberada(entrada, referencia):
+            faltam = competencias_restantes(entrada, referencia)
+            verbo = "faltam" if faltam > 1 else "falta"
+            r["em_carencia"].append(
+                f"{numero} (libera em {competencia_liberacao(entrada)}, "
+                f"{verbo} {faltam} competência{'s' if faltam > 1 else ''})"
+            )
+            continue
+
+        emp = por_numero.get(numero)
+        if not emp or not emp["analista"]:
+            r["liberadas_sem_responsavel"].append(
+                f"{numero} (liberada desde {competencia_liberacao(entrada)})"
+            )
+            continue
+
+        a_distribuir.append((linha, emp))
+
+    linha_c = ws.max_row
+    for _, emp in a_distribuir:
+        linha_c += 1
+        valores = {
+            "N° Cliente": emp["numero"], "Nome": emp["nome"], "CNPJ": emp["cnpj"],
+            "Regime Tributário": emp["regime"], "Segmento": emp["segmento"],
+            "Analista Responsável": emp["analista"], "Nível": emp["nivel"],
             "Status": STATUS_NOVO,
         }
-        for coluna, col_idx in idx.items():
+        for coluna, col_idx in idx_cart.items():
             if coluna in valores:
-                ws.cell(row=linha, column=col_idx, value=valores[coluna])
-        acrescentadas.append(emp["numero"])
+                ws.cell(row=linha_c, column=col_idx, value=valores[coluna])
+        r["distribuidas"].append(emp["numero"])
 
-    _estender_filtro(ws, linha)
+    for linha, _ in reversed(a_distribuir):
+        wsp.delete_rows(linha)
 
-    pendentes_removidas = []
-    if ABA_PENDENTES in wb.sheetnames and acrescentadas:
-        wsp = wb[ABA_PENDENTES]
-        idxp = _indices(wsp)
-        col_num = idxp.get("N° Cliente")
-        if col_num:
-            for r in range(wsp.max_row, 1, -1):
-                valor = wsp.cell(row=r, column=col_num).value
-                if valor is not None and str(valor).strip() in acrescentadas:
-                    wsp.delete_rows(r)
-                    pendentes_removidas.append(str(valor).strip())
-            _estender_filtro(wsp, wsp.max_row)
+    _estender_filtro(ws, linha_c)
+    _estender_filtro(wsp, wsp.max_row)
 
     saida.parent.mkdir(parents=True, exist_ok=True)
     wb.save(saida)
-    return {
-        "saida": saida,
-        "acrescentadas": acrescentadas,
-        "ja_existiam": ja_existiam,
-        "sem_analista": sem_analista,
-        "pendentes_removidas": pendentes_removidas,
-    }
+    r["saida"] = saida
+    r["referencia"] = referencia
+    return r
+
+
+def _bloco(titulo: str, itens: list) -> None:
+    if itens:
+        print(f"\n{titulo} ({len(itens)}):")
+        for i in itens:
+            print(f"  - {i}")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    ref = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--competencia=")), None)
+
+    if len(args) < 2:
         print(
             "Uso: python -m onboarding.alimentar_carteira "
-            "<particularidades.xlsx> <carteira.xlsx> [saida.xlsx]"
+            "<particularidades.xlsx> <carteira.xlsx> [saida.xlsx] [--competencia=MM/AAAA]"
         )
         raise SystemExit(1)
 
-    part = Path(sys.argv[1])
-    cart = Path(sys.argv[2])
-    saida = Path(sys.argv[3]) if len(sys.argv) > 3 else cart.with_name(
+    part, cart = Path(args[0]), Path(args[1])
+    saida = Path(args[2]) if len(args) > 2 else cart.with_name(
         f"{cart.stem}-atualizada-{dt.date.today().isoformat()}.xlsx"
     )
-    r = alimentar(part, cart, saida)
+
+    r = alimentar(part, cart, saida, ref)
 
     print(f"Carteira gravada em: {r['saida']}")
-    print(f"Acrescentadas ({len(r['acrescentadas'])}): {', '.join(r['acrescentadas']) or '—'}")
-    if r["pendentes_removidas"]:
-        print(f"Saíram de '{ABA_PENDENTES}': {', '.join(r['pendentes_removidas'])}")
-    if r["ja_existiam"]:
-        print(f"Já estavam na carteira, ignoradas: {', '.join(r['ja_existiam'])}")
-    if r["sem_analista"]:
-        print(
-            f"SEM responsável definido, NÃO entraram: {', '.join(r['sem_analista'])}\n"
-            "  Preencha 'Responsável (analista)' na planilha e rode de novo."
-        )
+    print(f"Competência de referência: {r['referencia']} | carência: {MESES_CARENCIA} competências")
+    _bloco("Entraram em carência (Pendentes Daniela)", r["entraram_carencia"])
+    _bloco("Distribuídas para a carteira", r["distribuidas"])
+    _bloco("Ainda em carência", r["em_carencia"])
+    _bloco("Carência vencida, mas SEM responsável definido", r["liberadas_sem_responsavel"])
+    _bloco("Já estavam na carteira, ignoradas", r["ja_na_carteira"])
+    _bloco("Competência inválida — corrija na planilha", r["competencia_invalida"])
     print("\nAbra no Excel para o 'Resumo Equipe' recalcular as contagens.")

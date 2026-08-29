@@ -91,6 +91,59 @@ detecção de grupo econômico, particularidades) — inclusive reproduzindo os
 casos reais que vieram nas 12 fichas de exemplo (TATY matriz+filial, ERFOLG
 rede, JOAO PEDRO BARROS N° fora da série).
 
+## Parte 2 — implantação, depois da reunião com o Paulo
+
+A triagem acima é a **primeira** etapa. A segunda começa quando as
+definições da reunião estão prontas, e é coberta pela skill
+`implantacao-cliente-fiscal`:
+
+1. **Planilha de particularidades** — o formulário que o Dep. Fiscal
+   preenche à mão, já com N°/razão social/CNPJ vindos da triagem e listas
+   suspensas nos campos de decisão.
+
+   ```bash
+   python -m onboarding.planilha_particularidades \
+       data/empresas_pendentes_distribuicao.csv data/particularidades.xlsx
+   ```
+
+2. **Ficha Cadastral definitiva** — o documento da pasta do cliente, com
+   campos que a Ficha de Abertura não tem (nome fantasia, natureza
+   jurídica, IE/IM, responsável pela carteira) e as particularidades em
+   dois níveis: ▶ da reunião, • herdadas do onboarding.
+3. **Pastas na rede** — `estrutura-pastas/` (convenção + script PowerShell).
+4. **Cadastro no G-Click** — `roteiro-gclick.md`.
+5. **Carteira Tributária Fiscal**:
+
+   ```bash
+   python -m onboarding.alimentar_carteira \
+       data/particularidades.xlsx data/carteira.xlsx data/carteira-nova.xlsx \
+       [--competencia=MM/AAAA]
+   ```
+
+### A carência de três competências
+
+Empresa nova **não** vai direto para a carteira do analista: cumpre três
+competências sob a Gestão Fiscal, na aba "Pendentes Daniela", e só depois
+é distribuída. Entrou em 08/2026 → libera em 11/2026.
+
+A regra vive em `onboarding/competencia.py` (`MESES_CARENCIA`), e a
+contagem adotada é: a empresa permanece nas competências X, X+1 e X+2, e
+fica apta a partir de X+3. Se o escritório contar de outro jeito, mude só
+esse módulo — todo o resto lê de lá.
+
+Consequências no código, todas cobertas por teste:
+
+- Preencher o analista na planilha **não antecipa** a distribuição; ele
+  fica como "Sugestão Analista" enquanto a carência corre.
+- Carência vencida sem responsável definido: a empresa fica onde está e é
+  listada — distribuir é decisão de gente, não do script.
+- Linha antiga de "Pendentes Daniela" sem competência registrada não é
+  tocada: sem data de entrada não há como saber quando vence.
+- Empresa em carência não conta para nenhum analista no "Resumo Equipe" —
+  ela ainda não é de ninguém. O resumo é COUNTIF sobre a "Carteira
+  Completa" e recalcula sozinho ao abrir no Excel; a rotina preserva
+  essas fórmulas e grava sempre em arquivo novo.
+
 ## O padrão da ficha
 
 A "Ficha de Abertura — Onboarding Fiscal" (`onboarding/ficha_template.py`)
@@ -190,12 +243,17 @@ se precisar bater 100% com o nome que o time usaria.
   modelo-ficha.html    # gabarito visual da ficha, no padrão do Dep. Fiscal
 onboarding/            # ---- CLI Python opcional, para uso em lote ----
   parser.py          # extrai empresas do texto do e-mail da Thays
+  competencia.py       # aritmética de competências e a carência de distribuição
+  planilha_particularidades.py  # gera o formulário pós-reunião (.xlsx)
+  alimentar_carteira.py         # carência + distribuição na Carteira Fiscal
   cnpj_api.py         # consulta dados cadastrais do CNPJ na BrasilAPI
   simples_rfb.py       # consulta oficial de opção pelo Simples Nacional (Receita)
   ficha_template.py   # modelo de dados + renderização da ficha (PDF/Markdown)
   pipeline.py          # orquestra: parse -> CNPJ -> certificado -> ficha -> pendentes
   fonts/               # DejaVu Sans embutida (checkboxes/acentuação no PDF)
 cli.py                 # comando manual (python cli.py --input ...)
+estrutura-pastas/       # convenção de pastas do cliente + script PowerShell
+roteiro-gclick.md       # checklist de cadastro no G-Click
 fixtures/               # 5 e-mails reais da Thays usados para validar o parser
 tests/                  # testes automatizados contra os exemplos reais
 fichas/                 # saída: uma ficha .pdf + .md por empresa (gerado, git-ignored)
