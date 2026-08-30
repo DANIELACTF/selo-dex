@@ -51,19 +51,43 @@ Pessoal e Contábil.
   merece destaque, porque muda ISS/IM e a SEFAZ competente.
 - Certificado digital é sempre **A1 (.pfx)**. A senha às vezes vem no corpo
   do e-mail, às vezes no próprio nome do arquivo.
+- **Competência** é o mês de referência, escrito `MM/AAAA`.
+
+## A carência de três competências
+
+Cliente novo **não** vai direto para a carteira de um analista. Ele fica
+sob a Gestão Fiscal (Daniela Carvalho), na aba "Pendentes Daniela" da
+Carteira Tributária Fiscal, por **três competências**, e só então é
+distribuído. Entrou em 08/2026 → libera em 11/2026.
+
+Enquanto a carência corre:
+
+- o responsável pela empresa é a **Gestão Fiscal**, mesmo que já se saiba
+  quem vai assumir depois — esse nome fica como *sugestão*;
+- na ficha, a situação é `Pendente distribuição — libera em MM/AAAA`;
+- a empresa não entra na contagem de nenhum analista.
+
+Carência vencida não distribui sozinha: sem responsável definido, a
+empresa permanece onde está e isso é apontado. Distribuir é decisão de
+gente.
 
 ## Rotinas e suas skills
 
 | Momento | Skill |
 |---|---|
-| E-mail "EMPRESA NOVA" chega → ficha + distribuição | `ficha-abertura-fiscal` |
-| Empresa distribuída → formalização do cliente | `onboarding-cliente` |
+| E-mail "EMPRESA NOVA" chega → triagem e Ficha de Abertura | `ficha-abertura-fiscal` |
+| Reunião com o Paulo feita → ficha definitiva, pastas, G-Click, carteira | `implantacao-cliente-fiscal` |
+| Cliente assinou → contrato, procuração e-CAC, pasta digital | `onboarding-cliente` |
 | Dúvida de enquadramento (Fator R, anexo, regime) | `analise-tributaria-regime` |
 | Faturamento do mês → DAS | `apuracao-simples-nacional` |
 | Virada do mês → fechamento contábil | `fechamento-mensal` |
 | Fechamento pronto → relatório ao cliente | `relatorio-mensal` |
 | Contas a receber, aging, PCLD | `conciliacao-clientes` |
 | Cruzamento de obrigações acessórias (SPED) | `revisao-fiscal-cruzamento-sped` |
+
+As duas primeiras são as etapas do onboarding fiscal, nesta ordem: a
+triagem sai do e-mail; a implantação começa quando as definições da
+reunião estão prontas.
 
 Quando o pedido cobrir mais de uma etapa, execute na ordem do fluxo e diga
 qual etapa ficou para depois.
