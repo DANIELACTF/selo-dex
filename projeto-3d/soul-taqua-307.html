@@ -1,0 +1,1825 @@
+<title>Soul Taquá 307</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bone:#F3EFE7; --paper:#FBF9F5; --sink:#E9E4D8;
+  --ink:#23251E; --ink2:#4C4E43; --muted:#7E8073;
+  --olive:#6B7059; --olive-soft:#8C9174;
+  --brass:#9E7E34; --brass-lit:#C09A48;
+  --stone:#D9D5CC; --line:#DCD6C8; --line-soft:#E7E2D6;
+  --panel:rgba(251,249,245,.92); --panel-solid:#FBF9F5;
+  --shadow:0 1px 2px rgba(35,37,30,.06), 0 8px 28px rgba(35,37,30,.10);
+  --warn:#9A5A2B;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bone:#171814; --paper:#1E201A; --sink:#121310;
+    --ink:#ECE8DE; --ink2:#C0BDB1; --muted:#8B8D7F;
+    --olive:#A2AB88; --olive-soft:#7E8768;
+    --brass:#D2AE68; --brass-lit:#E4C685;
+    --stone:#34362F; --line:#33352D; --line-soft:#282A23;
+    --panel:rgba(30,32,26,.92); --panel-solid:#1E201A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.42);
+    --warn:#D89A5E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bone:#171814; --paper:#1E201A; --sink:#121310;
+  --ink:#ECE8DE; --ink2:#C0BDB1; --muted:#8B8D7F;
+  --olive:#A2AB88; --olive-soft:#7E8768;
+  --brass:#D2AE68; --brass-lit:#E4C685;
+  --stone:#34362F; --line:#33352D; --line-soft:#282A23;
+  --panel:rgba(30,32,26,.92); --panel-solid:#1E201A;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.42);
+  --warn:#D89A5E;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bone); color:var(--ink);
+  font-family:"Karla","Helvetica Neue",Arial,sans-serif;
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+h1,h2,h3{font-family:"Marcellus","Times New Roman",serif; font-weight:400; text-wrap:balance; margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--muted);
+}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer}
+:focus-visible{outline:2px solid var(--brass); outline-offset:2px; border-radius:2px}
+
+/* ---------- stage ---------- */
+#stage{position:fixed; inset:0; background:var(--sink)}
+#gl{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none}
+#gl.grab{cursor:grab} #gl.grabbing{cursor:grabbing} #gl.walk{cursor:crosshair}
+#fallback{
+  position:absolute; inset:0; display:none; place-content:center; text-align:center;
+  padding:40px; color:var(--ink2);
+}
+#fallback.on{display:grid}
+
+/* ---------- shared panel chrome ---------- */
+.rail{
+  position:absolute; top:0; bottom:0; width:302px; z-index:5;
+  background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+#rail-l{left:0; border-right:1px solid var(--line)}
+#rail-r{right:0; width:330px; border-left:1px solid var(--line)}
+.rail-scroll{overflow-y:auto; overscroll-behavior:contain; flex:1; padding:0 20px 24px}
+.rail-scroll::-webkit-scrollbar{width:8px}
+.rail-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px}
+
+.titleblock{padding:20px 20px 16px; border-bottom:1px solid var(--line)}
+.titleblock h1{font-size:23px; line-height:1.14; letter-spacing:.005em}
+.titleblock .sub{margin-top:6px; font-size:12.5px; color:var(--ink2); line-height:1.45}
+.stamp{display:flex; gap:6px; align-items:baseline; margin-top:12px; flex-wrap:wrap}
+.chip{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; padding:3px 7px; border:1px solid var(--line);
+  border-radius:2px; color:var(--muted); white-space:nowrap;
+}
+.chip.accent{color:var(--brass); border-color:color-mix(in srgb, var(--brass) 45%, transparent)}
+
+.sec{padding-top:20px}
+.sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding-bottom:8px}
+
+/* ---------- room list ---------- */
+.rooms{display:flex; flex-direction:column; gap:1px; background:var(--line-soft); border:1px solid var(--line-soft); border-radius:3px; overflow:hidden}
+.room{
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+  padding:9px 11px; background:var(--panel-solid); text-align:left; width:100%;
+  transition:background .12s ease;
+}
+.room:hover{background:color-mix(in srgb, var(--brass) 8%, var(--panel-solid))}
+.room[aria-current="true"]{background:color-mix(in srgb, var(--brass) 15%, var(--panel-solid))}
+.room .nm{font-size:13.5px; font-weight:500; display:flex; align-items:center; gap:7px}
+.swatch{width:9px; height:9px; border-radius:1px; flex:none; border:1px solid rgba(0,0,0,.14)}
+.room .dim{font-size:11px; color:var(--muted); margin-top:1px}
+.room .ar{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink2); font-variant-numeric:tabular-nums}
+
+/* ---------- controls ---------- */
+.seg{display:flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+.seg button{
+  flex:1; padding:7px 4px; font-size:11.5px; font-weight:500; color:var(--ink2);
+  border-right:1px solid var(--line); transition:background .12s ease, color .12s ease;
+}
+.seg button:last-child{border-right:none}
+.seg button:hover{background:color-mix(in srgb, var(--brass) 10%, transparent)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bone)}
+
+.toggles{display:flex; flex-direction:column; gap:2px}
+.tg{display:flex; align-items:center; gap:9px; padding:5px 2px; width:100%; text-align:left; font-size:13px; color:var(--ink2)}
+.tg:hover{color:var(--ink)}
+.box{
+  width:15px; height:15px; flex:none; border:1px solid var(--muted); border-radius:2px;
+  display:grid; place-content:center; transition:background .12s, border-color .12s;
+}
+.tg[aria-pressed="true"] .box{background:var(--brass); border-color:var(--brass)}
+.tg[aria-pressed="true"]{color:var(--ink)}
+.box svg{width:9px; height:9px; opacity:0; transition:opacity .12s}
+.tg[aria-pressed="true"] .box svg{opacity:1}
+.tg .k{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:10px; color:var(--muted)}
+
+/* ---------- right panel ---------- */
+#rp-head{padding:18px 20px 14px; border-bottom:1px solid var(--line)}
+#rp-head h2{font-size:20px; line-height:1.16}
+#rp-kicker{margin-bottom:5px}
+#rp-dims{margin-top:9px; display:flex; gap:6px 13px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink2)}
+#rp-dims b{font-weight:500; color:var(--ink)}
+.p-note{font-size:13px; color:var(--ink2); line-height:1.55; margin:0 0 10px}
+.spec{display:flex; flex-direction:column; gap:0}
+.spec .row{display:grid; grid-template-columns:1fr auto; gap:12px; padding:7px 0; border-bottom:1px dotted var(--line); font-size:12.5px; align-items:baseline}
+.spec .row:last-child{border-bottom:none}
+.spec .row span:last-child{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); white-space:nowrap}
+.spec .row b{font-weight:500; color:var(--ink2)}
+ul.bul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px}
+ul.bul li{position:relative; padding-left:16px; font-size:12.5px; color:var(--ink2); line-height:1.5}
+ul.bul li::before{content:""; position:absolute; left:2px; top:8px; width:5px; height:5px; border:1px solid var(--brass); border-radius:50%}
+ul.bul.veto li::before{border:none; background:var(--warn); width:6px; height:1.5px; top:10px; border-radius:0}
+.callout{
+  border-left:2px solid var(--warn); padding:9px 0 9px 12px; font-size:12.5px;
+  color:var(--ink2); line-height:1.5; background:color-mix(in srgb, var(--warn) 6%, transparent);
+}
+.callout b{color:var(--ink); font-weight:600}
+
+/* ---------- sun bar ---------- */
+#sunbar{
+  position:absolute; left:302px; right:330px; margin:0 auto; width:max-content; bottom:18px; z-index:6;
+  background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line); border-radius:4px; box-shadow:var(--shadow);
+  padding:11px 16px 12px; display:flex; align-items:center; gap:16px; max-width:calc(100vw - 680px);
+}
+#sunbar .lab{display:flex; flex-direction:column; gap:1px; min-width:104px}
+#sun-time{font-family:"IBM Plex Mono",monospace; font-size:16px; letter-spacing:.02em; color:var(--ink)}
+#sun-note{font-size:11px; color:var(--muted); white-space:nowrap}
+#sun-range{
+  -webkit-appearance:none; appearance:none; width:270px; height:20px; background:none; cursor:pointer;
+}
+#sun-range::-webkit-slider-runnable-track{height:2px; background:linear-gradient(90deg,var(--line),var(--brass) 42%,var(--line))}
+#sun-range::-moz-range-track{height:2px; background:linear-gradient(90deg,var(--line),var(--brass) 42%,var(--line))}
+#sun-range::-webkit-slider-thumb{-webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--brass); margin-top:-5.5px; border:2px solid var(--panel-solid)}
+#sun-range::-moz-range-thumb{width:13px; height:13px; border:2px solid var(--panel-solid); border-radius:50%; background:var(--brass)}
+#compass{flex:none; width:44px; height:44px; opacity:.9}
+
+/* ---------- misc overlay ---------- */
+#hint{
+  position:absolute; top:14px; left:318px; z-index:6; font-size:11.5px; color:var(--muted);
+  background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:6px 10px;
+  pointer-events:none; max-width:230px; line-height:1.45;
+}
+#planlabels{position:absolute; inset:0; pointer-events:none; z-index:4}
+#planlabels b{
+  position:absolute; transform:translate(-50%,-50%); text-align:center; white-space:nowrap;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-weight:400; font-size:9.5px;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--ink);
+  text-shadow:0 0 6px var(--bone), 0 0 14px var(--bone), 0 0 3px var(--bone);
+}
+#planlabels b i{display:block; font-style:normal; letter-spacing:.04em; opacity:.66; margin-top:2px}
+#tip{
+  position:absolute; z-index:7; pointer-events:none; opacity:0; transform:translate(-50%,-140%);
+  background:var(--ink); color:var(--bone); font-size:11.5px; padding:4px 8px; border-radius:3px;
+  white-space:nowrap; transition:opacity .12s;
+}
+#tip.on{opacity:1}
+#loading{
+  position:absolute; inset:0; display:grid; place-content:center; z-index:9; background:var(--bone);
+  transition:opacity .5s ease; text-align:center;
+}
+#loading.gone{opacity:0; pointer-events:none}
+
+/* ---------- disclosure ---------- */
+details.disc{border-top:1px solid var(--line); padding-top:12px; margin-top:18px}
+details.disc summary{cursor:pointer; font-size:12px; color:var(--muted); list-style:none; display:flex; justify-content:space-between; align-items:center}
+details.disc summary::-webkit-details-marker{display:none}
+details.disc summary::after{content:"+"; font-family:"IBM Plex Mono",monospace}
+details.disc[open] summary::after{content:"–"}
+details.disc .body{padding-top:10px; font-size:12px; color:var(--ink2); line-height:1.55}
+details.disc .body p{margin:0 0 8px}
+
+@media (max-width:1180px){
+  #sunbar{max-width:calc(100vw - 40px); left:16px; right:16px; bottom:12px}
+  #sun-range{width:100%; flex:1}
+  #hint{display:none}
+  .rail{width:270px} #rail-r{width:290px}
+}
+@media (max-width:900px){
+  .rail{position:absolute; top:auto; bottom:0; left:0; right:0; width:auto !important; height:46vh;
+        border:none; border-top:1px solid var(--line)}
+  #rail-r{display:none}
+  #rail-l.show-detail .l-only{display:none}
+  #sunbar{bottom:calc(46vh + 10px)}
+  #mob-tabs{display:flex}
+}
+#mob-tabs{display:none}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms !important}}
+</style>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="fallback"><div>
+    <h2 style="font-size:20px;margin-bottom:8px">Este navegador não abriu o WebGL</h2>
+    <p style="max-width:44ch;margin:0 auto">O modelo 3D precisa de aceleração gráfica. Tente outro navegador ou ative a aceleração por hardware nas configurações.</p>
+  </div></div>
+  <div id="loading"><div>
+    <div class="eyebrow" style="margin-bottom:10px">Soul Taquá Clube · Bloco 04</div>
+    <div style="font-family:Marcellus,serif;font-size:26px">Montando a unidade 307…</div>
+  </div></div>
+  <div id="tip"></div>
+  <div id="planlabels" hidden></div>
+</div>
+
+<aside class="rail" id="rail-l">
+  <div class="titleblock">
+    <div class="eyebrow">Projeto de interiores · Maquete eletrônica</div>
+    <h1 style="margin-top:7px">Soul Taquá 307</h1>
+    <div class="sub">Bloco 04, unidade 00307 — Estrada do Outeiro Santo, 437, Taquara, Rio de Janeiro</div>
+    <div class="stamp">
+      <span class="chip mono">34 m² + 2,1 m²</span>
+      <span class="chip mono">Esc. 1:75</span>
+      <span class="chip accent mono">Fachada nascente</span>
+    </div>
+  </div>
+  <div class="rail-scroll">
+    <div class="sec">
+      <div class="sec-head"><span class="eyebrow">Câmera</span></div>
+      <div class="seg" id="modes" role="group" aria-label="Modo de câmera">
+        <button data-mode="orbit" aria-pressed="true">Perspectiva</button>
+        <button data-mode="plan" aria-pressed="false">Planta</button>
+        <button data-mode="walk" aria-pressed="false">Caminhar</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="eyebrow">Ambientes</span><span class="eyebrow">Área</span></div>
+      <div class="rooms" id="roomlist"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="eyebrow">Camadas</span></div>
+      <div class="toggles" id="layers"></div>
+    </div>
+
+    <details class="disc">
+      <summary>Premissas do modelo e desvios</summary>
+      <div class="body">
+        <p>A volumetria foi reconstruída a partir das cotas livres do memorial, lidas em planta 1:75. Elas não fecham um retângulo exato, então três decisões foram tomadas e ficam registradas aqui:</p>
+        <p><b>1.</b> O estar foi modelado com 4,75 m de profundidade, e não 4,45 m, para que a cozinha de 2,10 m encaixe atrás do Dormitório 01 na mesma faixa. A largura de 2,50 m foi mantida.</p>
+        <p><b>2.</b> A área interna modelada soma cerca de 36 m² contra os 34 m² do memorial. A diferença está na circulação, que o quadro de áreas não cota.</p>
+        <p><b>3.</b> Paredes com 15 cm, pé-direito estrutural de 2,60 m e forro rebaixado em 2,45 m — valores usuais para a tipologia, não cotados no contrato.</p>
+        <p>Nada aqui substitui medição em campo com a unidade entregue. Nenhuma peça de marcenaria deve ser encomendada a partir deste modelo.</p>
+      </div>
+    </details>
+  </div>
+</aside>
+
+<aside class="rail" id="rail-r">
+  <div id="rp-head">
+    <div class="eyebrow" id="rp-kicker">Ambiente</div>
+    <h2 id="rp-title">Visão geral</h2>
+    <div id="rp-dims"></div>
+  </div>
+  <div class="rail-scroll" id="rp-body"></div>
+</aside>
+
+<div id="sunbar">
+  <svg id="compass" viewBox="0 0 44 44" aria-label="Orientação: fachada a nascente">
+    <circle cx="22" cy="22" r="19" fill="none" stroke="currentColor" stroke-opacity=".22"/>
+    <g id="sun-dot"><circle cx="22" cy="3.6" r="3.1" fill="var(--brass)"/></g>
+    <path d="M22 12 L22 32" stroke="currentColor" stroke-opacity=".16"/>
+    <path d="M12 22 L32 22" stroke="currentColor" stroke-opacity=".16"/>
+    <path d="M22 11 L24.6 20.5 L22 18.4 L19.4 20.5 Z" fill="currentColor" fill-opacity=".55"/>
+    <text x="36.5" y="25" text-anchor="middle" font-size="8" font-family="IBM Plex Mono, monospace" fill="var(--brass)">L</text>
+  </svg>
+  <div class="lab">
+    <div id="sun-time" class="mono">08:00</div>
+    <div id="sun-note">sol direto na bancada</div>
+  </div>
+  <input id="sun-range" type="range" min="5.5" max="18.5" step="0.25" value="8" aria-label="Hora do dia">
+</div>
+
+<div id="hint">Arraste para girar · roda para aproximar · clique num ambiente do modelo para abrir a ficha</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =========================================================================
+   SOUL TAQUÁ 307 — maquete eletrônica
+   Renderizador WebGL próprio. Sem bibliotecas externas.
+   Geometria reconstruída das cotas livres do memorial descritivo.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- mat4 --- */
+const M4 = {
+  ident: () => new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+  mul(a,b){ const o=new Float32Array(16);
+    for(let c=0;c<4;c++) for(let r=0;r<4;r++){ let s=0;
+      for(let k=0;k<4;k++) s+=a[k*4+r]*b[c*4+k]; o[c*4+r]=s; } return o; },
+  persp(fov,asp,n,f){ const t=1/Math.tan(fov/2), o=new Float32Array(16);
+    o[0]=t/asp; o[5]=t; o[10]=(f+n)/(n-f); o[11]=-1; o[14]=2*f*n/(n-f); return o; },
+  ortho(l,r,b,t,n,f){ const o=new Float32Array(16);
+    o[0]=2/(r-l); o[5]=2/(t-b); o[10]=-2/(f-n); o[15]=1;
+    o[12]=-(r+l)/(r-l); o[13]=-(t+b)/(t-b); o[14]=-(f+n)/(f-n); return o; },
+  look(e,c,up){
+    let z=V.norm(V.sub(e,c)); if(V.len(z)<1e-6) z=[0,0,1];
+    let x=V.norm(V.cross(up,z)); if(V.len(x)<1e-6) x=V.norm(V.cross([0,0,1],z));
+    const y=V.cross(z,x); const o=new Float32Array(16);
+    o[0]=x[0];o[1]=y[0];o[2]=z[0];o[3]=0;
+    o[4]=x[1];o[5]=y[1];o[6]=z[1];o[7]=0;
+    o[8]=x[2];o[9]=y[2];o[10]=z[2];o[11]=0;
+    o[12]=-V.dot(x,e); o[13]=-V.dot(y,e); o[14]=-V.dot(z,e); o[15]=1; return o; }
+};
+const V = {
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  scale:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.hypot(a[0],a[1],a[2]),
+  norm(a){ const l=V.len(a)||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ------------------------------------------------------------ paleta ----- */
+// Cores do memorial: off-white quente, quartzito, carvalho, latão, verde-oliva.
+const C = {
+  wall:      [0.925,0.906,0.869],  // off-white quente acetinado
+  wallShade: [0.886,0.863,0.820],
+  olive:     [0.376,0.404,0.322],  // verde-oliva acinzentado — só a parede da porta do office
+  brass:     [0.741,0.588,0.290],  // latão escovado
+  stone:     [0.945,0.941,0.929],  // quartzito branco / calacatta
+  stoneDark: [0.855,0.851,0.839],
+  oak:       [0.776,0.647,0.482],  // carvalho claro
+  oakDeep:   [0.639,0.510,0.361],
+  linen:     [0.894,0.863,0.804],
+  linenDeep: [0.831,0.792,0.722],
+  concrete:  [0.647,0.635,0.612],  // laje nua entregue
+  slab:      [0.580,0.570,0.549],
+  dark:      [0.180,0.180,0.169],
+  white:     [0.973,0.969,0.961],
+  glass:     [0.706,0.769,0.780],
+  leaf:      [0.298,0.404,0.259],
+  leafLite:  [0.412,0.522,0.341],
+  soil:      [0.239,0.204,0.169],
+  screen:    [0.129,0.137,0.129],
+  grout:     [0.812,0.800,0.780]
+};
+
+/* materiais procedurais (índice usado no fragment shader) */
+const MAT = { FLAT:0, MARBLE:1, PLANK:2, SLABSTONE:3, LINEN:4, BRASS:5, CONCRETE:6, EMIT:7, LEAF:8, OAK:9, LACQ:10 };
+
+/* camadas visíveis (bit por índice) */
+const L = { STRUCT:0, FLOOR:1, JOINERY:2, FURNITURE:3, CEIL:4, GARDEN:5, BOISERIE:6, GLASS:7 };
+
+/* ---------------------------------------------------------- geometria ---- */
+const T = 0.15;      // espessura de parede (concreto estrutural)
+const H = 2.60;      // pé-direito estrutural
+const FOR = 2.45;    // forro de gesso rebaixado
+const FORB = 2.30;   // forro do banho
+const SI = 0.25;     // recuo da sanca perimetral
+
+const R = {
+  estar: {id:'estar', x0:0,   z0:0,    x1:2.50, z1:4.75},
+  dorm1: {id:'dorm1', x0:2.65,z0:0,    x1:5.55, z1:2.50},
+  dorm2: {id:'dorm2', x0:5.70,z0:0,    x1:8.10, z1:2.10},
+  coz:   {id:'coz',   x0:2.50,z0:2.65, x1:4.62, z1:4.75},
+  hall:  {id:'hall',  x0:4.77,z0:2.65, x1:6.82, z1:4.75},
+  hallB: {id:'hall',  x0:5.70,z0:2.25, x1:6.82, z1:2.65},
+  banho: {id:'banho', x0:6.97,z0:2.40, x1:8.10, z1:4.75},
+  var:   {id:'var',   x0:4.05,z0:-1.40,x1:5.55, z1:0}
+};
+const ROOM_IDX = {estar:1, dorm1:2, dorm2:3, coz:4, hall:5, banho:6, var:7};
+
+/* buffers de construção */
+let P=[], N=[], CO=[], MA=[], LA=[], RO=[];        // opacos
+let gP=[], gN=[], gCO=[], gMA=[], gLA=[], gRO=[];  // translúcidos
+let TGT = 'op';
+const push=(p,n,c,m,l,r)=>{
+  const A = TGT==='op' ? [P,N,CO,MA,LA,RO] : [gP,gN,gCO,gMA,gLA,gRO];
+  A[0].push(p[0],p[1],p[2]); A[1].push(n[0],n[1],n[2]);
+  A[2].push(c[0],c[1],c[2]); A[3].push(m); A[4].push(l); A[5].push(r);
+};
+
+/* quad com normal explícita */
+function quad(a,b,c,d,n,col,mat,lay,room){
+  push(a,n,col,mat,lay,room); push(b,n,col,mat,lay,room); push(c,n,col,mat,lay,room);
+  push(a,n,col,mat,lay,room); push(c,n,col,mat,lay,room); push(d,n,col,mat,lay,room);
+}
+
+/* caixa alinhada aos eixos, opcionalmente com faces por cor */
+function box(x0,y0,z0,x1,y1,z1,col,mat,lay,room,opt){
+  opt=opt||{};
+  const top = opt.top||col, side = opt.side||col;
+  const mTop = opt.matTop!==undefined?opt.matTop:mat;
+  const mSide= opt.matSide!==undefined?opt.matSide:mat;
+  if(x1<=x0||y1<=y0||z1<=z0) return;
+  const p=(x,y,z)=>[x,y,z];
+  // topo / base
+  quad(p(x0,y1,z0),p(x0,y1,z1),p(x1,y1,z1),p(x1,y1,z0),[0,1,0],top,mTop,lay,room);
+  if(!opt.noBottom)
+    quad(p(x0,y0,z1),p(x0,y0,z0),p(x1,y0,z0),p(x1,y0,z1),[0,-1,0],side,mSide,lay,room);
+  // z-
+  quad(p(x0,y0,z0),p(x0,y1,z0),p(x1,y1,z0),p(x1,y0,z0),[0,0,-1],side,mSide,lay,room);
+  // z+
+  quad(p(x1,y0,z1),p(x1,y1,z1),p(x0,y1,z1),p(x0,y0,z1),[0,0,1],side,mSide,lay,room);
+  // x-
+  quad(p(x0,y0,z1),p(x0,y1,z1),p(x0,y1,z0),p(x0,y0,z0),[-1,0,0],side,mSide,lay,room);
+  // x+
+  quad(p(x1,y0,z0),p(x1,y1,z0),p(x1,y1,z1),p(x1,y0,z1),[1,0,0],side,mSide,lay,room);
+}
+
+/* caixa rotacionada em Y (móveis soltos, cadeiras) */
+function rbox(cx,cy,cz,sx,sy,sz,ang,col,mat,lay,room){
+  const ca=Math.cos(ang), sa=Math.sin(ang);
+  const hx=sx/2, hy=sy/2, hz=sz/2;
+  const tf=(x,y,z)=>[cx + x*ca + z*sa, cy+y, cz - x*sa + z*ca];
+  const rn=(x,y,z)=>V.norm([x*ca+z*sa, y, -x*sa+z*ca]);
+  const v=[tf(-hx,-hy,-hz),tf(hx,-hy,-hz),tf(hx,-hy,hz),tf(-hx,-hy,hz),
+           tf(-hx,hy,-hz),tf(hx,hy,-hz),tf(hx,hy,hz),tf(-hx,hy,hz)];
+  quad(v[4],v[7],v[6],v[5],[0,1,0],col,mat,lay,room);
+  quad(v[0],v[1],v[2],v[3],[0,-1,0],col,mat,lay,room);
+  quad(v[0],v[4],v[5],v[1],rn(0,0,-1),col,mat,lay,room);
+  quad(v[2],v[6],v[7],v[3],rn(0,0,1),col,mat,lay,room);
+  quad(v[3],v[7],v[4],v[0],rn(-1,0,0),col,mat,lay,room);
+  quad(v[1],v[5],v[6],v[2],rn(1,0,0),col,mat,lay,room);
+}
+
+/* cilindro / tronco de cone vertical */
+function cyl(cx,cz,y0,y1,r0,r1,seg,col,mat,lay,room){
+  seg=seg||16;
+  for(let i=0;i<seg;i++){
+    const a0=i/seg*Math.PI*2, a1=(i+1)/seg*Math.PI*2;
+    const c0=Math.cos(a0),s0=Math.sin(a0),c1=Math.cos(a1),s1=Math.sin(a1);
+    const b0=[cx+c0*r0,y0,cz+s0*r0], b1=[cx+c1*r0,y0,cz+s1*r0];
+    const t0=[cx+c0*r1,y1,cz+s0*r1], t1=[cx+c1*r1,y1,cz+s1*r1];
+    const n0=V.norm([c0,(r0-r1)*0.4,s0]), n1=V.norm([c1,(r0-r1)*0.4,s1]);
+    push(b0,n0,col,mat,lay,room); push(t0,n0,col,mat,lay,room); push(t1,n1,col,mat,lay,room);
+    push(b0,n0,col,mat,lay,room); push(t1,n1,col,mat,lay,room); push(b1,n1,col,mat,lay,room);
+    // tampos
+    push([cx,y1,cz],[0,1,0],col,mat,lay,room); push(t1,[0,1,0],col,mat,lay,room); push(t0,[0,1,0],col,mat,lay,room);
+    push([cx,y0,cz],[0,-1,0],col,mat,lay,room); push(b0,[0,-1,0],col,mat,lay,room); push(b1,[0,-1,0],col,mat,lay,room);
+  }
+}
+
+/* ----------------------------------------------------- paredes c/ vãos --- */
+/* Uma parede é um retângulo em planta. Os vãos são cortados no eixo longo. */
+function wall(x0,z0,x1,z1,opens,col,room,y0,y1){
+  y0 = y0===undefined?0:y0; y1 = y1===undefined?H:y1;
+  col = col||C.wall;
+  const alongX = (x1-x0) >= (z1-z0);
+  const a0 = alongX? x0 : z0, a1 = alongX? x1 : z1;
+  const seg = [];  // [start,end,ybot,ytop]
+  const list = (opens||[]).slice().sort((p,q)=>p[0]-q[0]);
+  let cur = a0;
+  for(const o of list){
+    const [s,e,oy0,oy1] = o;
+    if(e<=a0||s>=a1) continue;
+    const ss=Math.max(s,a0), ee=Math.min(e,a1);
+    if(ss>cur) seg.push([cur,ss,y0,y1]);
+    if(oy0>y0) seg.push([ss,ee,y0,oy0]);          // peitoril
+    if(oy1<y1) seg.push([ss,ee,oy1,y1]);          // verga
+    cur = ee;
+  }
+  if(cur<a1) seg.push([cur,a1,y0,y1]);
+  for(const s of seg){
+    if(alongX) box(s[0],s[2],z0,s[1],s[3],z1,col,MAT.FLAT,L.STRUCT,room);
+    else       box(x0,s[2],s[0],x1,s[3],s[1],col,MAT.FLAT,L.STRUCT,room);
+  }
+  // requadro dos vãos: reveals em tom levemente mais fechado
+  for(const o of list){
+    const [s,e,oy0,oy1] = o;
+    const th = alongX? (z1-z0) : (x1-x0);
+    if(alongX){
+      box(s,oy0,z0,s+0.012,oy1,z1,C.wallShade,MAT.FLAT,L.STRUCT,room);
+      box(e-0.012,oy0,z0,e,oy1,z1,C.wallShade,MAT.FLAT,L.STRUCT,room);
+    } else {
+      box(x0,oy0,s,x1,oy1,s+0.012,C.wallShade,MAT.FLAT,L.STRUCT,room);
+      box(x0,oy0,e-0.012,x1,oy1,e,C.wallShade,MAT.FLAT,L.STRUCT,room);
+    }
+  }
+}
+
+/* boiserie: moldura fina, sempre na mesma cor da parede (tom sobre tom) */
+function boiserie(axis, fixed, a0, a1, y0, y1, col, room, cols, lay){
+  lay = lay===undefined ? L.BOISERIE : lay;
+  // axis 'x': painéis correm em X, parede no plano z=fixed (normal +z)
+  const d = 0.022, r = 0.075;       // relevo e largura da moldura
+  const n = cols || Math.max(1, Math.round((a1-a0)/0.62));
+  const gap = 0.075;
+  const w = ((a1-a0) - gap*(n+1))/n;
+  if(w<=0.12) return;
+  for(let i=0;i<n;i++){
+    const s = a0 + gap + i*(w+gap), e = s+w;
+    const by = y0+gap, ty = y1-gap;
+    if(ty-by<0.2) continue;
+    const frame=(u0,u1,v0,v1)=>{
+      if(axis==='x') box(u0, v0, fixed, u1, v1, fixed+d, col, MAT.FLAT, lay, room);
+      else           box(fixed, v0, u0, fixed+d, v1, u1, col, MAT.FLAT, lay, room);
+    };
+    frame(s, s+r, by, ty); frame(e-r, e, by, ty);
+    frame(s, e, by, by+r); frame(s, e, ty-r, ty);
+  }
+}
+
+/* ======================================================================== */
+/*  CENA                                                                    */
+/* ======================================================================== */
+L.PERSIANA = 8;
+
+function buildScene(){
+  const RI = ROOM_IDX;
+
+  /* ---------- lajes ---------- */
+  box(-0.15,-0.22,-0.15, 8.25,-0.02, 4.90, C.slab, MAT.CONCRETE, L.STRUCT, 0);      // piso estrutural
+  box( 3.90,-0.22,-1.55, 5.70,-0.05, 0.00, C.slab, MAT.CONCRETE, L.STRUCT, RI.var); // laje da varanda
+  box(-0.15, H, -0.15, 8.25, H+0.20, 4.90, C.slab, MAT.CONCRETE, L.CEIL, 0);        // laje de cobertura
+  box( 3.90, H, -1.55, 5.70, H+0.20, 0.00, C.slab, MAT.CONCRETE, L.CEIL, RI.var);
+
+  /* ---------- pisos ---------- */
+  const floor=(r,col,mat)=> box(r.x0,-0.02,r.z0, r.x1,0.0,r.z1, col, mat, L.FLOOR, RI[r.id]);
+  floor(R.estar, C.stone,     MAT.MARBLE);   // porcelanato marmorizado 120×120
+  floor(R.coz,   C.stone,     MAT.MARBLE);
+  floor(R.hall,  C.stone,     MAT.MARBLE);
+  floor(R.hallB, C.stone,     MAT.MARBLE);
+  floor(R.banho, C.stone,     MAT.MARBLE);
+  floor(R.dorm1, C.oak,       MAT.PLANK);    // porcelanato amadeirado 20×120
+  floor(R.dorm2, C.oak,       MAT.PLANK);
+  box(3.90,-0.05,-1.55, 5.70,-0.03,0.00, [0.788,0.780,0.761], MAT.MARBLE, L.FLOOR, RI.var);
+
+  /* ---------- envoltória ---------- */
+  const OP_FACHADA = [
+    [0.55, 2.00, 1.00, 2.10],   // janela do estar
+    [4.05, 5.55, 0.02, 2.10],   // porta de correr do dorm 01 → varanda
+    [6.15, 7.65, 1.00, 2.10]    // janela do home office
+  ];
+  wall(-0.15,-0.15, 8.25, 0.00, OP_FACHADA, C.wall, 0);
+  wall(-0.15, 4.75, 8.25, 4.90, [[5.55,6.35,0.02,2.10],[3.10,3.50,1.90,2.20]], C.wall, 0);
+  wall(-0.15,-0.15, 0.00, 4.90, [], C.wall, 0);
+  wall( 8.10,-0.15, 8.25, 4.90, [], C.wall, 0);
+
+  /* ---------- divisórias internas (concreto estrutural, intocáveis) ---------- */
+  wall(2.50, 0.00, 2.65, 2.50, [], C.wall, 0);                                  // estar × dorm 01
+  wall(2.50, 2.50, 5.55, 2.65, [[4.80,5.50,0.02,2.10]], C.wall, 0);             // dorm 01 × circulação
+  wall(5.55,-1.40, 5.70, 2.65, [], C.wall, 0);                                  // dorm 01 × dorm 02 + varanda
+  wall(5.70, 2.10, 8.10, 2.25, [[5.95,6.65,0.02,2.10]], C.wall, 0);             // dorm 02 × circulação
+  wall(4.62, 3.55, 4.77, 4.75, [], C.wall, 0);                                  // retorno da cozinha
+  wall(6.82, 2.40, 6.97, 4.75, [[2.95,3.65,0.02,2.10]], C.wall, 0);             // circulação × banho
+  wall(6.82, 2.25, 8.10, 2.40, [], C.wall, 0);                                  // dorm 02 × banho
+
+  /* ---------- guarda-corpo da varanda + frisos técnicos ---------- */
+  box(3.90,-0.03,-1.55, 5.70,1.10,-1.40, C.wall, MAT.FLAT, L.STRUCT, RI.var);
+  box(3.90,-0.03,-1.55, 4.05,1.10, 0.00, C.wall, MAT.FLAT, L.STRUCT, RI.var);
+  for(const y of [0.34,0.72]){                                   // frisos impermeabilizados
+    box(3.885,y,-1.565, 5.715,y+0.02,-1.545, C.wallShade, MAT.FLAT, L.STRUCT, RI.var);
+    box(3.885,y,-1.565, 3.905,y+0.02, 0.00,  C.wallShade, MAT.FLAT, L.STRUCT, RI.var);
+  }
+  box(3.88,1.10,-1.57, 5.72,1.14,-1.38, C.stoneDark, MAT.SLABSTONE, L.STRUCT, RI.var);
+  box(3.88,1.10,-1.57, 4.07,1.14, 0.00, C.stoneDark, MAT.SLABSTONE, L.STRUCT, RI.var);
+
+  /* ---------- forro de gesso rebaixado + sanca perimetral ---------- */
+  function forro(r, y, room){
+    box(r.x0+SI, y, r.z0+SI, r.x1-SI, y+0.06, r.z1-SI, C.wall, MAT.FLAT, L.CEIL, room);
+    // fita de LED na sanca: lavando a parede a partir do rasgo perimetral
+    const e=0.045, yy=y-0.035;
+    box(r.x0+SI-e, yy, r.z0+SI-e, r.x1-SI+e, yy+0.025, r.z0+SI, C.brass, MAT.EMIT, L.CEIL, room);
+    box(r.x0+SI-e, yy, r.z1-SI,   r.x1-SI+e, yy+0.025, r.z1-SI+e, C.brass, MAT.EMIT, L.CEIL, room);
+    box(r.x0+SI-e, yy, r.z0+SI,   r.x0+SI,   yy+0.025, r.z1-SI,   C.brass, MAT.EMIT, L.CEIL, room);
+    box(r.x1-SI,   yy, r.z0+SI,   r.x1-SI+e, yy+0.025, r.z1-SI,   C.brass, MAT.EMIT, L.CEIL, room);
+  }
+  forro(R.estar, FOR, RI.estar); forro(R.dorm1, FOR, RI.dorm1);
+  forro(R.dorm2, FOR, RI.dorm2); forro(R.coz, FOR, RI.coz);
+  forro(R.hall,  FOR, RI.hall);
+  box(R.banho.x0+0.05, FORB, R.banho.z0+0.05, R.banho.x1-0.05, FORB+0.06, R.banho.z1-0.05, C.wall, MAT.FLAT, L.CEIL, RI.banho);
+
+  /* spots direcionais de perímetro, 2700 K, IRC > 90 */
+  const spot=(x,z,room)=>{ cyl(x,z,FOR-0.012,FOR+0.001,0.038,0.042,12,C.brass,MAT.BRASS,L.CEIL,room);
+                           cyl(x,z,FOR-0.02,FOR-0.012,0.03,0.034,12,C.wall,MAT.EMIT,L.CEIL,room); };
+  [[0.62,0.62],[1.88,0.62],[0.62,2.4],[1.88,2.4],[1.15,3.9]].forEach(p=>spot(p[0],p[1],RI.estar));
+  [[3.15,0.72],[5.05,0.72],[3.15,2.05],[5.05,2.05]].forEach(p=>spot(p[0],p[1],RI.dorm1));
+  [[6.15,0.68],[7.65,0.68],[6.9,1.7]].forEach(p=>spot(p[0],p[1],RI.dorm2));
+  [[3.0,3.3],[4.15,3.3],[3.0,4.4],[4.15,4.4]].forEach(p=>spot(p[0],p[1],RI.coz));
+  [[5.3,3.3],[6.3,4.2]].forEach(p=>spot(p[0],p[1],RI.hall));
+
+  /* ====================================================================== */
+  /*  4.1  ESTAR / JANTAR                                                    */
+  /* ====================================================================== */
+  {
+    const room = RI.estar;
+    // boiserie tom sobre tom na parede da TV (face do painel estrutural em x = 2,50)
+    boiserie('z', 2.50-0.022, 0.16, 2.36, 0.10, 2.34, C.wall, room, 3);
+    // rack suspenso laqueado + puxador cava em latão
+    box(2.06,0.40,0.60, 2.478,0.72,2.20, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(2.045,0.60,0.62, 2.06,0.645,2.18, C.brass, MAT.BRASS, L.JOINERY, room);
+    // TV
+    box(2.36,1.02,0.78, 2.42,1.72,2.02, C.screen, MAT.FLAT, L.FURNITURE, room);
+    // sofá de 2,20 m em linho off-white, pés finos torneados
+    box(0.04,0.28,0.62, 0.92,0.46,2.82, C.linen, MAT.LINEN, L.FURNITURE, room);       // assento
+    box(0.04,0.28,0.62, 0.30,0.86,2.82, C.linenDeep, MAT.LINEN, L.FURNITURE, room);   // encosto
+    box(0.04,0.28,0.62, 0.92,0.66,0.80, C.linenDeep, MAT.LINEN, L.FURNITURE, room);   // braço
+    box(0.04,0.28,2.64, 0.92,0.66,2.82, C.linenDeep, MAT.LINEN, L.FURNITURE, room);
+    for(const p of [[0.13,0.71],[0.83,0.71],[0.13,2.73],[0.83,2.73]])
+      cyl(p[0],p[1],0,0.28,0.026,0.018,10,C.oakDeep,MAT.OAK,L.FURNITURE,room);
+    for(const z of [1.05,1.55,2.30]) rbox(0.42,0.60,z,0.42,0.42,0.13,0.12,C.linenDeep,MAT.LINEN,L.FURNITURE,room);
+    // mesa de jantar redonda de 1,00 m — quina em circulação estreita trava a passagem
+    cyl(1.15,3.66,0.72,0.76,0.50,0.50,32,C.stone,MAT.SLABSTONE,L.FURNITURE,room);
+    cyl(1.15,3.66,0.0,0.72,0.055,0.045,14,C.brass,MAT.BRASS,L.FURNITURE,room);
+    cyl(1.15,3.66,0.0,0.03,0.24,0.22,20,C.brass,MAT.BRASS,L.FURNITURE,room);
+    const chair=(x,z,a)=>{ rbox(x,0.45,z,0.44,0.05,0.44,a,C.linen,MAT.LINEN,L.FURNITURE,room);
+      rbox(x - Math.sin(a)*0.0 - Math.cos(a)*0.0, 0.70, z, 0.44,0.44,0.06,a,C.linen,MAT.LINEN,L.FURNITURE,room);
+      for(const d of [[-0.17,-0.17],[0.17,-0.17],[-0.17,0.17],[0.17,0.17]])
+        cyl(x+d[0]*Math.cos(a)+d[1]*Math.sin(a), z-d[0]*Math.sin(a)+d[1]*Math.cos(a),0,0.45,0.02,0.015,8,C.oakDeep,MAT.OAK,L.FURNITURE,room); };
+    chair(1.15,3.05,0); chair(1.15,4.27,Math.PI); chair(0.55,3.66,Math.PI/2); chair(1.75,3.66,-Math.PI/2);
+    // espelho de moldura fina em latão, parede oposta à fachada
+    box(0.32,0.92,4.735, 1.28,2.18,4.75, C.brass, MAT.BRASS, L.FURNITURE, room);
+    box(0.35,0.95,4.726, 1.25,2.15,4.737, [0.80,0.82,0.81], MAT.BRASS, L.FURNITURE, room);
+    // cortina de linho do teto ao chão em trilho embutido na sanca
+    box(0.30,0.02,0.10, 0.62,FOR-0.05,0.20, C.linen, MAT.LINEN, L.FURNITURE, room);
+    box(1.92,0.02,0.10, 2.26,FOR-0.05,0.20, C.linen, MAT.LINEN, L.FURNITURE, room);
+    // península de 1,20 m avançando para o estar
+    box(1.90,0.0,2.80, 2.50,0.86,4.00, C.wall, MAT.LACQ, L.JOINERY, RI.coz);
+    box(1.86,0.86,2.76, 2.50,0.90,4.04, C.stone, MAT.SLABSTONE, L.JOINERY, RI.coz);
+    for(const z of [3.05,3.75]){ rbox(1.62,0.40,z,0.40,0.04,0.40,0,C.linen,MAT.LINEN,L.FURNITURE,room);
+      for(const d of [[-0.15,-0.15],[0.15,-0.15],[-0.15,0.15],[0.15,0.15]])
+        cyl(1.62+d[0],z+d[1],0,0.40,0.018,0.014,8,C.brass,MAT.BRASS,L.FURNITURE,room);
+      rbox(1.44,0.62,z,0.04,0.40,0.36,0,C.linen,MAT.LINEN,L.FURNITURE,room); }
+  }
+
+  /* ====================================================================== */
+  /*  4.2  COZINHA E ÁREA DE SERVIÇO                                         */
+  /* ====================================================================== */
+  {
+    const room = RI.coz;
+    // bancada linear na parede de fundos + frontão em pedra da bancada ao teto
+    box(2.50,0.0,4.15, 4.62,0.86, 4.75, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(2.50,0.86,4.13, 4.62,0.90, 4.75, C.stone, MAT.SLABSTONE, L.JOINERY, room);
+    box(2.50,0.90,4.735, 4.62,FOR,  4.75, C.stone, MAT.SLABSTONE, L.JOINERY, room);   // frontão
+    // armários até o teto, portas laqueadas com friso tipo shaker
+    box(2.50,1.52,4.40, 4.62,FOR,  4.75, C.wall, MAT.LACQ, L.JOINERY, room);
+    boiserie('x', 4.40-0.022, 2.54, 4.58, 1.56, FOR-0.04, C.wall, room, 4, L.JOINERY);
+    for(const x of [2.54,3.06,3.58,4.10])                                   // puxadores em latão
+      box(x,1.56,4.385, x+0.44,1.60,4.40, C.brass, MAT.BRASS, L.JOINERY, room);
+    for(const x of [2.55,3.10,3.65,4.20])
+      box(x,0.30,4.135, x+0.46,0.345,4.15, C.brass, MAT.BRASS, L.JOINERY, room);
+    // cuba e cooktop — o ponto do fogão não é compatível com indução
+    box(3.72,0.895,4.28, 4.32,0.905,4.62, [0.72,0.73,0.73], MAT.BRASS, L.JOINERY, room);
+    box(2.72,0.898,4.28, 3.32,0.912,4.62, C.screen, MAT.FLAT, L.JOINERY, room);
+    box(3.95,0.90,4.66, 4.09,1.24,4.73, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(3.95,1.20,4.52, 4.09,1.24,4.66, C.brass, MAT.BRASS, L.JOINERY, room);
+    // torre alta / geladeira no retorno
+    box(4.02,0.0,3.55, 4.62,FOR,4.15, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(4.008,0.86,3.62, 4.020,1.76,3.66, C.brass, MAT.BRASS, L.JOINERY, room);
+    // área de serviço: tanque em fibra + máquina de lavar despejando direto no tanque
+    box(2.50,0.0,2.72, 3.06,0.85,3.32, C.white, MAT.LACQ, L.JOINERY, room);
+    box(2.50,0.85,2.72, 3.06,0.90,3.32, C.white, MAT.FLAT, L.JOINERY, room);
+    box(2.58,0.86,2.80, 2.98,0.89,3.24, [0.86,0.87,0.86], MAT.FLAT, L.JOINERY, room);
+    box(3.14,0.0,2.72, 3.74,0.85,3.32, C.white, MAT.LACQ, L.FURNITURE, room);
+    cyl(3.44,3.02,0.30,0.62,0.20,0.20,18,[0.55,0.58,0.60],MAT.FLAT,L.FURNITURE,room);
+    // venezianas de gás — não podem ser fechadas nem obstruídas por móveis
+    for(let i=0;i<5;i++) box(3.10,1.92+i*0.055,4.742, 3.50,1.94+i*0.055,4.752, C.screen, MAT.FLAT, L.STRUCT, room);
+  }
+
+  /* ====================================================================== */
+  /*  4.3  BANHO                                                             */
+  /* ====================================================================== */
+  {
+    const room = RI.banho, B = R.banho;
+    // revestimento marmorizado do piso ao teto — efeito monolítico
+    const rev = 0.012;
+    box(B.x0, 0, B.z0, B.x0+rev, FORB, B.z1, C.stone, MAT.MARBLE, L.FLOOR, room);
+    box(B.x1-rev, 0, B.z0, B.x1, FORB, B.z1, C.stone, MAT.MARBLE, L.FLOOR, room);
+    box(B.x0, 0, B.z0, B.x1, FORB, B.z0+rev, C.stone, MAT.MARBLE, L.FLOOR, room);
+    box(B.x0, 0, B.z1-rev, B.x1, FORB, B.z1, C.stone, MAT.MARBLE, L.FLOOR, room);
+    // gabinete suspenso laqueado com friso + cuba de apoio
+    box(6.99,0.55,2.42, 8.08,0.85,2.88, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(6.99,0.85,2.42, 8.08,0.89,2.88, C.stone, MAT.SLABSTONE, L.JOINERY, room);
+    boiserie('x', 2.88, 7.03, 8.04, 0.59, 0.81, C.wall, room, 2, L.JOINERY);
+    box(7.06,0.62,2.885, 7.98,0.655,2.90, C.brass, MAT.BRASS, L.JOINERY, room);
+    cyl(7.54,2.66,0.89,1.02,0.19,0.20,22,C.white,MAT.LACQ,L.JOINERY,room);
+    // torneira de parede em latão escovado
+    box(7.52,1.22,2.412, 7.56,1.26,2.50, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(7.50,1.26,2.412, 7.58,1.40,2.44, C.brass, MAT.BRASS, L.JOINERY, room);
+    // espelho de moldura fina com arandelas laterais — nunca plafon central
+    box(7.10,1.42,2.414, 7.98,2.10,2.428, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(7.12,1.44,2.428, 7.96,2.08,2.436, [0.80,0.82,0.81], MAT.BRASS, L.JOINERY, room);
+    for(const x of [7.045,8.025]){ cyl(x,2.50,1.60,1.66,0.035,0.035,10,C.brass,MAT.BRASS,L.JOINERY,room);
+      cyl(x,2.50,1.66,1.80,0.045,0.038,10,C.wall,MAT.EMIT,L.JOINERY,room); }
+    // vaso sanitário
+    box(7.36,0.0,3.06, 7.76,0.40,3.36, C.white, MAT.LACQ, L.FURNITURE, room);
+    box(7.34,0.40,3.06, 7.78,0.44,3.44, C.white, MAT.LACQ, L.FURNITURE, room);
+    box(7.36,0.44,3.02, 7.76,0.78,3.10, C.white, MAT.LACQ, L.FURNITURE, room);
+    // box de vidro incolor com perfil em latão
+    box(6.99,0.0,3.74, 8.08,0.03,3.78, C.stoneDark, MAT.SLABSTONE, L.STRUCT, room);
+    box(6.99,0.0,3.74, 7.03,2.05,3.78, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(8.04,0.0,3.74, 8.08,2.05,3.78, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(6.99,2.02,3.74, 8.08,2.06,3.78, C.brass, MAT.BRASS, L.JOINERY, room);
+    // prateleira de canto — o nicho embutido está descartado (parede estrutural)
+    box(7.80,1.20,4.45, 8.08,1.25,4.73, C.stone, MAT.SLABSTONE, L.JOINERY, room);
+    box(7.80,1.62,4.45, 8.08,1.67,4.73, C.stone, MAT.SLABSTONE, L.JOINERY, room);
+    // chuveiro elétrico 5.400 W já previsto
+    box(7.42,2.02,4.40, 7.66,2.10,4.64, C.white, MAT.LACQ, L.JOINERY, room);
+    // tubulações entregues aparentes, junto a paredes e piso
+    cyl(7.05,4.66,0.0,FORB,0.035,0.035,10,[0.86,0.86,0.85],MAT.FLAT,L.STRUCT,room);
+    cyl(7.16,4.66,0.0,FORB,0.028,0.028,10,[0.86,0.86,0.85],MAT.FLAT,L.STRUCT,room);
+  }
+
+  /* ====================================================================== */
+  /*  4.4  DORMITÓRIO 01 — CASAL                                             */
+  /* ====================================================================== */
+  {
+    const room = RI.dorm1;
+    // cabeceira estofada em linho até o teto, ladeada por boiserie tom sobre tom
+    box(3.28,0.0,2.38, 4.92,FOR,2.50, C.linen, MAT.LINEN, L.JOINERY, room);
+    for(let i=0;i<6;i++) box(3.28,0.30+i*0.36,2.372, 4.92,0.315+i*0.36,2.38, C.linenDeep, MAT.LINEN, L.JOINERY, room);
+    boiserie('x', 2.50-0.022, 2.70, 3.24, 0.10, 2.34, C.wall, room, 1);
+    boiserie('x', 2.50-0.022, 4.96, 5.50, 0.10, 2.34, C.wall, room, 1);
+    // cama queen 1,58 m — 0,66 m livres de cada lado
+    box(3.31,0.12,0.60, 4.89,0.34,2.50, C.oakDeep, MAT.OAK, L.FURNITURE, room);
+    box(3.31,0.34,0.60, 4.89,0.60,2.50, C.linen, MAT.LINEN, L.FURNITURE, room);
+    box(3.31,0.60,1.05, 4.89,0.64,2.50, C.white, MAT.LINEN, L.FURNITURE, room);
+    box(3.36,0.60,1.90, 4.10,0.72,2.36, C.white, MAT.LINEN, L.FURNITURE, room);
+    box(4.14,0.60,1.90, 4.88,0.72,2.36, C.white, MAT.LINEN, L.FURNITURE, room);
+    box(3.31,0.58,0.60, 4.89,0.63,1.02, C.olive, MAT.LINEN, L.FURNITURE, room);
+    // criados-mudos suspensos + arandelas articuladas em latão
+    for(const x of [2.85,4.95]){
+      box(x,0.40,2.14, x+0.40,0.56,2.50, C.wall, MAT.LACQ, L.JOINERY, room);
+      box(x+0.06,0.425,2.132, x+0.34,0.455,2.14, C.brass, MAT.BRASS, L.JOINERY, room);
+      cyl(x+0.20,2.46,1.18,1.24,0.03,0.03,10,C.brass,MAT.BRASS,L.JOINERY,room);
+      box(x+0.10,1.22,2.30, x+0.30,1.26,2.46, C.brass, MAT.BRASS, L.JOINERY, room);
+      cyl(x+0.20,2.31,1.10,1.24,0.055,0.045,10,C.wall,MAT.EMIT,L.JOINERY,room);
+    }
+    // armário até o teto com portas de correr laqueadas e frisos
+    box(2.65,0.0,0.0, 4.05,FOR,0.58, C.wall, MAT.LACQ, L.JOINERY, room);
+    boiserie('x', 0.58, 2.69, 4.01, 0.06, FOR-0.06, C.wall, room, 3, L.JOINERY);
+    box(3.32,0.90,0.582, 3.38,1.50,0.592, C.brass, MAT.BRASS, L.JOINERY, room);
+  }
+
+  /* ====================================================================== */
+  /*  4.5  DORMITÓRIO 02 — HOME OFFICE                                       */
+  /* ====================================================================== */
+  {
+    const room = RI.dorm2;
+    // parede de acento: a parede da porta, atrás da cadeira — fundo das videochamadas
+    box(5.70,0.0,2.09, 8.10,FOR,2.10, C.olive, MAT.FLAT, L.STRUCT, room);
+    boiserie('x', 2.09-0.022, 5.76, 5.90, 0.10, 2.30, C.olive, room, 1);
+    boiserie('x', 2.09-0.022, 6.70, 8.04, 0.10, 2.30, C.olive, room, 2);
+    // bancada flutuante 2,30 × 0,55, h 0,75, sobre estrutura metálica fixada na parede
+    box(5.75,0.71,0.0, 8.05,0.75,0.55, C.stone, MAT.SLABSTONE, L.JOINERY, room);
+    for(const x of [5.86,6.90,7.94]){
+      box(x,0.0,0.06, x+0.03,0.71,0.09, C.screen, MAT.FLAT, L.JOINERY, room);
+      box(x,0.68,0.06, x+0.03,0.71,0.50, C.screen, MAT.FLAT, L.JOINERY, room);
+    }
+    // torres aéreas (2 un.) 0,60 × 0,35, de h 1,05 ao teto
+    for(const x of [5.75,7.45]){
+      box(x,1.05,0.0, x+0.60,FOR,0.35, C.wall, MAT.LACQ, L.JOINERY, room);
+      boiserie('x', 0.35, x+0.05, x+0.55, 1.09, FOR-0.04, C.wall, room, 1, L.JOINERY);
+      box(x+0.14,1.12,0.352, x+0.46,1.155,0.362, C.brass, MAT.BRASS, L.JOINERY, room);
+    }
+    // prateleira central 1,10 × 0,25 com fita de LED inferior
+    box(6.35,1.42,0.0, 7.45,1.47,0.25, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(6.40,1.395,0.02, 7.40,1.42,0.06, C.brass, MAT.EMIT, L.JOINERY, room);
+    // armário raso lateral 1,45 × 0,35 até o teto — arquivo e material
+    box(7.75,0.0,0.62, 8.10,FOR,2.07, C.wall, MAT.LACQ, L.JOINERY, room);
+    boiserie('z', 7.75-0.022, 0.66, 2.03, 0.08, FOR-0.06, C.wall, room, 2, L.JOINERY);
+    box(7.728,1.02,0.86, 7.738,1.06,1.30, C.brass, MAT.BRASS, L.JOINERY, room);
+    box(7.728,1.02,1.40, 7.738,1.06,1.84, C.brass, MAT.BRASS, L.JOINERY, room);
+    // monitor, teclado e cadeira — 1,00 m livre até a parede da porta
+    box(6.62,0.75,0.10, 7.18,0.79,0.28, C.screen, MAT.FLAT, L.FURNITURE, room);
+    cyl(6.90,0.20,0.79,0.86,0.03,0.03,10,C.screen,MAT.FLAT,L.FURNITURE,room);
+    box(6.36,0.86,0.06, 7.44,1.24,0.10, C.screen, MAT.FLAT, L.FURNITURE, room);
+    box(6.55,0.75,0.34, 7.25,0.77,0.50, [0.22,0.23,0.22], MAT.FLAT, L.FURNITURE, room);
+    rbox(6.90,0.46,1.02,0.50,0.06,0.48,0.10,C.screen,MAT.LINEN,L.FURNITURE,room);
+    rbox(6.90,0.78,1.24,0.48,0.58,0.07,0.10,C.screen,MAT.LINEN,L.FURNITURE,room);
+    cyl(6.90,1.02,0.05,0.43,0.035,0.035,10,C.screen,MAT.FLAT,L.FURNITURE,room);
+    for(let i=0;i<5;i++){ const a=i/5*Math.PI*2;
+      box(6.90+Math.cos(a)*0.05-0.02,0.02,1.02+Math.sin(a)*0.05-0.02,
+          6.90+Math.cos(a)*0.26,0.05,1.02+Math.sin(a)*0.26, C.screen, MAT.FLAT, L.FURNITURE, room); }
+    // persiana rolô screen, abertura 3% — item obrigatório na fachada nascente
+    box(6.13,2.08,0.03, 7.67,2.16,0.12, C.wall, MAT.LACQ, L.JOINERY, room);
+    TGT='tr'; box(6.15,1.02,0.055, 7.65,2.08,0.075, [0.455,0.435,0.400], MAT.LINEN, L.PERSIANA, room); TGT='op';
+  }
+
+  /* ====================================================================== */
+  /*  4.6  VARANDA — JARDIM VERTICAL E CANTO DE LEITURA                      */
+  /* ====================================================================== */
+  {
+    const room = RI.var;
+    // painel ripado em WPC cor carvalho, fixado com buchas na parede divisória
+    box(5.532,0.10,-1.38, 5.55,2.30,-0.02, C.oakDeep, MAT.OAK, L.GARDEN, room);
+    for(let z=-1.375; z<-0.06; z+=0.066)
+      box(5.492,0.10,z, 5.532,2.30,z+0.042, C.oak, MAT.OAK, L.GARDEN, room);
+    // cachepôs individuais em cerâmica off-white com suporte em latão, três fileiras
+    const plant=(cy,cz,kind)=>{
+      box(5.44,cy-0.02,cz-0.10, 5.50,cy+0.01,cz+0.10, C.brass, MAT.BRASS, L.GARDEN, room);
+      cyl(5.40,cz,cy,cy+0.15,0.075,0.085,14,C.white,MAT.LACQ,L.GARDEN,room);
+      cyl(5.40,cz,cy+0.13,cy+0.15,0.072,0.072,12,C.soil,MAT.FLAT,L.GARDEN,room);
+      const n = kind==='pend'?7:5;
+      for(let i=0;i<n;i++){
+        const a=i/n*Math.PI*2+cz, r=0.035+((i*37)%7)/160;
+        const dy = kind==='pend' ? -0.10-((i*53)%22)/100 : 0.08+((i*29)%12)/100;
+        rbox(5.40-Math.abs(Math.cos(a))*r*1.2, cy+0.16+dy, cz+Math.sin(a)*r,
+             0.15+((i*17)%6)/100, 0.015, 0.095, a, i%2?C.leaf:C.leafLite, MAT.LEAF, L.GARDEN, room);
+      }
+    };
+    for(const z of [-1.16,-0.72,-0.28]) plant(1.86,z,'pend');   // jiboia, columeia, filodendro
+    for(const z of [-1.16,-0.72,-0.28]) plant(1.31,z,'mid');    // peperômia, clorofito, begônia
+    for(const z of [-1.16,-0.72,-0.28]) plant(0.76,z,'mid');
+    // zamioculca em vaso alto na base
+    cyl(5.36,-1.22,0.0,0.42,0.13,0.155,16,C.white,MAT.LACQ,L.GARDEN,room);
+    for(let i=0;i<9;i++){ const a=i/9*Math.PI*2;
+      rbox(5.36+Math.cos(a)*0.10,0.62+((i*31)%18)/100,-1.22+Math.sin(a)*0.10,
+           0.055,0.44,0.05,a,i%2?C.leaf:C.leafLite,MAT.LEAF,L.GARDEN,room); }
+    // poltrona compacta de 0,70 m, pufe baixo, mesa lateral de 0,35 m
+    rbox(4.42,0.34,-0.92,0.70,0.16,0.66,0.22,C.linen,MAT.LINEN,L.FURNITURE,room);
+    rbox(4.29,0.58,-0.92,0.10,0.62,0.66,0.22,C.linenDeep,MAT.LINEN,L.FURNITURE,room);
+    for(const d of [[-0.30,-0.28],[0.30,-0.28],[-0.30,0.28],[0.30,0.28]])
+      cyl(4.42+d[0]*0.97+d[1]*0.22, -0.92-d[0]*0.22+d[1]*0.97, -0.03,0.26,0.022,0.016,8,C.oakDeep,MAT.OAK,L.FURNITURE,room);
+    rbox(4.48,0.20,-0.28,0.44,0.30,0.38,0.10,C.linenDeep,MAT.LINEN,L.FURNITURE,room);
+    cyl(4.30,-1.24,0.0,0.44,0.045,0.035,12,C.brass,MAT.BRASS,L.FURNITURE,room);
+    cyl(4.30,-1.24,0.0,0.02,0.15,0.14,16,C.brass,MAT.BRASS,L.FURNITURE,room);
+    cyl(4.30,-1.24,0.44,0.47,0.175,0.175,24,C.stone,MAT.SLABSTONE,L.FURNITURE,room);
+    // jardineira estreita na face interna do guarda-corpo, espécies pendentes
+    box(4.16,1.07,-1.40, 5.24,1.26,-1.22, C.white, MAT.LACQ, L.GARDEN, room);
+    for(let i=0;i<12;i++){ const x=4.22+i*0.086;
+      rbox(x,1.16-((i*23)%16)/100,-1.31,0.09,0.20,0.075,i*0.7,i%2?C.leaf:C.leafLite,MAT.LEAF,L.GARDEN,room); }
+    // arandela recarregável sem fio, fixada no ripado, voltada para baixo
+    box(5.40,2.12,-0.78, 5.50,2.20,-0.62, C.brass, MAT.BRASS, L.GARDEN, room);
+    box(5.41,2.10,-0.77, 5.49,2.12,-0.63, C.wall, MAT.EMIT, L.GARDEN, room);
+  }
+
+  /* ---------- circulação: nada além do essencial ---------- */
+  {
+    const room = RI.hall;
+    box(4.79,0.0,4.30, 5.60,0.42,4.73, C.wall, MAT.LACQ, L.JOINERY, room);
+    box(4.79,0.42,4.28, 5.60,0.46,4.75, C.oak, MAT.OAK, L.JOINERY, room);
+  }
+
+  /* ====================================================================== */
+  /*  VIDROS E ESQUADRIAS (passe translúcido)                                */
+  /* ====================================================================== */
+  TGT = 'tr';
+  const glass=(x0,y0,z0,x1,y1,z1,room)=> box(x0,y0,z0,x1,y1,z1,C.glass,MAT.FLAT,L.GLASS,room);
+  glass(0.57,1.02,-0.09, 1.98,2.08,-0.06, RI.estar);
+  glass(4.07,0.04,-0.09, 5.53,2.08,-0.06, RI.dorm1);
+  glass(6.17,1.02,-0.09, 7.63,2.08,-0.06, RI.dorm2);
+  glass(7.00,0.03,3.745, 8.07,2.02,3.765, RI.banho);
+  TGT = 'op';
+  // caixilhos em alumínio
+  const frame=(x0,y0,x1,y1,z)=>{ const c=[0.62,0.63,0.63];
+    box(x0,y0,z-0.035,x1,y0+0.04,z+0.005,c,MAT.FLAT,L.GLASS,0);
+    box(x0,y1-0.04,z-0.035,x1,y1,z+0.005,c,MAT.FLAT,L.GLASS,0);
+    box(x0,y0,z-0.035,x0+0.04,y1,z+0.005,c,MAT.FLAT,L.GLASS,0);
+    box(x1-0.04,y0,z-0.035,x1,y1,z+0.005,c,MAT.FLAT,L.GLASS,0);
+    box((x0+x1)/2-0.02,y0,z-0.035,(x0+x1)/2+0.02,y1,z+0.005,c,MAT.FLAT,L.GLASS,0); };
+  frame(0.55,1.00,2.00,2.10,-0.055);
+  frame(4.05,0.02,5.55,2.10,-0.055);
+  frame(6.15,1.00,7.65,2.10,-0.055);
+  // folhas de porta
+  const door=(x0,z0,x1,z1,ax)=>{
+    box(x0,0.03,z0,x1,2.08,z1,C.wall,MAT.LACQ,L.STRUCT,0);
+    if(ax==='x'){ cyl((x0+x1)/2+0.24,(z0+z1)/2-0.03,1.02,1.10,0.022,0.022,8,C.brass,MAT.BRASS,L.STRUCT,0);
+                  cyl((x0+x1)/2+0.24,(z0+z1)/2+0.03,1.02,1.10,0.022,0.022,8,C.brass,MAT.BRASS,L.STRUCT,0); }
+    else{ cyl((x0+x1)/2-0.03,(z0+z1)/2+0.24,1.02,1.10,0.022,0.022,8,C.brass,MAT.BRASS,L.STRUCT,0);
+          cyl((x0+x1)/2+0.03,(z0+z1)/2+0.24,1.02,1.10,0.022,0.022,8,C.brass,MAT.BRASS,L.STRUCT,0); }
+  };
+  door(4.80,2.535,5.50,2.575,'x');   // dorm 01
+  door(5.95,2.155,6.65,2.195,'x');   // dorm 02
+  door(6.885,2.95,6.925,3.65,'z');   // banho
+  door(5.55,4.795,6.35,4.835,'x');   // entrada
+}
+
+/* ======================================================================== */
+/*  RENDERIZADOR                                                            */
+/* ======================================================================== */
+const cv = document.getElementById('gl');
+let gl = cv.getContext('webgl', {antialias:true, alpha:false, powerPreference:'high-performance'})
+      || cv.getContext('experimental-webgl', {antialias:true, alpha:false});
+if(!gl){ document.getElementById('fallback').classList.add('on');
+         document.getElementById('loading').classList.add('gone'); return; }
+
+const COMMON = `
+precision highp float;
+float hash21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float a=hash21(i), b=hash21(i+vec2(1.0,0.0)), c=hash21(i+vec2(0.0,1.0)), d=hash21(i+vec2(1.0,1.0));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y); }
+float fbm(vec2 p){ float s=0.0,a=0.5; for(int i=0;i<5;i++){ s+=a*vnoise(p); p=p*2.07+vec2(1.3,-2.1); a*=0.5; } return s; }
+`;
+
+const VS = `
+attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aCol;
+attribute float aMat; attribute float aLay; attribute float aRoom;
+uniform mat4 uVP, uLVP;
+varying vec3 vPos, vNrm, vCol; varying float vMat, vLay, vRoom; varying vec4 vLS;
+void main(){
+  vPos=aPos; vNrm=aNrm; vCol=aCol; vMat=aMat; vLay=aLay; vRoom=aRoom;
+  vLS = uLVP * vec4(aPos + aNrm*0.035, 1.0);
+  gl_Position = uVP * vec4(aPos, 1.0);
+}`;
+
+const FS = COMMON + `
+varying vec3 vPos, vNrm, vCol; varying float vMat, vLay, vRoom; varying vec4 vLS;
+uniform float uLayVis[10];
+uniform float uCutY, uHiRoom, uAlpha, uShadowOn, uShTexel, uLightOn, uNight;
+uniform vec3 uSun, uSunCol, uSky, uGround, uEye;
+uniform sampler2D uShadow;
+uniform vec3 uLPos[7]; uniform vec3 uLCol[7];
+
+float layVis(float l){ float v=1.0; for(int i=0;i<10;i++){ if(abs(float(i)-l)<0.5) v=uLayVis[i]; } return v; }
+float unpackD(vec4 c){ return dot(c, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0)); }
+float tapSh(vec2 uv, float d){ return unpackD(texture2D(uShadow,uv)) + 0.0032 < d ? 0.0 : 1.0; }
+float shadow(){
+  if(uShadowOn < 0.5) return 1.0;
+  vec3 p = vLS.xyz/vLS.w * 0.5 + 0.5;
+  if(p.x<0.005||p.x>0.995||p.y<0.005||p.y>0.995||p.z>1.0) return 1.0;
+  float t = uShTexel;
+  float s = tapSh(p.xy,p.z)
+          + tapSh(p.xy+vec2( t,0.0),p.z) + tapSh(p.xy+vec2(-t,0.0),p.z)
+          + tapSh(p.xy+vec2(0.0, t),p.z) + tapSh(p.xy+vec2(0.0,-t),p.z)
+          + tapSh(p.xy+vec2( t, t),p.z)  + tapSh(p.xy+vec2(-t,-t),p.z);
+  return s/7.0;
+}
+vec2 uvFor(vec3 p, vec3 n){
+  vec3 a = abs(n);
+  if(a.y>=a.x && a.y>=a.z) return p.xz;
+  if(a.x>=a.z) return p.zy;
+  return p.xy;
+}
+vec3 veins(vec3 base, vec2 uv, float sc, float amt){
+  float w = fbm(uv*sc*1.15);
+  float v = fbm(uv*sc*0.55 + vec2(w*1.7, -w*1.25));
+  float a = smoothstep(0.455,0.515,v) - smoothstep(0.515,0.605,v);
+  float b = smoothstep(0.615,0.645,v);
+  vec3 c = mix(base, base*vec3(0.70,0.725,0.765), (a*0.95 + b*0.30)*amt);
+  return mix(c, base*1.015, fbm(uv*sc*7.0)*0.14);
+}
+void main(){
+  if(layVis(vLay) < 0.5) discard;
+  if(uCutY > 0.0 && vPos.y > uCutY) discard;
+
+  vec3 N = normalize(vNrm);
+  vec2 uv = uvFor(vPos, N);
+  vec3 alb = vCol;
+  float rough = 0.85, spec = 0.03;
+  int m = int(vMat + 0.5);
+
+  if(m == 1){                                   // porcelanato marmorizado 120x120, junta 1,5 mm
+    alb = veins(alb, uv, 1.0, 1.0);
+    vec2 g = abs(fract(uv/1.20 + 0.5) - 0.5) * 1.20;
+    float j = 1.0 - smoothstep(0.0, 0.011, min(g.x,g.y));
+    alb = mix(alb, alb*0.79, j*0.8);
+    rough = 0.34; spec = 0.20;
+  } else if(m == 2){                            // porcelanato amadeirado 20 x 120
+    float row = floor(uv.y/0.20);
+    float off = fract(sin(row*17.31)*43758.5)*1.2;
+    float colid = floor((uv.x+off)/1.20);
+    float id = hash21(vec2(row, colid));
+    alb *= 0.88 + id*0.22;
+    alb *= 0.90 + fbm(vec2(uv.x*3.2 + id*40.0, uv.y*30.0))*0.24;
+    float ln = 1.0 - smoothstep(0.0,0.0055, abs(fract(uv.y/0.20)-0.5)*0.20);
+    float lc = 1.0 - smoothstep(0.0,0.008,  abs(fract((uv.x+off)/1.20)-0.5)*1.20);
+    alb = mix(alb, alb*0.66, max(ln,lc)*0.55);
+    rough = 0.52; spec = 0.09;
+  } else if(m == 3){                            // quartzito branco / calacatta, chapa inteira
+    alb = veins(alb, uv, 1.9, 0.85);
+    rough = 0.24; spec = 0.26;
+  } else if(m == 4){                            // linho
+    float w = fbm(uv*130.0)*0.5 + fbm(uv*46.0)*0.5;
+    alb *= 0.90 + w*0.20;
+    alb *= 0.97 + 0.03*sin(uv.x*420.0)*sin(uv.y*420.0);
+    rough = 0.96; spec = 0.012;
+  } else if(m == 5){                            // latão escovado — único metal da casa
+    float st = fbm(vec2(uv.x*4.0, uv.y*150.0));
+    alb *= 0.80 + st*0.42;
+    rough = 0.16; spec = 0.62;
+  } else if(m == 6){                            // laje de concreto sem acabamento
+    alb *= 0.86 + fbm(uv*5.5)*0.26;
+    alb *= 0.94 + fbm(uv*24.0)*0.12;
+    rough = 0.95; spec = 0.02;
+  } else if(m == 8){                            // folhagem — verde sólido, textura variando
+    alb *= 0.78 + hash21(floor(vPos.xz*40.0))*0.34;
+    alb *= 0.90 + fbm(uv*22.0)*0.20;
+    rough = 0.7; spec = 0.07;
+  } else if(m == 9){                            // madeira maciça / ripado WPC
+    float g = fbm(vec2(uv.x*2.2, uv.y*34.0));
+    alb *= 0.86 + g*0.28;
+    rough = 0.55; spec = 0.07;
+  } else if(m == 10){                           // laca acetinada
+    alb *= 0.985 + fbm(uv*60.0)*0.03;
+    rough = 0.28; spec = 0.10;
+  }
+
+  if(m == 7){                                   // fita de LED / fonte luminosa aparente
+    float on = max(uLightOn, uNight*0.5);
+    vec3 e = vec3(1.0,0.905,0.775) * (0.55 + 0.85*on);
+    gl_FragColor = vec4(e, uAlpha);
+    return;
+  }
+
+  float sh = shadow();
+  float ndl = max(dot(N, uSun), 0.0);
+  // oclusão aproximada: o que está baixo e voltado para baixo recebe menos céu
+  float ao = mix(0.52, 1.0, smoothstep(-0.15, 1.75, vPos.y)) * (0.70 + 0.30*(N.y*0.5+0.5));
+  vec3 hemi = mix(uGround, uSky, N.y*0.5 + 0.5) * ao;
+  vec3 lit = hemi + uSunCol * ndl * sh;
+
+  vec3 Vv = normalize(uEye - vPos);
+  float shiny = mix(6.0, 190.0, 1.0 - rough);
+  vec3 Hh = normalize(uSun + Vv);
+  float sp = pow(max(dot(N,Hh),0.0), shiny) * spec * sh * (0.35 + 0.65*ndl);
+
+  for(int i=0;i<7;i++){
+    vec3 d = uLPos[i] - vPos;
+    float dist2 = dot(d,d);
+    vec3 Ld = d * inversesqrt(max(dist2, 0.0001));
+    float att = 1.0 / (1.0 + dist2*0.42);
+    float nl = max(dot(N,Ld), 0.0);
+    lit += uLCol[i] * nl * att * uLightOn;
+    vec3 Hp = normalize(Ld + Vv);
+    sp += pow(max(dot(N,Hp),0.0), shiny) * spec * att * nl * uLightOn * 0.9;
+  }
+
+  vec3 col = alb * lit + vec3(1.0,0.955,0.885) * sp;
+
+  if(uHiRoom > 0.5){
+    if(abs(vRoom - uHiRoom) < 0.1) col = col*1.045 + vec3(0.014,0.011,0.004);
+    else if(vRoom > 0.5)          col = mix(vec3(dot(col,vec3(0.3,0.59,0.11))), col, 0.55) * 0.80;
+  }
+
+  col = col / (col + vec3(1.02));               // tone map
+  col = mix(vec3(dot(col, vec3(0.299,0.587,0.114))), col, 1.06);
+  col = pow(col, vec3(0.4545));
+  gl_FragColor = vec4(col, uAlpha);
+}`;
+
+const DVS = `
+attribute vec3 aPos; attribute float aLay;
+uniform mat4 uLVP; varying float vLay; varying float vY;
+void main(){ vLay=aLay; vY=aPos.y; gl_Position = uLVP * vec4(aPos,1.0); }`;
+const DFS = `
+precision highp float; varying float vLay; varying float vY;
+uniform float uLayVis[10]; uniform float uCutY;
+float layVis(float l){ float v=1.0; for(int i=0;i<10;i++){ if(abs(float(i)-l)<0.5) v=uLayVis[i]; } return v; }
+vec4 packD(float v){ vec4 e = vec4(1.0,255.0,65025.0,16581375.0)*v; e = fract(e);
+  e -= e.yzww * vec4(1.0/255.0, 1.0/255.0, 1.0/255.0, 0.0); return e; }
+void main(){
+  if(layVis(vLay) < 0.5) discard;
+  if(uCutY > 0.0 && vY > uCutY) discard;
+  gl_FragColor = packD(gl_FragCoord.z);
+}`;
+
+function sh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)+"\n"+src);
+  return s; }
+function prog(vs,fs){ const p=gl.createProgram();
+  gl.attachShader(p,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(p,sh(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p; }
+
+let MAIN, DEPTH;
+try{ MAIN = prog(VS,FS); DEPTH = prog(DVS,DFS); }
+catch(e){ console.error(e); document.getElementById('fallback').classList.add('on');
+          document.getElementById('loading').classList.add('gone'); return; }
+
+const U = {}, UD = {};
+function locs(p, o, names){ names.forEach(n=> o[n]=gl.getUniformLocation(p,n)); }
+locs(MAIN,U,['uVP','uLVP','uCutY','uHiRoom','uAlpha','uShadowOn','uShTexel','uLightOn','uNight',
+             'uSun','uSunCol','uSky','uGround','uEye','uShadow']);
+for(let i=0;i<10;i++) U['uLayVis'+i]=gl.getUniformLocation(MAIN,'uLayVis['+i+']');
+for(let i=0;i<7;i++){ U['uLPos'+i]=gl.getUniformLocation(MAIN,'uLPos['+i+']');
+                      U['uLCol'+i]=gl.getUniformLocation(MAIN,'uLCol['+i+']'); }
+locs(DEPTH,UD,['uLVP','uCutY']);
+for(let i=0;i<10;i++) UD['uLayVis'+i]=gl.getUniformLocation(DEPTH,'uLayVis['+i+']');
+
+/* ---------- upload ---------- */
+buildScene();
+function makeVAO(p,n,c,m,l,r){
+  const cnt = p.length/3, data = new Float32Array(cnt*12);
+  for(let i=0;i<cnt;i++){
+    const o=i*12;
+    data[o]=p[i*3]; data[o+1]=p[i*3+1]; data[o+2]=p[i*3+2];
+    data[o+3]=n[i*3]; data[o+4]=n[i*3+1]; data[o+5]=n[i*3+2];
+    data[o+6]=c[i*3]; data[o+7]=c[i*3+1]; data[o+8]=c[i*3+2];
+    data[o+9]=m[i]; data[o+10]=l[i]; data[o+11]=r[i];
+  }
+  const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+  return {buf:b, count:cnt};
+}
+const OPQ = makeVAO(P,N,CO,MA,LA,RO);
+const TRN = makeVAO(gP,gN,gCO,gMA,gLA,gRO);
+P=N=CO=MA=LA=RO=gP=gN=gCO=gMA=gLA=gRO=null;
+
+function bindAttribs(p){
+  const S=48;
+  const set=(nm,size,off)=>{ const loc=gl.getAttribLocation(p,nm);
+    if(loc<0) return; gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc,size,gl.FLOAT,false,S,off); };
+  set('aPos',3,0); set('aNrm',3,12); set('aCol',3,24);
+  set('aMat',1,36); set('aLay',1,40); set('aRoom',1,44);
+}
+
+/* ---------- shadow map ---------- */
+const SH_SIZE = 2048;
+const shTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, shTex);
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,SH_SIZE,SH_SIZE,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+const shFbo = gl.createFramebuffer();
+gl.bindFramebuffer(gl.FRAMEBUFFER, shFbo);
+gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,shTex,0);
+const shRb = gl.createRenderbuffer();
+gl.bindRenderbuffer(gl.RENDERBUFFER, shRb);
+gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,SH_SIZE,SH_SIZE);
+gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,shRb);
+const SHADOW_OK = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+/* ======================================================================== */
+/*  CONTEÚDO — extraído do memorial descritivo                              */
+/* ======================================================================== */
+const ROOMS = [
+  { id:'estar', idx:1, nome:'Estar / Jantar', kicker:'4.1 · Ambiente social',
+    med:'4,45 × 2,50 m', area:'11,1 m²', piso:'Laje nua na entrega',
+    sw:'#D9D5CC',
+    cam:{t:[2.20,1.20,1.60],  yaw:-0.549,pitch:0.110, dist:3.18, fov:1.30},
+    walk:[1.25,1.62,3.10, 3.14],
+    nota:'A boiserie de moldura fina fica na parede da TV, tom sobre tom. O relevo aparece pela sombra, não pelo contraste — boiserie branca sobre parede colorida descaracteriza o conceito.',
+    spec:[['Sofá em linho off-white, pés torneados','2,20 m'],
+          ['Mesa de jantar redonda, tampo de pedra sobre base de latão','Ø 1,00 m'],
+          ['Rack suspenso laqueado, puxador cava em latão','1,60 m'],
+          ['Espelho de moldura fina em latão, parede oposta à fachada','0,96 × 1,26 m'],
+          ['Cortina de linho do teto ao chão, trilho embutido na sanca','—']],
+    bul:['A forma redonda da mesa é obrigatória: quina em circulação estreita trava a passagem.',
+         'O sofá-cama é a solução para hóspedes, já que o Dormitório 02 passa a ser escritório.',
+         'A península de 1,20 m avança da cozinha e serve de apoio e aparador.'],
+    veto:['Sala entregue em laje de concreto sem acabamento — prever regularização de contrapiso.',
+          'Ponto de TV e de telecomunicações é tubulação seca, um ponto, sem fios passados.',
+          'Não há previsão de tubulação seca de ar-condicionado para a sala.'] },
+
+  { id:'coz', idx:4, nome:'Cozinha / Área de serviço', kicker:'4.2 · Integrada ao estar',
+    med:'2,12 × 2,10 m', area:'4,3 m²', piso:'Laje nua / revestido na A.S.',
+    sw:'#EDE8DE',
+    cam:{t:[3.70,1.10,4.60],  yaw:3.692, pitch:0.268, dist:1.89, fov:1.34},
+    walk:[3.40,1.62,3.35, 3.14],
+    nota:'Layout linear com península de 1,20 m avançando para o estar. O frontão em pedra, da bancada ao teto, é o item de maior retorno estético por valor investido.',
+    spec:[['Armários até o teto, portas laqueadas com friso shaker','h 2,45 m'],
+          ['Frontão em pedra, da bancada ao teto','—'],
+          ['Península de apoio e aparador','1,20 m'],
+          ['Puxadores em latão escovado','—']],
+    bul:['A construtora entrega bancada suspensa em material sintético e tanque em fibra; a substituição é opcional e orçada à parte.',
+         'A máquina de lavar deve despejar direto no tanque.'],
+    veto:['O ponto de instalação do fogão não é compatível com fogão de indução.',
+          'Duas tomadas de uso geral, sem potência para máquina de secar ou lava e seca. Lava e seca exige circuito dedicado previsto antes das chaves.',
+          'Venezianas de ventilação do gás não podem ser fechadas, retiradas ou obstruídas por móveis.'] },
+
+  { id:'banho', idx:6, nome:'Banho', kicker:'4.3 · Único, já revestido',
+    med:'1,13 × 2,33 m', area:'2,6 m²', piso:'Revestido na entrega',
+    sw:'#F0EFEC',
+    cam:{t:[7.55,1.20,2.45],  yaw:0.000, pitch:0.333, dist:1.16, fov:1.42},
+    walk:[7.50,1.62,3.20, 3.14],
+    nota:'Revestimento marmorizado do piso ao teto, mesmo material em paredes e chão, para efeito monolítico. Manter o revestimento de série reduz custo e evita remoção.',
+    spec:[['Gabinete suspenso laqueado com friso e cuba de apoio','1,09 m'],
+          ['Torneira de parede em latão escovado','—'],
+          ['Box de vidro incolor com perfil em latão','1,00 m'],
+          ['Espelho de moldura fina com arandelas laterais','0,84 × 0,64 m'],
+          ['Ponto de chuveiro elétrico previsto','5.400 W']],
+    bul:['Arandelas laterais no lugar de plafon central, que projeta sombra no rosto.',
+         'Prateleira de canto substitui o nicho embutido.'],
+    veto:['Nicho embutido no box está descartado: abrir nicho em parede estrutural é proibido.',
+          'Tubulações horizontais e verticais são entregues aparentes, próximas a paredes e piso.'] },
+
+  { id:'dorm1', idx:2, nome:'Dormitório 01', kicker:'4.4 · Casal · acesso à varanda',
+    med:'2,90 × 2,50 m', area:'7,3 m²', piso:'Laje nua na entrega',
+    sw:'#C9A87C',
+    cam:{t:[3.60,1.05,2.30],  yaw:2.412, pitch:0.330, dist:2.80, fov:1.30},
+    walk:[4.10,1.62,1.90, 3.14],
+    nota:'Cabeceira estofada em linho até o teto, ladeada por boiserie tom sobre tom. Criados-mudos suspensos e estreitos liberam o piso, com arandelas articuladas em latão.',
+    spec:[['Cabeceira estofada em linho, até o teto','1,64 m'],
+          ['Cama queen','1,58 m'],
+          ['Circulação livre de cada lado','≈ 0,66 m'],
+          ['Armário até o teto, portas de correr laqueadas com frisos','1,40 m']],
+    bul:['Com 2,90 m de largura, a cama queen deixa o mínimo aceitável de circulação. Para conforto real, considerar cama de 1,40 m.',
+         'A porta de correr da varanda deve permanecer desobstruída — é o único acesso.'],
+    veto:['Tubulação seca de ar-condicionado prevista, carga de 1000 W. Disjuntor, fiação, rede frigorígena e aparelho são por conta do cliente.',
+          'Tomadas de cabeceira na altura dos criados suspensos precisam ser definidas antes das chaves.'] },
+
+  { id:'dorm2', idx:3, nome:'Dormitório 02', kicker:'4.5 · Home office · parede de acento',
+    med:'2,40 × 2,10 m', area:'5,0 m²', piso:'Laje nua na entrega',
+    sw:'#6B7059',
+    cam:{t:[7.60,1.05,0.15],  yaw:-0.756,pitch:0.199, dist:2.53, fov:1.30},
+    walk:[6.90,1.62,1.55, 3.14],
+    nota:'A parede da porta, atrás da cadeira, é a parede de acento em verde-oliva com boiserie tom sobre tom. Ela é o fundo das videochamadas — é por isso que a cor forte fica ali, e não atrás da bancada.',
+    spec:[['Bancada flutuante, tampo laminado marmorizado sobre estrutura metálica','2,30 × 0,55 · h 0,75'],
+          ['Torres aéreas (2 un.), laqueadas com friso shaker','0,60 × 0,35 · h 1,05 ao teto'],
+          ['Prateleira central com fita de LED inferior','1,10 × 0,25'],
+          ['Armário raso lateral até o teto, arquivo e material','1,45 × 0,35'],
+          ['Circulação livre entre a cadeira e a parede da porta','1,00 m']],
+    bul:['Fachada nascente: sol direto na bancada até por volta das 10h ou 11h, e nada à tarde. A persiana rolô screen com abertura de 3% é item obrigatório, não opcional.',
+         'Tomadas e ponto de rede em régua embutida na marcenaria, por eletroduto oculto atrás da bancada.',
+         'Split viável, aproveitando a tubulação seca prevista para dormitórios.'],
+    veto:['Cama retrátil só no modelo horizontal, que abre 1,40 m e deixa 0,15 m até a bancada. Folga apertada — a recomendação é resolver hóspedes no sofá-cama da sala.',
+          'Nunca abrir rasgo em parede para passar fiação: a instalação corre por forro, drywall, rodapé técnico ou marcenaria.'] },
+
+  { id:'var', idx:7, nome:'Varanda', kicker:'4.6 · Jardim vertical e leitura',
+    med:'1,50 × 1,40 m', area:'2,1 m²', piso:'Revestido na entrega',
+    sw:'#4E6B43',
+    cam:{t:[5.00,1.05,-0.70], yaw:3.842, pitch:0.480, dist:2.60, fov:1.36},
+    walk:[4.75,1.62,-0.70, 0.0],
+    nota:'Uma única parede cheia, a divisa com o Dormitório 02, com 1,40 m. As demais faces são guarda-corpo de fachada. Painel ripado em WPC cor carvalho, fixado com buchas: fixação é permitida, o que o contrato veda é abrir rasgos e nichos.',
+    spec:[['Painel ripado em madeira tratada ou WPC, cor carvalho','1,40 m'],
+          ['Cachepôs individuais em cerâmica off-white, suporte em latão','3 fileiras'],
+          ['Poltrona compacta em linho off-white','máx. 0,70 m'],
+          ['Mesa lateral redonda, tampo de pedra e base em latão','Ø 0,35 m'],
+          ['Arandela recarregável sem fio, em latão escovado','—']],
+    bul:['Cachepô individual, e não painel com bolsas de feltro: permite substituir uma planta doente sem desmontar o conjunto.',
+         'Superior, pendentes: jibóia, columeia, filodendro-cordatum. Intermediária: peperômia, clorofito, begônia-maculata. Base, vaso alto: zamioculca ou pacová.',
+         'Evitar calateias e marantas, que exigem umidade alta e sofrem com vento, e samambaias, de rega quase diária.',
+         'Rega duas a três vezes por semana no verão, uma no inverno, sempre pela manhã.'],
+    veto:['Não há ponto de luz nem tomada previstos — a solução é arandela recarregável, sem obra.',
+          'Não há ponto de água. Excesso de água escorrendo até a varanda inferior é a principal fonte de conflito com vizinhos.',
+          'Nada perfurado na face externa do guarda-corpo nem visível da rua: caracteriza alteração de fachada e compromete os frisos técnicos impermeabilizados.'] },
+
+  { id:'hall', idx:5, nome:'Circulação', kicker:'Entrada e distribuição',
+    med:'—', area:'—', piso:'Laje nua na entrega',
+    sw:'#DCD6C8',
+    cam:{t:[5.60,1.15,2.60],  yaw:0.177, pitch:0.224, dist:2.03, fov:1.36},
+    walk:[5.90,1.62,4.30, 3.14],
+    nota:'A circulação não é cotada no quadro de áreas do contrato; a faixa aqui é a que sobra entre a cozinha, o banho e as portas dos dormitórios. Ela recebe o traçado da sanca que define todo o encaminhamento elétrico.',
+    spec:[['Porta de entrada','0,80 m'],
+          ['Portas dos dormitórios e do banho','0,70 m']],
+    bul:['Toda a fiação nova corre por dentro do forro, do drywall ou da marcenaria.'],
+    veto:['Portas até o teto estão descartadas: alterar a altura do vão exige intervenção em parede estrutural.'] }
+];
+const BY_ID = {}; ROOMS.forEach(r=>BY_ID[r.id]=r);
+const BY_IDX = {}; ROOMS.forEach(r=>BY_IDX[r.idx]=r);
+
+const OVERVIEW = {
+  title:'Visão geral', kicker:'Conceito e paleta',
+  cam:{t:[4.00,0.55,1.60], yaw:3.60, pitch:1.00, dist:15.8, fov:0.74},
+  html:`
+    <p class="p-note">Clássico contemporâneo aplicado com uma regra central: <b>boiserie sempre na mesma cor da parede</b>. O relevo aparece pela sombra, não pelo contraste.</p>
+    <div class="sec"><div class="sec-head"><span class="eyebrow">Paleta</span></div>
+    <div class="spec">
+      <div class="row"><b>Paredes e boiserie</b><span>off-white quente</span></div>
+      <div class="row"><b>Pedra</b><span>quartzito branco</span></div>
+      <div class="row"><b>Madeira</b><span>carvalho claro</span></div>
+      <div class="row"><b>Metal — único da casa</b><span>latão escovado</span></div>
+      <div class="row"><b>Acento — só a parede da porta do office</b><span>verde-oliva</span></div>
+      <div class="row"><b>Piso social e molhado</b><span>marmorizado 120×120</span></div>
+      <div class="row"><b>Piso dos dormitórios</b><span>amadeirado 20×120</span></div>
+    </div></div>
+    <div class="sec"><div class="sec-head"><span class="eyebrow">Restrições construtivas</span></div>
+    <div class="callout"><b>Paredes de concreto estrutural.</b> É proibido alterar, remover ou deslocar qualquer parede, e proibido abrir nichos ou rasgos em paredes e lajes para embutir tubulação. Toda instalação nova corre por forro de gesso, drywall novo, rodapé técnico ou dentro da marcenaria.</div>
+    <ul class="bul veto" style="margin-top:12px">
+      <li>Sala, circulação, dormitórios e cozinha são entregues em laje de concreto sem acabamento.</li>
+      <li>Banho, área de serviço e varanda já são entregues com revestimento.</li>
+      <li>Ar-condicionado: tubulação seca apenas nos dormitórios, carga de 1000 W. Nada para sala nem varanda.</li>
+      <li>Qualquer reforma após a entrega das chaves é de responsabilidade do proprietário e implica perda de garantia.</li>
+    </ul></div>
+    <div class="sec"><div class="sec-head"><span class="eyebrow">Distribuição de orçamento</span></div>
+    <div class="spec">
+      <div class="row"><b>Marcenaria planejada</b><span>40 – 45%</span></div>
+      <div class="row"><b>Porcelanato, pedra, louças e metais</b><span>28 – 32%</span></div>
+      <div class="row"><b>Elétrica e iluminação</b><span>10%</span></div>
+      <div class="row"><b>Mobiliário solto</b><span>10 – 12%</span></div>
+      <div class="row"><b>Varanda: painel, vasos e plantas</b><span>5 – 8%</span></div>
+    </div>
+    <p class="p-note" style="margin-top:12px">A entrega em laje nua na sala, nos dormitórios e na cozinha adiciona regularização de contrapiso ao orçamento, o que pressiona a linha de acabamentos para cima.</p></div>
+    <div class="sec"><div class="sec-head"><span class="eyebrow">Faseamento</span></div>
+    <ul class="bul">
+      <li><b>Antes das chaves</b> — elétrica, hidráulica, traçado de sanca e pontos de ar-condicionado.</li>
+      <li><b>Logo após as chaves</b> — vistoria, contrapiso, forro e elétrica, piso e pintura.</li>
+      <li><b>Obra bruta concluída</b> — medição em campo e execução da marcenaria.</li>
+      <li><b>Por último</b> — pedra, louças, metais, iluminação decorativa, mobiliário e varanda.</li>
+    </ul></div>`
+};
+
+/* ======================================================================== */
+/*  ESTADO / CÂMERA                                                         */
+/* ======================================================================== */
+const state = {
+  mode:'orbit',
+  sel:null,
+  hour:8,
+  layers:{0:1,1:1,2:1,3:1,4:0,5:1,6:1,7:1,8:1},   // teto desligado por padrão (maquete aberta)
+  cut:0,
+  lights:1,
+  orbit:{t:OVERVIEW.cam.t.slice(), yaw:OVERVIEW.cam.yaw, pitch:OVERVIEW.cam.pitch, dist:OVERVIEW.cam.dist, fov:OVERVIEW.cam.fov},
+  plan:{cx:4.0, cz:1.7, half:3.6},
+  walk:{p:[5.95,1.62,4.30], yaw:Math.PI, pitch:-0.06},
+  tween:null
+};
+const keys = {};
+
+function orbitEye(o){
+  const cp=Math.cos(o.pitch);
+  return [o.t[0]+Math.sin(o.yaw)*cp*o.dist, o.t[1]+Math.sin(o.pitch)*o.dist, o.t[2]+Math.cos(o.yaw)*cp*o.dist];
+}
+function flyTo(cam){
+  if(state.mode==='walk') return;
+  if(state.mode==='plan'){ state.plan.cx=cam.t[0]; state.plan.cz=cam.t[2]; return; }
+  const o=state.orbit;
+  let dy = cam.yaw - o.yaw;
+  while(dy> Math.PI) dy-=Math.PI*2; while(dy<-Math.PI) dy+=Math.PI*2;
+  state.tween = {t0:performance.now(), dur:820,
+    from:{t:o.t.slice(), yaw:o.yaw, pitch:o.pitch, dist:o.dist, fov:o.fov},
+    to:{t:cam.t.slice(), yaw:o.yaw+dy, pitch:cam.pitch, dist:cam.dist, fov:cam.fov||0.90}};
+}
+function stepTween(now){
+  const tw=state.tween; if(!tw) return;
+  let k=(now-tw.t0)/tw.dur;
+  if(k>=1){ k=1; state.tween=null; }
+  const e = k<0.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;
+  const o=state.orbit;
+  for(let i=0;i<3;i++) o.t[i]=lerp(tw.from.t[i],tw.to.t[i],e);
+  o.yaw  = lerp(tw.from.yaw,  tw.to.yaw,  e);
+  o.pitch= lerp(tw.from.pitch,tw.to.pitch,e);
+  o.dist = lerp(tw.from.dist, tw.to.dist, e);
+  o.fov  = lerp(tw.from.fov,  tw.to.fov,  e);
+}
+
+/* ---------- sol ---------- */
+function sunState(h){
+  const a = (h-6)/12*Math.PI, tilt = 0.35;
+  const d = V.norm([Math.sin(a)*Math.sin(tilt), Math.sin(a)*Math.cos(tilt), -Math.cos(a)]);
+  const elev = d[1];
+  const k = clamp((elev-0.02)/0.34, 0, 1);
+  const inten = clamp(elev*3.0, 0, 1) * 1.95;
+  const col = [lerp(1.06,1.00,k)*inten, lerp(0.60,0.955,k)*inten, lerp(0.30,0.885,k)*inten];
+  const day = clamp((elev+0.06)/0.22, 0, 1);
+  return {dir:d, elev, col, night: 1-day,
+          sky:  [lerp(0.052,0.255,day), lerp(0.056,0.292,day), lerp(0.072,0.352,day)],
+          grd:  [lerp(0.034,0.140,day), lerp(0.034,0.131,day), lerp(0.038,0.116,day)]};
+}
+const LIGHTS = [
+  [1.25,2.28,1.90],[1.25,2.28,3.95],[4.10,2.28,1.25],
+  [6.90,2.28,1.00],[3.55,2.28,3.85],[7.52,2.12,3.30],
+  [5.80,2.28,3.55]
+];
+const LCOL = [1.00,0.775,0.545];
+
+/* ======================================================================== */
+/*  LAÇO DE RENDERIZAÇÃO                                                    */
+/* ======================================================================== */
+let W=1, Ht=1, DPR=1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = Math.max(1, Math.round(cv.clientWidth*DPR));
+  Ht= Math.max(1, Math.round(cv.clientHeight*DPR));
+  if(cv.width!==W||cv.height!==Ht){ cv.width=W; cv.height=Ht; }
+}
+window.addEventListener('resize', ()=>{ resize(); if(state.mode==='plan') fitPlan(); });
+
+const PLAN_W = 8.70, PLAN_D = 6.90;      // envoltória incluindo a varanda projetada
+function railWidths(){
+  const L=document.getElementById('rail-l'), Rr=document.getElementById('rail-r');
+  const wl = L && L.offsetTop===0 ? L.offsetWidth : 0;
+  const wr = Rr && Rr.offsetParent && getComputedStyle(Rr).display!=='none' ? Rr.offsetWidth : 0;
+  return wl + wr;
+}
+function fitPlan(){
+  const asp = Math.max(0.3, cv.clientWidth/Math.max(1,cv.clientHeight));
+  const free = Math.max(0.3, (cv.clientWidth - railWidths()) / Math.max(1, cv.clientWidth));
+  state.plan.half = Math.max(PLAN_D/2, PLAN_W/(2*asp*free)) * 1.07;
+}
+function railOffset(){
+  const L=document.getElementById('rail-l'), Rr=document.getElementById('rail-r');
+  const wl = L && getComputedStyle(L).position==='absolute' && L.offsetTop===0 ? L.offsetWidth : 0;
+  const wr = Rr && Rr.offsetParent && getComputedStyle(Rr).display!=='none' ? Rr.offsetWidth : 0;
+  return (wl - wr) / Math.max(1, cv.clientWidth);
+}
+function camera(){
+  const asp = W/Ht;
+  if(state.mode==='plan'){
+    const p=state.plan, hw=p.half*asp, hh=p.half;
+    const eye=[p.cx, 16, p.cz];
+    const proj = M4.ortho(-hw,hw,-hh,hh,0.1,40);
+    proj[12] += railOffset();
+    return {proj, view:M4.look(eye,[p.cx,0,p.cz],[0,0,-1]),
+            eye, fwd:[0,-1,0], right:[1,0,0], up:[0,0,-1], ortho:true, hw, hh};
+  }
+  if(state.mode==='walk'){
+    const w=state.walk, cp=Math.cos(w.pitch);
+    const tgt=[w.p[0]+Math.sin(w.yaw)*cp, w.p[1]+Math.sin(w.pitch), w.p[2]+Math.cos(w.yaw)*cp];
+    return {proj:M4.persp(1.20,asp,0.05,60), view:M4.look(w.p,tgt,[0,1,0]), eye:w.p.slice(),
+            fov:1.20, ortho:false, tgt};
+  }
+  const o=state.orbit, eye=orbitEye(o), fv=o.fov||0.90;
+  const proj = M4.persp(fv,asp,0.04,90);
+  proj[8] = -railOffset();          // centraliza no vão entre os trilhos
+  return {proj, view:M4.look(eye,o.t,[0,1,0]), eye,
+          fov:fv, ortho:false, tgt:o.t.slice()};
+}
+
+function setLayers(uni, over){
+  for(let i=0;i<10;i++){
+    let v = state.layers[i]!==undefined ? state.layers[i] : 1;
+    if(over) v = over[i]!==undefined ? over[i] : 0;
+    gl.uniform1f(uni['uLayVis'+i], v);
+  }
+}
+function drawSet(p, set){
+  gl.bindBuffer(gl.ARRAY_BUFFER, set.buf);   // ligar antes de apontar os atributos
+  bindAttribs(p);
+  gl.drawArrays(gl.TRIANGLES, 0, set.count);
+}
+
+function render(now){
+  stepTween(now);
+  if(state.mode==='walk') walkStep();
+  resize();
+
+  const sun = sunState(state.hour);
+  if(state.mode==='plan'){                  // planta: luz zenital, sem sombra rasante
+    sun.dir = V.norm([0.26,0.94,0.21]);
+    sun.col = [0.95,0.93,0.89]; sun.night = 0; sun.elev = 0;
+    sun.sky = [0.34,0.36,0.40]; sun.grd = [0.22,0.21,0.19];
+  }
+  const cam = camera();
+  const VP = M4.mul(cam.proj, cam.view);
+  const cutY = state.mode==='plan' ? 1.30 : state.cut;
+
+  /* --- mapa de sombras --- */
+  const center=[4.0,1.0,1.60], EX=7.2;
+  const lEye = V.add(center, V.scale(sun.dir, 18));
+  const LVP = M4.mul(M4.ortho(-EX,EX,-EX,EX,0.1,38), M4.look(lEye,center,[0,1,0]));
+  const useShadow = SHADOW_OK && sun.elev > 0.035;
+  if(useShadow){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFbo);
+    gl.viewport(0,0,SH_SIZE,SH_SIZE);
+    gl.clearColor(1,1,1,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
+    gl.useProgram(DEPTH);
+    gl.uniformMatrix4fv(UD.uLVP,false,LVP);
+    gl.uniform1f(UD.uCutY, cutY);
+    setLayers(UD);
+    drawSet(DEPTH, OPQ);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  /* --- passe principal --- */
+  gl.viewport(0,0,W,Ht);
+  const bg = [lerp(0.055,0.545,clamp((sun.elev+0.06)/0.24,0,1)),
+              lerp(0.060,0.630,clamp((sun.elev+0.06)/0.24,0,1)),
+              lerp(0.080,0.720,clamp((sun.elev+0.06)/0.24,0,1))];
+  gl.clearColor(bg[0],bg[1],bg[2],1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+  gl.disable(gl.BLEND); gl.depthMask(true);
+  gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+
+  gl.useProgram(MAIN);
+  gl.uniformMatrix4fv(U.uVP,false,VP);
+  gl.uniformMatrix4fv(U.uLVP,false,LVP);
+  gl.uniform3fv(U.uSun, new Float32Array(sun.dir));
+  gl.uniform3fv(U.uSunCol, new Float32Array(sun.col));
+  gl.uniform3fv(U.uSky, new Float32Array(sun.sky));
+  gl.uniform3fv(U.uGround, new Float32Array(sun.grd));
+  gl.uniform3fv(U.uEye, new Float32Array(cam.eye));
+  gl.uniform1f(U.uCutY, cutY);
+  gl.uniform1f(U.uHiRoom, state.sel ? BY_ID[state.sel].idx : 0);
+  gl.uniform1f(U.uAlpha, 1.0);
+  gl.uniform1f(U.uShadowOn, useShadow?1:0);
+  gl.uniform1f(U.uShTexel, 1.0/SH_SIZE);
+  gl.uniform1f(U.uNight, sun.night);
+  const lightAmt = state.lights ? clamp(0.62 + sun.night*0.38, 0, 1) : 0;
+  gl.uniform1f(U.uLightOn, lightAmt);
+  for(let i=0;i<7;i++){
+    gl.uniform3fv(U['uLPos'+i], new Float32Array(LIGHTS[i]));
+    gl.uniform3fv(U['uLCol'+i], new Float32Array([LCOL[0]*0.72,LCOL[1]*0.72,LCOL[2]*0.72]));
+  }
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.uniform1i(U.uShadow, 0);
+  setLayers(U);
+  drawSet(MAIN, OPQ);
+
+  /* --- vidros e persiana --- */
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false); gl.disable(gl.CULL_FACE);
+  gl.bindBuffer(gl.ARRAY_BUFFER, TRN.buf); bindAttribs(MAIN);
+  gl.uniform1f(U.uAlpha, 0.24);
+  setLayers(U, {7: state.layers[7]});
+  gl.drawArrays(gl.TRIANGLES, 0, TRN.count);
+  const persianaDown = state.hour < 11.2 && sun.elev > 0.03 ? 1 : 0;
+  gl.uniform1f(U.uAlpha, 0.46);
+  setLayers(U, {8: persianaDown});
+  gl.drawArrays(gl.TRIANGLES, 0, TRN.count);
+  gl.depthMask(true); gl.disable(gl.BLEND); gl.enable(gl.CULL_FACE);
+  updatePlanLabels(cam);
+
+  requestAnimationFrame(render);
+}
+
+/* ======================================================================== */
+/*  ENTRADA                                                                 */
+/* ======================================================================== */
+let drag=null;
+cv.style.touchAction='none';
+cv.addEventListener('pointerdown', e=>{
+  cv.setPointerCapture(e.pointerId);
+  drag={x:e.clientX, y:e.clientY, sx:e.clientX, sy:e.clientY, moved:0, btn:e.button, shift:e.shiftKey};
+  cv.className = state.mode==='walk' ? 'walk' : 'grabbing';
+});
+cv.addEventListener('pointermove', e=>{
+  const r=cv.getBoundingClientRect();
+  if(!drag){ hover(e.clientX-r.left, e.clientY-r.top); return; }
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  drag.x=e.clientX; drag.y=e.clientY;
+  drag.moved += Math.abs(dx)+Math.abs(dy);
+  if(state.mode==='walk'){
+    state.walk.yaw   -= dx*0.0045;
+    state.walk.pitch  = clamp(state.walk.pitch - dy*0.0040, -1.05, 1.05);
+  } else if(state.mode==='plan'){
+    const p=state.plan, s = p.half*2/cv.clientHeight;
+    p.cx -= dx*s; p.cz -= dy*s;
+  } else {
+    state.tween=null;
+    const o=state.orbit;
+    if(drag.btn===2 || drag.shift){
+      const cp=Math.cos(o.yaw), sp=Math.sin(o.yaw), s=o.dist*0.0016;
+      o.t[0] -= (dx*cp - dy*sp*Math.sin(o.pitch))*s;
+      o.t[2] += (dx*sp + dy*cp*Math.sin(o.pitch))*s;
+      o.t[1] += dy*s*Math.cos(o.pitch);
+    } else {
+      o.yaw   -= dx*0.0060;
+      o.pitch  = clamp(o.pitch + dy*0.0050, -0.30, 1.45);
+    }
+  }
+});
+function endDrag(e){
+  if(!drag) return;
+  const r=cv.getBoundingClientRect();
+  if(drag.moved < 6 && state.mode!=='walk') pickAt(e.clientX-r.left, e.clientY-r.top);
+  drag=null; cv.className = state.mode==='walk' ? 'walk' : 'grab';
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', ()=>{ drag=null; cv.className = state.mode==='walk'?'walk':'grab'; });
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+cv.addEventListener('wheel', e=>{
+  e.preventDefault(); state.tween=null;
+  const k = Math.exp(clamp(e.deltaY,-90,90)*0.0016);
+  if(state.mode==='plan') state.plan.half = clamp(state.plan.half*k, 1.2, 9);
+  else if(state.mode==='orbit') state.orbit.dist = clamp(state.orbit.dist*k, 1.1, 26);
+}, {passive:false});
+cv.className='grab';
+
+/* ---------- caminhar ---------- */
+const WALKABLE = [
+  [0.25,0.25,2.25,4.50],[2.90,0.25,5.30,2.25],[5.95,0.25,7.85,1.85],
+  [2.25,2.90,4.37,4.50],[5.02,2.90,6.57,4.50],[5.95,2.50,6.57,2.90],
+  [7.22,2.65,7.85,4.50],[4.30,-1.15,5.30,-0.25],
+  [4.85,2.30,5.45,2.98],[6.00,1.90,6.60,2.98],[6.72,2.98,7.32,3.62],
+  [5.60,4.35,6.30,4.82],[4.40,2.72,5.15,3.55],[4.30,-0.40,5.30,0.62]
+];
+const inside=(x,z)=> WALKABLE.some(r=> x>r[0]&&x<r[2]&&z>r[1]&&z<r[3]);
+let lastT = performance.now();
+function walkStep(){
+  const now=performance.now(); const dt=Math.min((now-lastT)/1000, 0.05); lastT=now;
+  let f=0, s=0;
+  if(keys['w']||keys['arrowup'])    f+=1;
+  if(keys['s']||keys['arrowdown'])  f-=1;
+  if(keys['a']||keys['arrowleft'])  s-=1;
+  if(keys['d']||keys['arrowright']) s+=1;
+  if(!f && !s) return;
+  const sp = (keys['shift']?2.4:1.35)*dt;
+  const w=state.walk, sy=Math.sin(w.yaw), cy=Math.cos(w.yaw);
+  const nx = w.p[0] + (sy*f + cy*s)*sp;
+  const nz = w.p[2] + (cy*f - sy*s)*sp;
+  if(inside(nx, w.p[2])) w.p[0]=nx;
+  if(inside(w.p[0], nz)) w.p[2]=nz;
+  w.p[1] = (w.p[2] < 0) ? 1.60 : 1.62;
+}
+window.addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  keys[k]=1; if(e.key==='Shift') keys['shift']=1;
+  if(state.mode==='walk' && ['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+  if(e.target.tagName==='INPUT') return;
+  if(k==='t') toggleLayer(4); if(k==='m') toggleLayer(3);
+  if(k==='p') { state.cut = state.cut ? 0 : 1.30; syncToggles(); }
+  if(k==='l') { state.lights = state.lights?0:1; syncToggles(); }
+  if(k==='1') setMode('orbit'); if(k==='2') setMode('plan'); if(k==='3') setMode('walk');
+  if(k==='escape') select(null);
+});
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=0; if(e.key==='Shift') keys['shift']=0; });
+
+/* ---------- picking ---------- */
+function rayAt(mx,my){
+  const cam=camera(), asp=cv.clientWidth/cv.clientHeight;
+  const ndx = (mx/cv.clientWidth)*2-1, ndy = 1-(my/cv.clientHeight)*2;
+  if(cam.ortho){
+    const o=[state.plan.cx + ndx*cam.hw, 16, state.plan.cz - ndy*cam.hh];
+    return {o, d:[0,-1,0]};
+  }
+  const eye=cam.eye, fwd=V.norm(V.sub(cam.tgt,eye));
+  let right=V.norm(V.cross(fwd,[0,1,0])); if(V.len(right)<1e-5) right=[1,0,0];
+  const up=V.cross(right,fwd);
+  const th=Math.tan(cam.fov/2);
+  const d=V.norm(V.add(V.add(V.scale(right,ndx*th*asp), V.scale(up,ndy*th)), fwd));
+  return {o:eye.slice(), d};
+}
+function roomAtRay(mx,my){
+  const r=rayAt(mx,my);
+  if(Math.abs(r.d[1])<1e-5) return null;
+  for(const y of [0.02, 1.05]){
+    const t=(y-r.o[1])/r.d[1]; if(t<=0) continue;
+    const x=r.o[0]+r.d[0]*t, z=r.o[2]+r.d[2]*t;
+    for(const k of ['estar','dorm1','dorm2','coz','hall','hallB','banho','var']){
+      const q=R[k];
+      if(x>q.x0-0.08 && x<q.x1+0.08 && z>q.z0-0.08 && z<q.z1+0.08) return q.id;
+    }
+  }
+  return null;
+}
+const planLabels=document.getElementById('planlabels');
+const PLAN_LABELS = [
+  ['Estar / Jantar','11,1 m²',1.25,2.35],['Cozinha / A.S.','4,3 m²',3.56,3.72],
+  ['Banho','2,6 m²',7.54,3.60],['Dorm. 01','7,3 m²',4.10,1.25],
+  ['Dorm. 02','5,0 m²',6.90,1.05],['Varanda','2,1 m²',4.80,-0.70],
+  ['Circulação','',5.80,3.75]
+].map(r=>{ const el=document.createElement('b');
+  el.innerHTML = r[0] + (r[1]?'<i>'+r[1]+'</i>':''); planLabels.appendChild(el);
+  return {el, x:r[2], z:r[3]}; });
+function updatePlanLabels(cam){
+  if(state.mode!=='plan'){ planLabels.hidden = true; return; }
+  planLabels.hidden = false;
+  const w=cv.clientWidth, h=cv.clientHeight, off=railOffset();
+  for(const L of PLAN_LABELS){
+    const nx = (L.x - state.plan.cx)/cam.hw + off;
+    const ny = (state.plan.cz - L.z)/cam.hh;
+    L.el.style.left = ((nx+1)/2*w).toFixed(1)+'px';
+    L.el.style.top  = ((1-ny)/2*h).toFixed(1)+'px';
+  }
+}
+const tip=document.getElementById('tip');
+function hover(mx,my){
+  if(state.mode==='walk'){ tip.classList.remove('on'); return; }
+  const id=roomAtRay(mx,my);
+  if(id && BY_ID[id]){
+    tip.textContent=BY_ID[id].nome;
+    tip.style.left=mx+'px'; tip.style.top=my+'px'; tip.classList.add('on');
+    cv.style.cursor='pointer';
+  } else { tip.classList.remove('on'); cv.style.cursor=''; }
+}
+function pickAt(mx,my){ const id=roomAtRay(mx,my); select(id && BY_ID[id] ? id : null); }
+
+/* ======================================================================== */
+/*  INTERFACE                                                               */
+/* ======================================================================== */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* lista de ambientes */
+const roomlist=$('#roomlist');
+ROOMS.forEach(r=>{
+  const b=document.createElement('button');
+  b.className='room'; b.dataset.id=r.id; b.setAttribute('aria-current','false');
+  b.innerHTML = `<span><span class="nm"><i class="swatch" style="background:${r.sw}"></i>${esc(r.nome)}</span>
+    <span class="dim mono">${esc(r.med)}</span></span><span class="ar">${esc(r.area)}</span>`;
+  b.addEventListener('click', ()=> select(state.sel===r.id ? null : r.id));
+  roomlist.appendChild(b);
+});
+
+/* camadas */
+const LAYER_UI = [
+  {i:4, nome:'Laje e forro de gesso', k:'T'},
+  {i:2, nome:'Marcenaria planejada',  k:''},
+  {i:3, nome:'Mobiliário solto',      k:'M'},
+  {i:5, nome:'Varanda e jardim',      k:''},
+  {i:6, nome:'Boiserie',              k:''},
+  {i:-1,nome:'Cortar paredes a 1,30 m', k:'P'},
+  {i:-2,nome:'Iluminação artificial', k:'L'}
+];
+const layersEl=$('#layers');
+const CHK = '<svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="1.8"><path d="M1.5 5.2 L4 7.6 L8.5 2.6"/></svg>';
+LAYER_UI.forEach(l=>{
+  const b=document.createElement('button');
+  b.className='tg'; b.dataset.layer=l.i;
+  b.innerHTML=`<span class="box">${CHK}</span><span>${esc(l.nome)}</span>${l.k?`<span class="k">${l.k}</span>`:''}`;
+  b.addEventListener('click', ()=>{
+    if(l.i===-1) state.cut = state.cut ? 0 : 1.30;
+    else if(l.i===-2) state.lights = state.lights ? 0 : 1;
+    else state.layers[l.i] = state.layers[l.i] ? 0 : 1;
+    syncToggles();
+  });
+  layersEl.appendChild(b);
+});
+function toggleLayer(i){ state.layers[i]=state.layers[i]?0:1; syncToggles(); }
+function syncToggles(){
+  layersEl.querySelectorAll('.tg').forEach(b=>{
+    const i=+b.dataset.layer;
+    const on = i===-1 ? !!state.cut : i===-2 ? !!state.lights : !!state.layers[i];
+    b.setAttribute('aria-pressed', on?'true':'false');
+  });
+}
+syncToggles();
+
+/* modos de câmera */
+function setMode(m){
+  state.mode=m; state.tween=null;
+  $('#modes').querySelectorAll('button').forEach(b=> b.setAttribute('aria-pressed', b.dataset.mode===m?'true':'false'));
+  cv.className = m==='walk' ? 'walk' : 'grab';
+  const hints = {
+    orbit:'Arraste para girar · roda para aproximar · shift+arraste para deslocar · clique num ambiente para abrir a ficha',
+    plan:'Arraste para deslocar · roda para aproximar · as paredes são cortadas a 1,30 m',
+    walk:'W A S D ou setas para andar · shift para correr · arraste para olhar'
+  };
+  $('#hint').textContent = hints[m];
+  if(m==='walk'){
+    state.layers[4]=1; syncToggles();
+    const r = state.sel && BY_ID[state.sel];
+    if(r){ state.walk.p=[r.walk[0],r.walk[1],r.walk[2]]; state.walk.yaw=r.walk[3]; }
+    lastT=performance.now();
+  } else if(m==='plan'){
+    fitPlan(); state.plan.cx=4.05; state.plan.cz=1.68;
+  } else if(m==='orbit'){
+    const r = state.sel ? BY_ID[state.sel].cam : OVERVIEW.cam;
+    state.orbit.t=r.t.slice(); state.orbit.yaw=r.yaw; state.orbit.pitch=r.pitch;
+    state.orbit.dist=r.dist; state.orbit.fov=r.fov||0.90;
+  }
+}
+$('#modes').querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>setMode(b.dataset.mode)));
+
+/* painel direito */
+function select(id){
+  state.sel = id;
+  roomlist.querySelectorAll('.room').forEach(b=> b.setAttribute('aria-current', b.dataset.id===id?'true':'false'));
+  if(!id){
+    $('#rp-kicker').textContent = OVERVIEW.kicker;
+    $('#rp-title').textContent  = OVERVIEW.title;
+    $('#rp-dims').innerHTML     = '<span><b>36 m²</b> modelados</span><span><b>2,60 m</b> pé-direito</span><span><b>2,45 m</b> forro</span>';
+    $('#rp-body').innerHTML     = OVERVIEW.html;
+    if(state.mode!=='walk'){ state.layers[4]=0; syncToggles(); }
+    flyTo(OVERVIEW.cam);
+    if(state.mode==='walk') setMode('orbit');
+    return;
+  }
+  const r=BY_ID[id];
+  $('#rp-kicker').textContent = r.kicker;
+  $('#rp-title').textContent  = r.nome;
+  $('#rp-dims').innerHTML = `<span><b>${esc(r.med)}</b></span><span><b>${esc(r.area)}</b></span><span>${esc(r.piso)}</span>`;
+  let h = `<p class="p-note" style="padding-top:16px">${esc(r.nota)}</p>`;
+  if(r.spec && r.spec.length){
+    h += `<div class="sec"><div class="sec-head"><span class="eyebrow">Peças e dimensões</span></div><div class="spec">`;
+    r.spec.forEach(s=> h += `<div class="row"><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`);
+    h += `</div></div>`;
+  }
+  if(r.bul && r.bul.length){
+    h += `<div class="sec"><div class="sec-head"><span class="eyebrow">Notas de projeto</span></div><ul class="bul">`;
+    r.bul.forEach(s=> h += `<li>${esc(s)}</li>`); h += `</ul></div>`;
+  }
+  if(r.veto && r.veto.length){
+    h += `<div class="sec"><div class="sec-head"><span class="eyebrow">Restrições do contrato</span></div><ul class="bul veto">`;
+    r.veto.forEach(s=> h += `<li>${esc(s)}</li>`); h += `</ul></div>`;
+  }
+  $('#rp-body').innerHTML = h;
+  $('#rp-body').scrollTop = 0;
+  if(state.mode==='walk'){ state.walk.p=[r.walk[0],r.walk[1],r.walk[2]]; state.walk.yaw=r.walk[3]; }
+  else { state.layers[4]=1; syncToggles(); flyTo(r.cam); }
+}
+
+/* régua solar */
+const sunRange=$('#sun-range'), sunTime=$('#sun-time'), sunNote=$('#sun-note'), sunDot=$('#sun-dot');
+function fmtH(h){ const m=Math.round((h%1)*60); return String(Math.floor(h)).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+function sunLabel(h){
+  if(h<6.3)  return 'antes do nascer do sol';
+  if(h<7.2)  return 'primeira luz no nascente';
+  if(h<11.2) return 'sol direto na bancada do office';
+  if(h<14)   return 'luz indireta, sem sol na fachada';
+  if(h<18)   return 'sombra — fachada oposta ao poente';
+  return 'depois do pôr do sol';
+}
+function updateSun(){
+  const h=+sunRange.value; state.hour=h;
+  sunTime.textContent = fmtH(h);
+  sunNote.textContent = sunLabel(h);
+  const a=(h-6)/12*Math.PI;      // nascente à direita (L), poente à esquerda
+  sunDot.setAttribute('transform', `rotate(${90 + a*180/Math.PI} 22 22)`);
+}
+sunRange.addEventListener('input', updateSun);
+updateSun();
+
+/* arranque */
+select(null);
+setMode('orbit');
+resize();
+requestAnimationFrame(function first(t){
+  render(t);
+  setTimeout(()=> document.getElementById('loading').classList.add('gone'), 90);
+});
+})();
+</script>
