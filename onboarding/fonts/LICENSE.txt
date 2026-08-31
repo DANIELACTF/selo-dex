@@ -1,0 +1,12 @@
+DejaVu Sans / DejaVu Sans Bold
+
+Fontes redistribuídas sob a licença DejaVu Fonts (baseada nas licenças
+Bitstream Vera e Arev Fonts, ambas permissivas — permitem uso, modificação
+e redistribuição, inclusive embutidas em PDFs gerados por este projeto).
+
+Texto integral da licença: https://dejavu-fonts.github.io/License.html
+
+Usadas aqui apenas para garantir que os símbolos ☐/☑ (checkbox) e
+caracteres acentuados apareçam corretamente nos PDFs gerados pelo
+onboarding, independentemente das fontes instaladas na máquina de quem
+rodar o script.
