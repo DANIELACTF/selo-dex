@@ -1,12 +1,6 @@
-<!doctype html>
 <!-- GERADO POR google-apps-script/gerar.js — não edite à mão.
-     A fonte é publico/index.html. -->
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<base target="_top">
-<title>Quadro de Férias</title>
+     A fonte é publico/index.html.
+     Sem <html>, <head> ou <body> de propósito: quem monta o documento é o HtmlService. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
@@ -276,8 +270,6 @@ td.acoes .btn{margin-left:5px}
   .doc dt,.doc .doc-sub,.doc .autorizacoes,.doc .retorno .rot{color:#333}
 }
 </style>
-</head>
-<body>
 
 <header class="topbar">
   <div class="topbar-in">
@@ -304,12 +296,19 @@ td.acoes .btn{margin-left:5px}
 
     <div class="tabs" role="tablist" aria-label="Seções">
       <button class="tab" role="tab" id="tab-solicitar" aria-selected="true" aria-controls="aba-solicitar" data-aba="solicitar">Solicitar</button>
-      <button class="tab" role="tab" id="tab-autorizar" aria-selected="false" aria-controls="aba-autorizar" data-aba="autorizar">Autorização</button>
+      <button class="tab" role="tab" id="tab-autorizar" aria-selected="false" aria-controls="aba-autorizar" data-aba="autorizar">Gestão</button>
     </div>
   </div>
 </header>
 
 <main class="shell">
+
+  <div class="card" id="falha-carga" hidden>
+    <div class="card-bd stack">
+      <div class="regras"><div class="regra err"><span class="mk">Erro</span><span id="falha-texto"></span></div></div>
+      <div class="row"><button class="btn btn-primary" type="button" id="btn-tentar">Tentar de novo</button></div>
+    </div>
+  </div>
 
   <!-- ================= SOLICITAR ================= -->
   <section id="aba-solicitar" role="tabpanel" aria-labelledby="tab-solicitar" class="stack">
@@ -548,7 +547,21 @@ function esquecerSessao(){
 /* Transporte da versão do Google: em vez de chamar um servidor pela rede,
    chama as funções do Codigo.gs por google.script.run. A assinatura é a mesma
    da versão servidor, então o resto da tela não muda. */
-function chamar(nome, args){
+/* O bootstrap do Apps Script pode chegar depois deste script. Antes da
+   primeira chamada, espera o google.script.run aparecer. */
+function prontoGoogle(){
+  return new Promise(function(ok, falha){
+    var tentativas = 0;
+    (function ver(){
+      if(window.google && window.google.script && window.google.script.run) return ok();
+      if(++tentativas > 100) return falha(new Error('A página não conseguiu falar com o Google. Recarregue a página.'));
+      setTimeout(ver, 100);
+    })();
+  });
+}
+
+async function chamar(nome, args){
+  await prontoGoogle();
   return new Promise(function(ok, falha){
     google.script.run
       .withSuccessHandler(ok)
@@ -594,8 +607,16 @@ var S = {
   form: { inicio:'', dias:30, obs:'' }
 };
 
+function mostrarFalha(msg){
+  $('#falha-texto').textContent = msg;
+  $('#falha-carga').hidden = false;
+  var sel = $('#sel-func');
+  if(!E.carregado){ sel.innerHTML = '<option value="">Não foi possível carregar</option>'; sel.disabled = true; }
+}
+
 async function carregar(){
   var d = await api('/api/estado');
+  $('#falha-carga').hidden = true;
   E.funcionarios = d.funcionarios;
   E.solicitacoes = d.solicitacoes;
   E.empresa = d.empresa;
@@ -1324,7 +1345,10 @@ document.addEventListener('click', async function(e){
 
 /* =============================== INÍCIO =============================== */
 escreverForm();
-carregar().catch(function(e){ toast(e.message, true); });
+$('#btn-tentar').addEventListener('click', function(){
+  carregar().catch(function(e){ mostrarFalha(e.message); });
+});
+carregar().catch(function(e){ mostrarFalha(e.message); toast(e.message, true); });
 
 /* recarrega ao voltar para a aba, para quem autoriza ver pedidos novos */
 document.addEventListener('visibilitychange', function(){
@@ -1333,5 +1357,3 @@ document.addEventListener('visibilitychange', function(){
 
 })();
 </script>
-</body>
-</html>

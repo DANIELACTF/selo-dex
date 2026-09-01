@@ -302,12 +302,19 @@ td.acoes .btn{margin-left:5px}
 
     <div class="tabs" role="tablist" aria-label="Seções">
       <button class="tab" role="tab" id="tab-solicitar" aria-selected="true" aria-controls="aba-solicitar" data-aba="solicitar">Solicitar</button>
-      <button class="tab" role="tab" id="tab-autorizar" aria-selected="false" aria-controls="aba-autorizar" data-aba="autorizar">Autorização</button>
+      <button class="tab" role="tab" id="tab-autorizar" aria-selected="false" aria-controls="aba-autorizar" data-aba="autorizar">Gestão</button>
     </div>
   </div>
 </header>
 
 <main class="shell">
+
+  <div class="card" id="falha-carga" hidden>
+    <div class="card-bd stack">
+      <div class="regras"><div class="regra err"><span class="mk">Erro</span><span id="falha-texto"></span></div></div>
+      <div class="row"><button class="btn btn-primary" type="button" id="btn-tentar">Tentar de novo</button></div>
+    </div>
+  </div>
 
   <!-- ================= SOLICITAR ================= -->
   <section id="aba-solicitar" role="tabpanel" aria-labelledby="tab-solicitar" class="stack">
@@ -581,8 +588,16 @@ var S = {
   form: { inicio:'', dias:30, obs:'' }
 };
 
+function mostrarFalha(msg){
+  $('#falha-texto').textContent = msg;
+  $('#falha-carga').hidden = false;
+  var sel = $('#sel-func');
+  if(!E.carregado){ sel.innerHTML = '<option value="">Não foi possível carregar</option>'; sel.disabled = true; }
+}
+
 async function carregar(){
   var d = await api('/api/estado');
+  $('#falha-carga').hidden = true;
   E.funcionarios = d.funcionarios;
   E.solicitacoes = d.solicitacoes;
   E.empresa = d.empresa;
@@ -1332,7 +1347,10 @@ document.addEventListener('click', async function(e){
 
 /* =============================== INÍCIO =============================== */
 escreverForm();
-carregar().catch(function(e){ toast(e.message, true); });
+$('#btn-tentar').addEventListener('click', function(){
+  carregar().catch(function(e){ mostrarFalha(e.message); });
+});
+carregar().catch(function(e){ mostrarFalha(e.message); toast(e.message, true); });
 
 /* recarrega ao voltar para a aba, para quem autoriza ver pedidos novos */
 document.addEventListener('visibilitychange', function(){

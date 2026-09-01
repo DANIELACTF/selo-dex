@@ -63,7 +63,7 @@ Feriados estaduais e municipais não estão incluídos.
 
 ## Primeiros passos
 
-1. Abra a aba **Autorização**. Na primeira vez ela pede os três nomes e os três
+1. Abra a aba **Gestão**. Na primeira vez ela pede os três nomes e os três
    PINs de uma vez. Quem preencher entra como departamento pessoal.
 2. Cadastre a equipe em **Cadastrar funcionário**. O **setor** é o campo que faz
    o aviso de choque funcionar — preencha sempre.
@@ -154,6 +154,13 @@ As regras e a tela têm **uma fonte só**: `publico/regras.js` e
 `publico/index.html`. Os arquivos de `google-apps-script/` marcados como gerados
 saem deles, e a única diferença real entre as duas versões é como a tela conversa
 com o servidor — `fetch` de um lado, `google.script.run` do outro.
+
+Uma diferença importante entre os dois: `publico/index.html` é um documento HTML
+completo, mas `google-apps-script/pagina.html` **não pode ser**. O `HtmlService`
+monta o próprio `<html>`/`<head>`/`<body>` e injeta o conteúdo dentro dele; se a
+gente entregar um documento inteiro, vira documento dentro de documento e a
+página renderiza duas vezes. Por isso o gerador tira o invólucro, e o título e o
+viewport passam a vir do `setTitle`/`addMetaTag` no `doGet()`.
 
 ```bash
 npm test              # roda os três conjuntos e confere se o gerado está em dia

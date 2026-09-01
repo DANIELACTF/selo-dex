@@ -59,10 +59,6 @@ ${motor}
 let pagina = fs.readFileSync(path.join(raiz, 'publico', 'index.html'), 'utf8');
 const arq = 'publico/index.html';
 
-/* dentro do Google, os links precisam sair do quadro do Apps Script */
-pagina = pagina.replace('<meta name="viewport" content="width=device-width, initial-scale=1">',
-  '<meta name="viewport" content="width=device-width, initial-scale=1">\n<base target="_top">');
-
 /* as regras entram no corpo da página, não por um arquivo servido à parte */
 pagina = pagina.replace('<script src="/regras.js"></script>',
   '<?!= incluir(\'regras_js\') ?>\n<script>window.Regras = motorDeFerias();</script>');
@@ -72,7 +68,21 @@ pagina = trocar(pagina, '/* TRANSPORTE-INICIO */', '/* TRANSPORTE-FIM */',
 `/* Transporte da versão do Google: em vez de chamar um servidor pela rede,
    chama as funções do Codigo.gs por google.script.run. A assinatura é a mesma
    da versão servidor, então o resto da tela não muda. */
-function chamar(nome, args){
+/* O bootstrap do Apps Script pode chegar depois deste script. Antes da
+   primeira chamada, espera o google.script.run aparecer. */
+function prontoGoogle(){
+  return new Promise(function(ok, falha){
+    var tentativas = 0;
+    (function ver(){
+      if(window.google && window.google.script && window.google.script.run) return ok();
+      if(++tentativas > 100) return falha(new Error('A página não conseguiu falar com o Google. Recarregue a página.'));
+      setTimeout(ver, 100);
+    })();
+  });
+}
+
+async function chamar(nome, args){
+  await prontoGoogle();
   return new Promise(function(ok, falha){
     google.script.run
       .withSuccessHandler(ok)
@@ -128,9 +138,30 @@ pagina = pagina.replace(
   '    <span class="offline" id="offline" hidden><i></i>Sem conexão com o servidor</span>\n', '');
 pagina = pagina.replace(/\s*\$\('#offline'\)\.hidden = (false|true);\n/g, '\n');
 
-pagina = pagina.replace('<!doctype html>', '<!doctype html>\n<!-- ' + AVISO + '\n     A fonte é publico/index.html. -->');
+/* O HtmlService monta o próprio <html>/<head>/<body> e injeta o que a gente
+   entrega dentro dele. Se mandarmos um documento completo, vira documento
+   dentro de documento: a página renderiza duas vezes e o script quebra. Então
+   aqui o invólucro é retirado e sobra só o miolo — estilo, marcação e script.
+   O título e o viewport passam a vir do doGet(), via setTitle/addMetaTag. */
+function desembrulhar(doc){
+  const iCabeca = doc.indexOf('<head>');
+  const fCabeca = doc.indexOf('</head>');
+  const iCorpo = doc.indexOf('<body>');
+  const fCorpo = doc.lastIndexOf('</body>');
+  if(iCabeca < 0 || fCabeca < 0 || iCorpo < 0 || fCorpo < 0){
+    throw new Error('publico/index.html não tem o invólucro <head>/<body> esperado');
+  }
+  const cabeca = doc.slice(iCabeca + 6, fCabeca)
+    .replace(/[ \t]*<meta[^>]*>\n?/g, '')
+    .replace(/[ \t]*<title>[\s\S]*?<\/title>\n?/g, '')
+    .replace(/[ \t]*<base[^>]*>\n?/g, '')
+    .trim();
+  const corpo = doc.slice(iCorpo + 6, fCorpo).trim();
+  return cabeca + '\n\n' + corpo + '\n';
+}
 
-entregar('pagina.html', pagina);
+entregar('pagina.html', '<!-- ' + AVISO + '\n     A fonte é publico/index.html.\n     Sem <html>, <head> ou <body> de propósito: quem monta o documento é o HtmlService. -->\n'
+  + desembrulhar(pagina));
 
 if(conferindo){
   if(pendencias.length){

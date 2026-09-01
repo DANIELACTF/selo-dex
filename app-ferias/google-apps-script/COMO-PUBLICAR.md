@@ -85,7 +85,7 @@ Na primeira vez o Google pede permissão para o programa mexer na sua planilha.
 23. O Google mostra o **URL do app da Web**, terminado em `/exec`. Clique em
     **Copiar**. É esse o link da equipe.
 24. Abra o link numa aba nova. O app aparece.
-25. Vá na aba **Autorização**. Na primeira vez ela pede os **três nomes e os três
+25. Vá na aba **Gestão**. Na primeira vez ela pede os **três nomes e os três
     PINs** — gestor do departamento, departamento pessoal e diretor. Preencha
     tudo e clique em **Definir os três PINs**. **Faça isso antes de mandar o link
     para alguém**: quem chegar primeiro é quem define.
@@ -125,7 +125,7 @@ Na planilha, em três abas que o app cria sozinho:
 
 Você pode abrir a planilha quando quiser e filtrar, imprimir ou baixar em Excel
 (**Arquivo → Fazer o download**). O botão **Abrir a planilha**, dentro da aba
-Autorização, leva direto para ela.
+Gestão, leva direto para ela.
 
 Algumas colunas ficam escondidas de propósito (`ID`, `Início (ISO)`, `ID do
 funcionário` e as três datas de autorização): são o que amarra cada pedido ao seu
