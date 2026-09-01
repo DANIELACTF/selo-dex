@@ -7,7 +7,8 @@
   "main": "servidor.js",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning servidor.js",
-    "test": "node testes/regras.test.js && node --disable-warning=ExperimentalWarning testes/api.test.js"
+    "test": "node google-apps-script/gerar.js --conferir && node testes/regras.test.js && node --disable-warning=ExperimentalWarning testes/api.test.js && node testes/apps-script.test.js",
+    "gerar-google": "node google-apps-script/gerar.js"
   },
   "engines": {
     "node": ">=22.5"

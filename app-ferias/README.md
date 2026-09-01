@@ -1,70 +1,30 @@
 # Quadro de Férias
 
-Controle interno de solicitação e aprovação de férias. O funcionário abre o
+Controle interno de solicitação e aprovação de férias. O funcionário abre um
 link, escolhe o nome e pede as férias; o RH entra com um PIN e aprova ou recusa.
-Ninguém precisa de conta em lugar nenhum — só do endereço do servidor.
+Ninguém precisa de conta em lugar nenhum — só do endereço.
 
 O aviso de férias e o cálculo do pagamento continuam saindo do sistema de folha.
 Este app cuida só do combinado: quem vai sair, quando, e se o RH aprovou.
 
-## Como rodar
+## Qual versão usar
 
-Precisa do **Node 22.5 ou mais novo** e de nada além disso — o servidor não usa
-nenhuma biblioteca externa.
+O mesmo app existe em duas versões, com a mesma tela e as mesmas regras.
 
-```bash
-cd app-ferias
-npm start                 # ou: node servidor.js
-```
+**Versão Google** — para quem não quer servidor nem mensalidade. Roda dentro do
+Google e guarda os dados numa planilha do seu Drive. Publicação toda pelo
+navegador, uns 10 minutos, de graça, sem manutenção.
 
-Abre em `http://localhost:3000`. Para outra porta ou outro lugar de banco:
+→ **[google-apps-script/COMO-PUBLICAR.md](google-apps-script/COMO-PUBLICAR.md)** — roteiro passo a passo, sem jargão.
 
-```bash
-PORT=8080 FERIAS_DADOS=/var/dados/ferias npm start
-```
+**Versão servidor** — para quem prefere hospedagem própria e banco em arquivo.
+Precisa de um lugar que rode Node (Render, Railway, uma máquina do escritório) e,
+em geral, de um plano pago para os dados não se perderem.
 
-Os dados ficam num arquivo SQLite em `dados/ferias.db`. **Backup é copiar esse
-arquivo** (com o servidor parado, ou copiando também o `.db-wal`).
+→ [Como rodar](#versão-servidor), mais abaixo.
 
-### Colocando no ar
-
-Qualquer lugar que rode Node serve. Em hospedagem tipo Render ou Railway, o
-comando de start é `npm start` e a porta vem da variável `PORT` — as duas coisas
-já estão prontas. Aponte `FERIAS_DADOS` para um disco que não seja apagado a
-cada deploy, senão o banco se perde.
-
-Numa máquina do escritório, com systemd:
-
-```ini
-[Unit]
-Description=Quadro de Ferias
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/quadro-ferias
-ExecStart=/usr/bin/node servidor.js
-Environment=PORT=3000
-Environment=FERIAS_DADOS=/var/lib/quadro-ferias
-Restart=always
-User=ferias
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Se o servidor for ficar acessível fora da rede interna, coloque um proxy com
-HTTPS na frente (nginx, Caddy). O PIN viaja no corpo da requisição: sem HTTPS,
-quem estiver na mesma rede consegue lê-lo.
-
-## Primeiros passos
-
-1. Abra a aba **Gestão**. Como ainda não existe PIN, a primeira pessoa que
-   entrar define o dele. Escolha o PIN antes de passar o link para a equipe.
-2. Cadastre a equipe em **Cadastrar funcionário**. A data de admissão é
-   obrigatória: todo o cálculo de período aquisitivo sai dela.
-3. Use **Lançar férias já gozadas** para registrar as férias anteriores ao
-   sistema. Sem isso, quem já é de casa aparece com saldo cheio e prazo vencido.
-4. Passe o endereço para a equipe. Funciona no celular.
+Comece pela versão Google. Se um dia quiser sair de lá, a versão servidor já
+está pronta e usa exatamente as mesmas regras.
 
 ## O que ele confere
 
@@ -88,40 +48,115 @@ Feriados nacionais são calculados sozinhos, inclusive os móveis (Sexta-feira
 Santa e Corpus Christi, pelo algoritmo de Meeus para a Páscoa). Carnaval e
 Corpus Christi entram como ponto facultativo, não como feriado nacional.
 
-## Sobre acesso e segurança
+## Primeiros passos, nas duas versões
+
+1. Abra a aba **Gestão**. Como ainda não existe PIN, a primeira pessoa que
+   entrar define o dele. Escolha o PIN antes de passar o link para a equipe.
+2. Cadastre a equipe em **Cadastrar funcionário**. A data de admissão é
+   obrigatória: todo o cálculo de período aquisitivo sai dela.
+3. Use **Lançar férias já gozadas** para registrar as férias anteriores ao
+   sistema. Sem isso, quem já é de casa aparece com saldo cheio e prazo vencido.
+4. Passe o endereço para a equipe. Funciona no celular.
+
+## Sobre acesso
 
 A tela de solicitação é aberta: quem tem o link escolhe um nome da lista e envia
 um pedido. É o suficiente para controle interno, e é o preço de não ter login.
 
-A área de aprovação é protegida de verdade: o PIN é guardado com `scrypt`,
-conferido no servidor, e a sessão vale 12 horas. Dez erros seguidos do mesmo
-endereço travam as tentativas por 5 minutos. Aprovar, recusar, cadastrar,
-excluir e trocar o PIN só acontecem com sessão válida — o navegador não decide
-nada disso sozinho.
+A área de aprovação é protegida de verdade. O PIN é guardado embaralhado
+(`scrypt` na versão servidor, `SHA-256` com sal na versão Google), conferido
+sempre do lado do servidor, e a sessão vale 12 horas. Aprovar, recusar,
+cadastrar, excluir e trocar o PIN só acontecem com sessão válida — o navegador
+não decide nada disso sozinho. Na versão servidor, dez erros seguidos do mesmo
+endereço travam as tentativas por 5 minutos.
 
 Se um dia precisar que cada funcionário só veja o próprio pedido, aí sim entra
 login por pessoa. Hoje não tem.
+
+---
+
+## Versão servidor
+
+Precisa do **Node 22.5 ou mais novo** e de nada além disso — não usa nenhuma
+biblioteca externa.
+
+```bash
+cd app-ferias
+npm start                 # abre em http://localhost:3000
+```
+
+Para outra porta ou outro lugar de banco:
+
+```bash
+PORT=8080 FERIAS_DADOS=/var/dados/ferias npm start
+```
+
+Os dados ficam num arquivo SQLite em `dados/ferias.db`. **Backup é copiar esse
+arquivo** (com o servidor parado, ou copiando também o `.db-wal`).
+
+Em hospedagem tipo Render ou Railway, o comando de start é `npm start` e a porta
+vem da variável `PORT` — as duas coisas já estão prontas. Aponte `FERIAS_DADOS`
+para um disco que não seja apagado a cada deploy, senão o banco se perde.
+
+Numa máquina do escritório, com systemd:
+
+```ini
+[Unit]
+Description=Quadro de Ferias
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/quadro-ferias
+ExecStart=/usr/bin/node servidor.js
+Environment=PORT=3000
+Environment=FERIAS_DADOS=/var/lib/quadro-ferias
+Restart=always
+User=ferias
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Se o servidor for ficar acessível fora da rede interna, coloque um proxy com
+HTTPS na frente (nginx, Caddy). O PIN viaja no corpo da requisição: sem HTTPS,
+quem estiver na mesma rede consegue lê-lo. (Na versão Google isso não se aplica —
+o Google já serve tudo por HTTPS.)
+
+---
 
 ## Estrutura
 
 ```
 app-ferias/
-  servidor.js          servidor HTTP + SQLite, sem dependências
+  servidor.js              versão servidor: HTTP + SQLite, sem dependências
   publico/
-    index.html         a tela inteira (HTML, CSS e JS)
-    regras.js          as regras da CLT, usadas na tela e no servidor
+    index.html             a tela inteira (HTML, CSS e JS)
+    regras.js              as regras da CLT
+  google-apps-script/
+    COMO-PUBLICAR.md       roteiro de publicação no Google
+    Codigo.gs              versão Google: planilha no lugar do banco
+    pagina.html            gerado a partir de publico/index.html
+    regras_js.html         gerado a partir de publico/regras.js
+    gerar.js               o gerador dos dois arquivos acima
   testes/
-    regras.test.js     29 testes das regras
-    api.test.js        43 testes do servidor, com banco temporário
-  dados/ferias.db      criado na primeira execução
+    regras.test.js         29 testes das regras
+    api.test.js            43 testes do servidor, com banco temporário
+    apps-script.test.js    58 testes do Codigo.gs, com a planilha simulada
 ```
 
-`regras.js` é o mesmo arquivo nos dois lados — é o que garante que a conferência
-da tela e a do servidor nunca divirjam.
+As regras e a tela têm **uma fonte só**: `publico/regras.js` e
+`publico/index.html`. Os arquivos de `google-apps-script/` marcados como gerados
+saem deles, e a única diferença real entre as duas versões é como a tela conversa
+com o servidor — `fetch` de um lado, `google.script.run` do outro.
 
 ```bash
-npm test                # roda os dois conjuntos de teste
+npm test              # roda os três conjuntos e confere se o gerado está em dia
+npm run gerar-google  # regera pagina.html e regras_js.html depois de mexer na tela
 ```
+
+Mexeu em `publico/`? Rode `npm run gerar-google` e cole os arquivos novos no
+Apps Script (veja "Quando você mudar alguma coisa" no roteiro de publicação).
+O `npm test` avisa se você esquecer.
 
 ## Limites conhecidos
 
