@@ -1,0 +1,273 @@
+/* Regras de férias da CLT.
+   O mesmo arquivo roda no navegador (window.Regras) e no servidor
+   (require('./publico/regras.js')), para que a conferência feita na tela
+   seja exatamente a que o servidor refaz antes de gravar. */
+(function(raiz, fabrica){
+  if(typeof module === 'object' && module.exports) module.exports = fabrica();
+  else raiz.Regras = fabrica();
+})(typeof self !== 'undefined' ? self : this, function(){
+  'use strict';
+
+  var DIA = 86400000;
+  var SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  function hoje(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function ymd(d){
+    return d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') : '';
+  }
+  function pd(s){
+    if(!s) return null;
+    var p = String(s).split('-');
+    if(p.length !== 3) return null;
+    var d = new Date(+p[0], +p[1]-1, +p[2]);
+    if(isNaN(d.getTime()) || d.getDate() !== +p[2] || d.getMonth() !== +p[1]-1) return null;
+    return d;
+  }
+  function addDias(d,n){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; }
+  function addAnos(d,n){ return new Date(d.getFullYear()+n, d.getMonth(), d.getDate()); }
+  function fmt(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear() : '—'; }
+  function fmtCurto(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0') : '—'; }
+  function difDias(a,b){ return Math.round((b - a) / DIA); }
+  function plural(n,s,p){ return n + ' ' + (n === 1 ? s : p); }
+  function sobrepoe(iniA, fimA, iniB, fimB){ return iniA <= fimB && iniB <= fimA; }
+
+  /* Páscoa — algoritmo de Meeus/Jones/Butcher */
+  function pascoa(y){
+    var a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4,
+        f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30,
+        i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451),
+        mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+    return new Date(y, mes-1, dia);
+  }
+
+  var CACHE = {};
+  function feriados(ano){
+    if(CACHE[ano]) return CACHE[ano];
+    var p = pascoa(ano), m = {};
+    function add(d, nome, tipo){ m[ymd(d)] = { nome:nome, tipo:tipo || 'nacional' }; }
+    add(new Date(ano,0,1),   'Confraternização Universal');
+    add(addDias(p,-48),      'Carnaval (segunda)', 'facultativo');
+    add(addDias(p,-47),      'Carnaval', 'facultativo');
+    add(addDias(p,-2),       'Sexta-feira Santa');
+    add(addDias(p,60),       'Corpus Christi', 'facultativo');
+    add(new Date(ano,3,21),  'Tiradentes');
+    add(new Date(ano,4,1),   'Dia do Trabalho');
+    add(new Date(ano,8,7),   'Independência');
+    add(new Date(ano,9,12),  'Nossa Senhora Aparecida');
+    add(new Date(ano,10,2),  'Finados');
+    add(new Date(ano,10,15), 'Proclamação da República');
+    add(new Date(ano,10,20), 'Consciência Negra');
+    add(new Date(ano,11,25), 'Natal');
+    CACHE[ano] = m;
+    return m;
+  }
+  function feriadoEm(d){ return feriados(d.getFullYear())[ymd(d)] || null; }
+
+  /* Períodos aquisitivos contados da admissão.
+     Aquisitivo: [admissão + n anos, admissão + (n+1) anos - 1 dia]
+     Concessivo: os 12 meses seguintes ao fim do aquisitivo (art. 134) */
+  function periodos(admissaoStr, ate){
+    var adm = pd(admissaoStr);
+    if(!adm) return [];
+    var limite = addAnos(ate || hoje(), 2), fora = [], n = 0;
+    while(n < 80){
+      var ini = addAnos(adm, n);
+      var fim = addDias(addAnos(adm, n+1), -1);
+      fora.push({ n:n+1, ini:ini, fim:fim, concIni:addDias(fim,1), concFim:addAnos(fim,1) });
+      if(ini > limite) break;
+      n++;
+    }
+    return fora;
+  }
+
+  function diasDeDireito(func){
+    var d = Math.trunc(Number(func && func.diasDireito));
+    return (d >= 1 && d <= 30) ? d : 30;
+  }
+
+  /* Distribui as solicitações ativas entre os períodos aquisitivos,
+     sempre do mais antigo em aberto para o mais novo. */
+  function alocar(func, reqs){
+    var direito = diasDeDireito(func);
+    var ate = hoje();
+    reqs.forEach(function(r){ var d = pd(r.inicio); if(d && d > ate) ate = d; });
+    var estado = periodos(func.admissao, ate).map(function(p){ return { p:p, usados:0, itens:[] }; });
+    var mapa = {};
+
+    reqs.slice().sort(function(a,b){ return String(a.inicio).localeCompare(String(b.inicio)); })
+      .forEach(function(r){
+        var ini = pd(r.inicio);
+        if(!ini) return;
+        var custo = Number(r.dias) || 0;
+        var adquiridos = estado.filter(function(s){ return s.p.fim < ini; });
+        if(!adquiridos.length) return;
+        var alvo = null, i;
+        for(i = 0; i < adquiridos.length; i++){
+          if(adquiridos[i].usados + custo <= direito){ alvo = adquiridos[i]; break; }
+        }
+        if(!alvo){
+          for(i = 0; i < adquiridos.length; i++){
+            if(adquiridos[i].usados < direito){ alvo = adquiridos[i]; break; }
+          }
+        }
+        if(!alvo) alvo = adquiridos[adquiridos.length - 1];
+        alvo.usados += custo;
+        alvo.itens.push(r);
+        mapa[r.id] = alvo;
+      });
+    return { direito:direito, estado:estado, mapa:mapa };
+  }
+
+  /* Período aquisitivo que deve receber uma solicitação iniciando em `ini` */
+  function periodoAlvo(func, reqs, ini){
+    var a = alocar(func, reqs);
+    var adquiridos = a.estado.filter(function(s){ return s.p.fim < ini; });
+    if(!adquiridos.length) return { slot:null, direito:a.direito, aloc:a };
+    var slot = null;
+    for(var i = 0; i < adquiridos.length; i++){
+      if(adquiridos[i].usados < a.direito){ slot = adquiridos[i]; break; }
+    }
+    if(!slot) slot = adquiridos[adquiridos.length - 1];
+    return { slot:slot, direito:a.direito, aloc:a };
+  }
+
+  /* Período aquisitivo aberto de hoje, para mostrar o saldo na tela */
+  function periodoAberto(func, reqs){
+    var a = alocar(func, reqs), h = hoje();
+    var fechados = a.estado.filter(function(s){ return s.p.fim < h; });
+    var slot = fechados.filter(function(s){ return s.usados < a.direito; })[0] || fechados[fechados.length - 1] || null;
+    return { slot:slot, direito:a.direito, saldo: slot ? a.direito - slot.usados : 0, primeiro: a.estado[0] ? a.estado[0].p : null };
+  }
+
+  /* Confere uma solicitação.
+     Devolve { erros, avisos, infos, retorno, slot, direito, saldoAntes, saldoDepois } */
+  function validar(func, pedido, reqsAtivas, todosFunc, todasReqs){
+    var R = { erros:[], avisos:[], infos:[], retorno:null, slot:null, direito:0, saldoAntes:0, saldoDepois:0 };
+    function err(t,l){ R.erros.push({ t:t, l:l || '' }); }
+    function avi(t,l){ R.avisos.push({ t:t, l:l || '' }); }
+    function inf(t,l){ R.infos.push({ t:t, l:l || '' }); }
+
+    var ini = pd(pedido.inicio);
+    var dias = Math.trunc(Number(pedido.dias) || 0);
+    var h = hoje();
+
+    if(!ini){ err('Escolha o primeiro dia de férias.'); return R; }
+    if(!pd(func.admissao)){ err('A data de admissão de ' + func.nome + ' não está cadastrada. O RH precisa completar o cadastro antes.'); return R; }
+    if(dias < 1){ err('Informe quantos dias de férias você quer tirar.'); return R; }
+    if(dias > 30){ err('Um período de férias não pode passar de 30 dias corridos.'); return R; }
+
+    R.retorno = addDias(ini, dias);
+    var fim = addDias(ini, dias - 1);
+
+    /* --- período aquisitivo (art. 130) --- */
+    var alvo = periodoAlvo(func, reqsAtivas, ini);
+    R.direito = alvo.direito;
+    if(!alvo.slot){
+      var pr = periodos(func.admissao, ini)[0];
+      err('O período aquisitivo ainda não fechou. ' + func.nome.split(' ')[0] + ' completa 12 meses de casa em ' +
+          fmt(pr.fim) + ' e só pode iniciar as férias a partir de ' + fmt(pr.concIni) + '.', 'CLT, art. 130');
+      return R;
+    }
+    R.slot = alvo.slot;
+    var p = alvo.slot.p;
+    R.saldoAntes = R.direito - alvo.slot.usados;
+    R.saldoDepois = R.saldoAntes - dias;
+
+    if(dias > R.saldoAntes){
+      err('Saldo insuficiente: restam ' + plural(R.saldoAntes,'dia','dias') + ' no período aquisitivo de ' +
+          fmt(p.ini) + ' a ' + fmt(p.fim) + ', e o pedido é de ' + plural(dias,'dia','dias') + '.');
+    }
+
+    /* --- fracionamento (art. 134, §1º) --- */
+    var noPeriodo = alvo.slot.itens;
+    if(dias < 5 && dias < R.saldoAntes){
+      err('Nenhum período fracionado pode ter menos de 5 dias corridos.', 'CLT, art. 134, §1º');
+    }
+    if(noPeriodo.length >= 3){
+      err('Este período aquisitivo já tem 3 períodos de férias marcados. A CLT permite no máximo três.', 'CLT, art. 134, §1º');
+    }
+    var fracoes = noPeriodo.map(function(r){ return Number(r.dias) || 0; }).concat([dias]);
+    if(fracoes.length > 1 && !fracoes.some(function(d){ return d >= 14; })){
+      var total = fracoes.reduce(function(a,b){ return a + b; }, 0);
+      if(total >= R.direito){
+        err('Ao fracionar, um dos períodos precisa ter no mínimo 14 dias corridos — nenhum dos marcados alcança isso.', 'CLT, art. 134, §1º');
+      } else {
+        avi('Ao fracionar, um dos períodos precisa ter no mínimo 14 dias corridos. Ainda dá para acertar isso no próximo pedido.', 'CLT, art. 134, §1º');
+      }
+    }
+
+    /* --- dia de início (art. 134, §3º) --- */
+    var dow = ini.getDay();
+    if(dow === 5 || dow === 6){
+      err('As férias não podem começar em ' + SEMANA[dow] + ': é vedado iniciar nos dois dias que antecedem o repouso semanal.', 'CLT, art. 134, §3º');
+    } else if(dow === 0){
+      avi('O início cai em domingo. Costuma ser mais simples começar na segunda-feira.');
+    }
+    [1,2].forEach(function(n){
+      var f = feriadoEm(addDias(ini,n));
+      if(!f) return;
+      if(f.tipo === 'nacional'){
+        err('As férias não podem começar ' + (n === 1 ? 'na véspera' : 'dois dias antes') + ' de ' + f.nome +
+            ' (' + fmt(addDias(ini,n)) + ').', 'CLT, art. 134, §3º');
+      } else {
+        avi(f.nome + ' cai em ' + fmt(addDias(ini,n)) + '. É ponto facultativo, não feriado nacional, mas confira a prática da empresa.');
+      }
+    });
+    var f0 = feriadoEm(ini);
+    if(f0) avi('O primeiro dia de férias é ' + f0.nome + '.');
+
+    /* --- antecedência (art. 135) --- */
+    var antec = difDias(h, ini);
+    if(antec < 0) err('A data escolhida já passou.');
+    else if(antec < 30) avi('Faltam ' + plural(antec,'dia','dias') + ' para o início. O aviso de férias precisa sair com 30 dias de antecedência.', 'CLT, art. 135');
+
+    /* --- sobreposição com os próprios períodos --- */
+    reqsAtivas.forEach(function(r){
+      if(r.id && pedido.id && r.id === pedido.id) return;
+      var ri = pd(r.inicio); if(!ri) return;
+      var rf = addDias(ri, (Number(r.dias)||0) - 1);
+      if(sobrepoe(ini, fim, ri, rf)){
+        err('Você já tem férias marcadas de ' + fmt(ri) + ' a ' + fmt(rf) + ' e os períodos se sobrepõem.');
+      }
+    });
+
+    /* --- colegas do mesmo setor --- */
+    if(todosFunc && todasReqs){
+      var doSetor = {};
+      todosFunc.forEach(function(f){
+        if(f.id !== func.id && (f.setor || '') === (func.setor || '')) doSetor[f.id] = f;
+      });
+      var choques = [];
+      todasReqs.forEach(function(r){
+        if(r.status !== 'aprovada' && r.status !== 'pendente') return;
+        var col = doSetor[r.funcionarioId]; if(!col) return;
+        var ri = pd(r.inicio); if(!ri) return;
+        var rf = addDias(ri, (Number(r.dias)||0) - 1);
+        if(sobrepoe(ini, fim, ri, rf)) choques.push(col.nome.split(' ')[0] + ' (' + fmtCurto(ri) + '–' + fmtCurto(rf) + ')');
+      });
+      if(choques.length) avi('Coincide com férias de ' + choques.join(', ') + ' no mesmo setor. O RH decide se dá para cobrir.');
+    }
+
+    /* --- notas --- */
+    inf('Período: ' + fmt(ini) + ' a ' + fmt(fim) + ' — retorno ao trabalho em ' + fmt(R.retorno) + ' (' + SEMANA[R.retorno.getDay()] + ').');
+    if(R.retorno.getDay() === 0 || R.retorno.getDay() === 6){
+      inf('O retorno cai em ' + SEMANA[R.retorno.getDay()] + '. Na prática a volta é no primeiro dia útil seguinte, mas as férias terminam mesmo em ' + fmt(fim) + '.');
+    }
+    var fr = feriadoEm(R.retorno);
+    if(fr) inf('O dia do retorno é ' + fr.nome + '.');
+    inf('Período aquisitivo de ' + fmt(p.ini) + ' a ' + fmt(p.fim) + ' · gozar até ' + fmt(p.concFim) + '.');
+
+    return R;
+  }
+
+  return {
+    SEMANA: SEMANA, MESES: MESES,
+    hoje: hoje, ymd: ymd, pd: pd, addDias: addDias, addAnos: addAnos,
+    fmt: fmt, fmtCurto: fmtCurto, difDias: difDias, plural: plural, sobrepoe: sobrepoe,
+    pascoa: pascoa, feriados: feriados, feriadoEm: feriadoEm,
+    periodos: periodos, diasDeDireito: diasDeDireito,
+    alocar: alocar, periodoAlvo: periodoAlvo, periodoAberto: periodoAberto,
+    validar: validar
+  };
+});

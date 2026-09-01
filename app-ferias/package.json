@@ -1,0 +1,15 @@
+{
+  "name": "quadro-de-ferias",
+  "version": "1.0.0",
+  "description": "Controle interno de solicitação e aprovação de férias",
+  "private": true,
+  "type": "commonjs",
+  "main": "servidor.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning servidor.js",
+    "test": "node testes/regras.test.js && node --disable-warning=ExperimentalWarning testes/api.test.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
