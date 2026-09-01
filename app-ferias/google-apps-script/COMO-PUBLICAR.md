@@ -85,18 +85,15 @@ Na primeira vez o Google pede permissão para o programa mexer na sua planilha.
 23. O Google mostra o **URL do app da Web**, terminado em `/exec`. Clique em
     **Copiar**. É esse o link da equipe.
 24. Abra o link numa aba nova. O app aparece.
-25. Vá na aba **Gestão**. Na primeira vez ela pede os **três nomes e os três
-    PINs** — gestor do departamento, departamento pessoal e diretor. Preencha
-    tudo e clique em **Definir os três PINs**. **Faça isso antes de mandar o link
-    para alguém**: quem chegar primeiro é quem define.
-26. Você entra automaticamente como departamento pessoal. Cadastre a equipe em
-    **Cadastrar funcionário**. O campo **Setor** é o mais importante: é ele que
-    faz o sistema avisar quando dois colegas pedem o mesmo período.
+25. Vá na aba **Gestão**. Na primeira vez ela pede o **nome do gestor do
+    departamento e um PIN**. Preencha e clique em **Definir o PIN**. **Faça isso
+    antes de mandar o link para alguém**: quem chegar primeiro é quem define.
+26. Você já entra. Cadastre a equipe em **Cadastrar funcionário** — só nome,
+    cargo e setor. O campo **Setor** é o mais importante: é ele que faz o sistema
+    avisar quando dois colegas pedem o mesmo período.
 27. Use **Lançar férias já combinadas** para pôr no quadro as férias que já
     tinham sido acertadas fora do sistema.
-28. Entregue o PIN do gestor e o do diretor para cada um deles — cada pessoa
-    assina só o campo dela.
-29. Mande o link para a equipe. O link é comprido — vale salvar nos favoritos,
+28. Mande o link para a equipe. O PIN fica só com o gestor. O link é comprido — vale salvar nos favoritos,
     fixar no grupo do WhatsApp ou encurtar.
 
 Pronto. Não tem servidor para cuidar, nem conta para renovar, nem cobrança.
@@ -120,7 +117,7 @@ Na planilha, em três abas que o app cria sozinho:
 
 - **Funcionários** — o cadastro da equipe.
 - **Solicitações** — um pedido por linha, com nome, período, retorno, situação e
-  uma coluna para cada autorização, com o nome de quem assinou.
+  quem autorizou, com a data.
 - **Ajustes** — o nome da empresa.
 
 Você pode abrir a planilha quando quiser e filtrar, imprimir ou baixar em Excel
@@ -128,13 +125,13 @@ Você pode abrir a planilha quando quiser e filtrar, imprimir ou baixar em Excel
 Gestão, leva direto para ela.
 
 Algumas colunas ficam escondidas de propósito (`ID`, `Início (ISO)`, `ID do
-funcionário` e as três datas de autorização): são o que amarra cada pedido ao seu
-dono e guarda as datas no formato que o programa entende. **Não apague nem edite essas colunas**, senão o app perde a
+funcionário` e `Autorização (ISO)`): são o que amarra cada pedido ao seu dono e
+guarda as datas no formato que o programa entende. **Não apague nem edite essas colunas**, senão o app perde a
 ligação. Corrigir dados pelas telas do app é sempre mais seguro do
 que digitar direto na planilha.
 
-Os três PINs não ficam na planilha — são guardados em separado, embaralhados, e
-não aparecem nem para quem abrir o arquivo.
+O PIN não fica na planilha — é guardado em separado, embaralhado, e não aparece
+nem para quem abrir o arquivo.
 
 ## Se alguma coisa não sair como o esperado
 
@@ -170,10 +167,9 @@ lista e manda um pedido. É o preço de não ter senha por pessoa, e para contro
 interno costuma bastar — mas quem receber o link consegue, em tese, pedir férias
 no nome de outro. Trate o endereço como interno.
 
-As autorizações, essas sim, são protegidas: cada um dos três entra com o seu
-próprio PIN, conferido no servidor e não no navegador. O sistema não deixa um
-papel assinar o campo de outro, nem o mesmo papel assinar duas vezes. Cadastrar,
-excluir e trocar PINs só respondem ao PIN do departamento pessoal.
+A autorização, essa sim, é protegida: o gestor entra com o PIN dele, conferido
+no servidor e não no navegador. Autorizar, recusar, cadastrar, excluir e trocar o
+PIN só acontecem com sessão válida.
 
 ## Aviso honesto sobre este roteiro
 

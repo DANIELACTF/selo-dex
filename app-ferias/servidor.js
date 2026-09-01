@@ -35,7 +35,6 @@ db.exec(`
     nome      TEXT NOT NULL,
     cargo     TEXT NOT NULL DEFAULT '',
     setor     TEXT NOT NULL DEFAULT '',
-    admissao  TEXT NOT NULL DEFAULT '',
     ativo     INTEGER NOT NULL DEFAULT 1,
     criado_em TEXT NOT NULL
   );
@@ -50,11 +49,7 @@ db.exec(`
     motivo            TEXT NOT NULL DEFAULT '',
     recusada_por      TEXT NOT NULL DEFAULT '',
     aut_gestor        TEXT NOT NULL DEFAULT '',
-    aut_gestor_nome   TEXT NOT NULL DEFAULT '',
-    aut_dp            TEXT NOT NULL DEFAULT '',
-    aut_dp_nome       TEXT NOT NULL DEFAULT '',
-    aut_diretor       TEXT NOT NULL DEFAULT '',
-    aut_diretor_nome  TEXT NOT NULL DEFAULT ''
+    aut_gestor_nome   TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX IF NOT EXISTS idx_sol_func ON solicitacoes(funcionario_id);
   CREATE TABLE IF NOT EXISTS config (
@@ -121,26 +116,25 @@ function errou(ip){
 
 /* ------------------------------------------------------------------ dados */
 const q = {
-  funcionarios: db.prepare('SELECT id, nome, cargo, setor, admissao, ativo FROM funcionarios ORDER BY nome'),
-  funcionario:  db.prepare('SELECT id, nome, cargo, setor, admissao, ativo FROM funcionarios WHERE id = ?'),
-  gravarFunc: db.prepare(`INSERT INTO funcionarios (id, nome, cargo, setor, admissao, ativo, criado_em)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)
+  funcionarios: db.prepare('SELECT id, nome, cargo, setor, ativo FROM funcionarios ORDER BY nome'),
+  funcionario:  db.prepare('SELECT id, nome, cargo, setor, ativo FROM funcionarios WHERE id = ?'),
+  gravarFunc: db.prepare(`INSERT INTO funcionarios (id, nome, cargo, setor, ativo, criado_em)
+                          VALUES (?, ?, ?, ?, ?, ?)
                           ON CONFLICT(id) DO UPDATE SET
                             nome = excluded.nome, cargo = excluded.cargo,
-                            setor = excluded.setor, admissao = excluded.admissao, ativo = excluded.ativo`),
+                            setor = excluded.setor, ativo = excluded.ativo`),
   apagarFunc: db.prepare('DELETE FROM funcionarios WHERE id = ?'),
   solicitacoes: db.prepare(`SELECT s.id, s.funcionario_id AS funcionarioId, s.inicio, s.dias, s.obs, s.status,
                                    s.criada_em AS criadaEm, s.motivo, s.recusada_por AS recusadaPor,
-                                   s.aut_gestor, s.aut_gestor_nome, s.aut_dp, s.aut_dp_nome,
-                                   s.aut_diretor, s.aut_diretor_nome,
+                                   s.aut_gestor, s.aut_gestor_nome,
                                    f.nome, f.setor, f.cargo
                             FROM solicitacoes s LEFT JOIN funcionarios f ON f.id = s.funcionario_id
                             ORDER BY s.inicio`),
   solicitacao: db.prepare('SELECT * FROM solicitacoes WHERE id = ?'),
   criarSol: db.prepare(`INSERT INTO solicitacoes
       (id, funcionario_id, inicio, dias, obs, status, criada_em, motivo, recusada_por,
-       aut_gestor, aut_gestor_nome, aut_dp, aut_dp_nome, aut_diretor, aut_diretor_nome)
-      VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?)`),
+       aut_gestor, aut_gestor_nome)
+      VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?)`),
   statusSol: db.prepare('UPDATE solicitacoes SET status = ?, motivo = ?, recusada_por = ? WHERE id = ?'),
   apagarSol: db.prepare('DELETE FROM solicitacoes WHERE id = ?')
 };
@@ -201,9 +195,8 @@ const servidor = http.createServer(async (req, res) => {
   const rota = new URL(req.url, 'http://local').pathname;
   const ip = req.socket.remoteAddress || '?';
   const sessao = sessaoDe(req);
-  const exigir = papel => {
+  const exigir = () => {
     if(!sessao) throw Object.assign(new Error('Sua sessão expirou. Entre de novo com o seu PIN.'), { http:401 });
-    if(papel && sessao.papel !== papel) throw Object.assign(new Error('Só o departamento pessoal pode fazer isso.'), { http:403 });
   };
 
   try{
@@ -228,28 +221,28 @@ const servidor = http.createServer(async (req, res) => {
 
     /* ---------- primeira configuração: os três PINs de uma vez ---------- */
     if(rota === '/api/configurar' && req.method === 'POST'){
-      if(jaConfigurado()) return json(res, 400, { erro:'Os PINs já foram definidos. Use "Trocar PINs" na área do departamento pessoal.' });
+      if(jaConfigurado()) return json(res, 400, { erro:'O PIN já foi definido. Use "Trocar nome e PIN" dentro da aba Gestão.' });
       const corpo = await lerCorpo(req);
       const pins = {};
       for(const p of PAPEIS){
         const dados = corpo[p] || {};
         const pin = String(dados.pin || '');
         const nome = texto(dados.nome, 120);
-        if(!nome) return json(res, 400, { erro:'Informe o nome de quem responde por cada papel.' });
-        if(pin.length < 4) return json(res, 400, { erro:'Cada PIN precisa de pelo menos 4 caracteres.' });
+        if(!nome) return json(res, 400, { erro:'Informe o nome de quem autoriza.' });
+        if(pin.length < 4) return json(res, 400, { erro:'O PIN precisa de pelo menos 4 caracteres.' });
         pins[p] = { pin, nome };
       }
       const valores = PAPEIS.map(p => pins[p].pin);
-      if(new Set(valores).size !== valores.length) return json(res, 400, { erro:'Os três PINs precisam ser diferentes entre si.' });
+      if(new Set(valores).size !== valores.length) return json(res, 400, { erro:'Cada papel precisa de um PIN diferente.' });
       for(const p of PAPEIS){ definirPin(p, pins[p].pin); config.gravar('nome_' + p, pins[p].nome); }
-      return json(res, 200, { token: novaSessao('dp'), papel:'dp' });
+      return json(res, 200, { token: novaSessao(PAPEIS[0]), papel: PAPEIS[0] });
     }
 
     /* ---------- entrar ---------- */
     if(rota === '/api/pin' && req.method === 'POST'){
       const corpo = await lerCorpo(req);
       const pin = String(corpo.pin || '');
-      if(!jaConfigurado()) return json(res, 400, { erro:'Os PINs ainda não foram definidos.' });
+      if(!jaConfigurado()) return json(res, 400, { erro:'O PIN ainda não foi definido.' });
       if(bloqueado(ip)) return json(res, 429, { erro:'Muitas tentativas erradas. Espere 5 minutos.' });
       const papel = papelDoPin(pin);
       if(!papel){ errou(ip); return json(res, 401, { erro:'PIN incorreto.' }); }
@@ -258,7 +251,7 @@ const servidor = http.createServer(async (req, res) => {
     }
 
     if(rota === '/api/pins' && req.method === 'POST'){
-      exigir('dp');
+      exigir();
       const corpo = await lerCorpo(req);
       let mudou = 0;
       for(const p of PAPEIS){
@@ -266,7 +259,7 @@ const servidor = http.createServer(async (req, res) => {
         if(dados.nome !== undefined) config.gravar('nome_' + p, texto(dados.nome, 120));
         const pin = String(dados.pin || '');
         if(pin){
-          if(pin.length < 4) return json(res, 400, { erro:'Cada PIN precisa de pelo menos 4 caracteres.' });
+          if(pin.length < 4) return json(res, 400, { erro:'O PIN precisa de pelo menos 4 caracteres.' });
           definirPin(p, pin); mudou++;
         }
       }
@@ -286,7 +279,7 @@ const servidor = http.createServer(async (req, res) => {
 
       const id = uid();
       q.criarSol.run(id, func.id, pedido.inicio, pedido.dias, texto(corpo.obs, 500),
-                     'pendente', new Date().toISOString(), '', '', '', '', '', '');
+                     'pendente', new Date().toISOString(), '', '');
       return json(res, 200, { id });
     }
 
@@ -325,7 +318,7 @@ const servidor = http.createServer(async (req, res) => {
       }
 
       if(!acao && req.method === 'DELETE'){
-        exigir('dp');
+        exigir();
         q.apagarSol.run(id);
         return json(res, 200, { ok:true });
       }
@@ -333,28 +326,26 @@ const servidor = http.createServer(async (req, res) => {
 
     /* ---------- cadastro, só o departamento pessoal ---------- */
     if(rota === '/api/funcionarios' && req.method === 'POST'){
-      exigir('dp');
+      exigir();
       const corpo = await lerCorpo(req);
       const nome = texto(corpo.nome, 120);
-      const admissao = texto(corpo.admissao, 10);
       if(!nome) return json(res, 400, { erro:'O nome é obrigatório.' });
-      if(admissao && !Regras.pd(admissao)) return json(res, 400, { erro:'A data de admissão informada não existe.' });
       const id = /^[a-f0-9]{18}$/.test(String(corpo.id || '')) ? corpo.id : uid();
-      q.gravarFunc.run(id, nome, texto(corpo.cargo, 80), texto(corpo.setor, 80), admissao,
+      q.gravarFunc.run(id, nome, texto(corpo.cargo, 80), texto(corpo.setor, 80),
                        corpo.ativo === false ? 0 : 1, new Date().toISOString());
       return json(res, 200, { id });
     }
 
     const mFunc = rota.match(/^\/api\/funcionarios\/([a-f0-9]{18})$/);
     if(mFunc && req.method === 'DELETE'){
-      exigir('dp');
+      exigir();
       q.apagarFunc.run(mFunc[1]);
       return json(res, 200, { ok:true });
     }
 
     /* ---------- férias já combinadas antes do sistema ---------- */
     if(rota === '/api/historico' && req.method === 'POST'){
-      exigir('dp');
+      exigir();
       const corpo = await lerCorpo(req);
       const func = q.funcionario.get(String(corpo.funcionarioId || ''));
       if(!func) return json(res, 400, { erro:'Funcionário não encontrado.' });
@@ -363,14 +354,13 @@ const servidor = http.createServer(async (req, res) => {
       if(!Regras.pd(inicio)) return json(res, 400, { erro:'Informe uma data válida.' });
       if(dias < 1 || dias > 30) return json(res, 400, { erro:'Os dias precisam ficar entre 1 e 30.' });
       const agora = new Date().toISOString();
-      const nome = config.ler('nome_dp') || 'Departamento pessoal';
-      q.criarSol.run(uid(), func.id, inicio, dias, 'Lançado pelo departamento pessoal.', 'autorizada', agora,
-                     agora, nome, agora, nome, agora, nome);
+      const nome = config.ler('nome_gestor') || 'Gestor do departamento';
+      q.criarSol.run(uid(), func.id, inicio, dias, 'Lançado pelo gestor.', 'autorizada', agora, agora, nome);
       return json(res, 200, { ok:true });
     }
 
     if(rota === '/api/empresa' && req.method === 'POST'){
-      exigir('dp');
+      exigir();
       const corpo = await lerCorpo(req);
       config.gravar('empresa', texto(corpo.nome, 120));
       return json(res, 200, { ok:true });
@@ -390,7 +380,7 @@ if(require.main === module){
   servidor.listen(PORTA, () => {
     console.log('Quadro de Férias no ar em http://localhost:' + PORTA);
     console.log('Banco: ' + path.join(PASTA_DADOS, 'ferias.db'));
-    if(!jaConfigurado()) console.log('Os PINs ainda não foram definidos — quem abrir a aba Autorização define os três.');
+    if(!jaConfigurado()) console.log('O PIN ainda não foi definido — quem abrir a aba Gestão define o dele.');
   });
 }
 

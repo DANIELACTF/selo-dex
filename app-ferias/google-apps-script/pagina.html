@@ -319,7 +319,7 @@ td.acoes .btn{margin-left:5px}
         <div class="field">
           <label for="sel-func">Funcionário</label>
           <select id="sel-func" disabled><option value="">Carregando…</option></select>
-          <span class="hint" id="sem-cadastro" hidden>Nenhum funcionário cadastrado ainda. Peça ao departamento pessoal para cadastrar a equipe.</span>
+          <span class="hint" id="sem-cadastro" hidden>Nenhum funcionário cadastrado ainda. Peça ao gestor do departamento para cadastrar a equipe.</span>
         </div>
       </div>
     </div>
@@ -392,18 +392,18 @@ td.acoes .btn{margin-left:5px}
     <div class="card" id="tela-configurar" hidden>
       <div class="card-hd"><div class="grow"><h2>Definir quem autoriza</h2></div></div>
       <div class="card-bd stack">
-        <p class="small muted" style="max-width:62ch">Toda solicitação precisa das três autorizações abaixo. Cada pessoa entra com o seu próprio PIN e assina só o campo dela. Defina os três agora — depois o departamento pessoal pode trocar nomes e PINs.</p>
+        <p class="small muted" style="max-width:62ch">Toda solicitação de férias passa pelo gestor do departamento. Diga quem é e escolha um PIN — é com ele que se entra nesta aba para autorizar, cadastrar a equipe e mexer nos ajustes.</p>
         <div id="campos-configurar" class="stack"></div>
         <div class="row" style="justify-content:flex-end">
-          <button class="btn btn-primary" type="button" id="btn-configurar">Definir os três PINs</button>
+          <button class="btn btn-primary" type="button" id="btn-configurar">Definir o PIN</button>
         </div>
       </div>
     </div>
 
     <div class="card" id="tela-entrar" hidden>
-      <div class="card-hd"><div class="grow"><h2>Entrar para autorizar</h2></div></div>
+      <div class="card-hd"><div class="grow"><h2>Entrar na gestão</h2></div></div>
       <div class="card-bd stack" style="max-width:420px">
-        <p class="small muted">Digite o seu PIN. O sistema reconhece pelo PIN se você é o gestor do departamento, o departamento pessoal ou o diretor.</p>
+        <p class="small muted">Digite o PIN do gestor do departamento para autorizar as solicitações e cuidar do cadastro.</p>
         <div class="field">
           <label for="in-pin">PIN</label>
           <input type="password" id="in-pin" inputmode="numeric" autocomplete="current-password" placeholder="••••">
@@ -494,7 +494,7 @@ td.acoes .btn{margin-left:5px}
             <input type="text" id="cfg-empresa" placeholder="Aparece no topo e no aviso de retorno">
           </div>
           <div class="row" style="justify-content:space-between">
-            <button class="btn btn-sm btn-ghost" type="button" id="btn-trocar-pins">Trocar nomes e PINs</button>
+            <button class="btn btn-sm btn-ghost" type="button" id="btn-trocar-pins">Trocar nome e PIN</button>
             <button class="btn btn-primary" type="button" id="btn-salvar-cfg">Salvar</button>
           </div>
         </div>
@@ -629,7 +629,7 @@ async function carregar(){
 }
 
 var ROTULO = { pendente:'Em análise', autorizada:'Autorizada', recusada:'Recusada', cancelada:'Cancelada', gozada:'Já gozada' };
-var CURTO = { gestor:'Gestor', dp:'DP', diretor:'Diretor' };
+var CURTO = { gestor:'Gestor', dp:'DP', diretor:'Diretor' };   /* rótulo curto, se um dia houver mais papéis */
 var CLASSE = { pendente:'pendente', autorizada:'aprovada', recusada:'recusada', cancelada:'cancelada', gozada:'gozada' };
 
 function tituloPapel(chave){
@@ -641,8 +641,22 @@ function minhasDe(id){ return E.solicitacoes.filter(function(s){ return s.funcio
 function validos(lista){ return lista.filter(function(s){ return !!R.pd(s.inicio); }); }
 function selo(s){ var x = R.situacao(s); return '<span class="selo ' + CLASSE[x] + '">' + ROTULO[x] + '</span>'; }
 
+var TITULO_AUT = R.PAPEIS.length === 1 ? 'Autorizada por' : 'Autorizações';
+
 function tri(s){
   var estado = R.situacao(s);
+
+  /* Com um papel só, mostrar um selo com o nome dele ao lado da situação é
+     redundante — o que interessa é quem assinou e quando. */
+  if(R.PAPEIS.length === 1){
+    var unico = R.PAPEIS[0], assinado = s['aut_' + unico.chave];
+    if(assinado){
+      return '<span class="nome">' + esc(s['aut_' + unico.chave + '_nome'] || '—') + '</span>' +
+        '<div class="sub">' + esc(dataCurta(assinado)) + '</div>';
+    }
+    return '<span class="sub">' + (estado === 'pendente' ? 'aguardando o gestor' : '—') + '</span>';
+  }
+
   var pecas = R.PAPEIS.map(function(p){
     var feito = !!s['aut_' + p.chave];
     var minha = !feito && E.papel === p.chave && estado === 'pendente';
@@ -795,7 +809,7 @@ function renderMinhas(){
   var lista = validos(minhasDe(f.id)).sort(function(a,b){ return String(b.inicio).localeCompare(String(a.inicio)); });
   if(!lista.length){ alvo.innerHTML = '<div class="vazio">Nenhuma solicitação enviada ainda.</div>'; return; }
   alvo.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
-    '<th>Período</th><th>Retorno</th><th>Situação</th><th>Autorizações</th><th></th>' +
+    '<th>Período</th><th>Retorno</th><th>Situação</th><th>' + TITULO_AUT + '</th><th></th>' +
     '</tr></thead><tbody>' + lista.map(function(s){
       return '<tr>' +
         '<td class="n">' + R.fmt(R.pd(s.inicio)) + ' – ' + R.fmt(R.fimDe(s)) +
@@ -823,7 +837,7 @@ async function enviar(){
     S.form = { inicio:'', dias:30, obs:'' };
     escreverForm();
     await carregar();
-    toast('Solicitação enviada. Agora ela precisa das três autorizações.');
+    toast('Solicitação enviada. Agora ela vai para o gestor do departamento.');
   }catch(e){
     toast(e.message, true);
     btn.disabled = false;
@@ -892,7 +906,7 @@ function renderTabela(){
     return;
   }
   $('#tabela-wrap').innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
-    '<th>Funcionário</th><th>Período</th><th>Retorno</th><th>Situação</th><th>Autorizações</th><th></th>' +
+    '<th>Funcionário</th><th>Período</th><th>Retorno</th><th>Situação</th><th>' + TITULO_AUT + '</th><th></th>' +
     '</tr></thead><tbody>' + lista.map(function(s){
       var estado = R.situacao(s);
       var acoes = [];
@@ -905,9 +919,7 @@ function renderTabela(){
       if(estado === 'autorizada' || estado === 'gozada'){
         acoes.push('<button class="btn btn-sm" type="button" data-aviso="' + esc(s.id) + '">Aviso de retorno</button>');
       }
-      if(E.papel === 'dp'){
-        acoes.push('<button class="btn btn-sm btn-ghost" type="button" data-excluir="' + esc(s.id) + '">Excluir</button>');
-      }
+      acoes.push('<button class="btn btn-sm btn-ghost" type="button" data-excluir="' + esc(s.id) + '">Excluir</button>');
       return '<tr>' +
         '<td><span class="nome">' + esc(s.nome) + '</span><div class="sub">' + esc(s.setor || 'sem setor') + '</div></td>' +
         '<td class="n">' + R.fmt(R.pd(s.inicio)) + ' – ' + R.fmt(R.fimDe(s)) +
@@ -940,7 +952,7 @@ function renderEquipe(){
   }
   var h = R.hoje();
   $('#func-tabela').innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
-    '<th>Nome</th><th>Setor</th><th>Admissão</th><th>Próximas férias</th><th></th></tr></thead><tbody>' +
+    '<th>Nome</th><th>Setor</th><th>Próximas férias</th><th></th></tr></thead><tbody>' +
     lista.map(function(f){
       var futuras = validos(minhasDe(f.id)).filter(function(s){
         return R.estaValendo(s) && R.fimDe(s) >= h;
@@ -953,7 +965,6 @@ function renderEquipe(){
         '<td><span class="nome">' + esc(f.nome) + '</span><div class="sub">' + esc(f.cargo || '—') +
           (f.ativo === false ? ' · inativo' : '') + '</div></td>' +
         '<td>' + esc(f.setor || '—') + '</td>' +
-        '<td class="n">' + (R.pd(f.admissao) ? R.fmt(R.pd(f.admissao)) : '—') + '</td>' +
         '<td class="n">' + prox + '</td>' +
         '<td class="acoes">' +
           '<button class="btn btn-sm" type="button" data-editar-func="' + esc(f.id) + '">Editar</button>' +
@@ -998,13 +1009,12 @@ function pedirConfirmacao(titulo, texto, rotulo, perigo, fn){
 
 function modalFuncionario(id){
   var f = id ? funcPorId(id) : null;
-  var d = f || { nome:'', cargo:'', setor:'', admissao:'', ativo:true };
+  var d = f || { nome:'', cargo:'', setor:'', ativo:true };
   abrirModal(f ? 'Editar funcionário' : 'Cadastrar funcionário',
     '<div class="stack"><div class="grid-form">' +
       campo('mf-nome','Nome completo','text', d.nome, '') +
       campo('mf-cargo','Cargo','text', d.cargo, '') +
       campo('mf-setor','Setor','text', d.setor, 'É por aqui que o sistema avisa quando dois colegas pedem o mesmo período.') +
-      campo('mf-admissao','Data de admissão','date', d.admissao, 'Opcional — serve só para consulta.') +
     '</div>' +
     '<label class="check" for="mf-ativo"><input type="checkbox" id="mf-ativo"' + (d.ativo === false ? '' : ' checked') + '>' +
       '<span><b>Funcionário ativo</b><i>Inativos somem da lista de solicitação e dos quadros.</i></span></label></div>',
@@ -1017,7 +1027,7 @@ function modalRetroativo(){
   if(!lista.length){ toast('Cadastre a equipe antes de lançar o histórico.', true); return; }
   abrirModal('Lançar férias já combinadas',
     '<div class="stack">' +
-      '<p class="small muted">Para registrar no quadro férias que já foram combinadas fora do sistema. Entram como autorizadas, com o seu nome nas três assinaturas.</p>' +
+      '<p class="small muted">Para registrar no quadro férias que já foram combinadas fora do sistema. Entram já autorizadas, com o seu nome na assinatura.</p>' +
       '<div class="grid-form">' +
         '<div class="field"><label for="mt-func">Funcionário</label><select id="mt-func">' +
           lista.map(function(f){ return '<option value="' + esc(f.id) + '">' + esc(f.nome) + '</option>'; }).join('') +
@@ -1035,7 +1045,7 @@ function modalRecusa(id){
   abrirModal('Recusar solicitação',
     '<div class="stack">' +
       '<p class="small muted">' + esc(s.nome) + ' pediu ' + R.plural(Number(s.dias)||0,'dia','dias') +
-        ' a partir de ' + R.fmt(R.pd(s.inicio)) + '. A recusa encerra o pedido — as outras autorizações não são pedidas.</p>' +
+        ' a partir de ' + R.fmt(R.pd(s.inicio)) + '. A recusa encerra o pedido.</p>' +
       '<div class="field"><label for="mr-motivo">Motivo da recusa</label>' +
       '<textarea id="mr-motivo" maxlength="300" placeholder="Ex.: o setor fica descoberto nessa semana; sugerimos início em 03/11."></textarea>' +
       '<span class="hint">O funcionário vê este texto na tela dele. Sugira uma alternativa quando fizer sentido.</span></div></div>',
@@ -1061,7 +1071,7 @@ function modalAviso(id){
       '<div class="retorno"><span class="rot">Retorna ao trabalho em</span>' +
         '<span class="valor">' + R.fmt(volta) + '</span>' +
         '<span class="rot">' + esc(R.SEMANA[volta.getDay()]) + '</span></div>' +
-      '<p>O período de férias acima foi combinado e autorizado pelas três instâncias abaixo. O funcionário deve reapresentar-se ao trabalho na data indicada.</p>' +
+      '<p>O período de férias acima foi combinado e autorizado conforme assinatura abaixo. O funcionário deve reapresentar-se ao trabalho na data indicada.</p>' +
       '<div class="autorizacoes">' + R.PAPEIS.map(function(p){
         var quando = s['aut_' + p.chave];
         return '<div><b>' + esc(s['aut_' + p.chave + '_nome'] || '—') + '</b>' +
@@ -1073,7 +1083,7 @@ function modalAviso(id){
 }
 
 function modalPins(){
-  abrirModal('Trocar nomes e PINs',
+  abrirModal('Trocar nome e PIN',
     '<div class="stack">' +
       '<p class="small muted">Deixe o PIN em branco para manter o atual. O nome aparece no aviso de retorno.</p>' +
       R.PAPEIS.map(function(p){
@@ -1091,8 +1101,8 @@ function modalPins(){
 function renderConfigurar(){
   $('#campos-configurar').innerHTML = R.PAPEIS.map(function(p){
     return '<div class="grid-form">' +
-      campo('cf-nome-' + p.chave, p.titulo, 'text', '', 'Nome de quem assina por este papel.') +
-      campo('cf-pin-' + p.chave, 'PIN', 'password', '', 'Ao menos 4 caracteres, diferente dos outros dois.', ' autocomplete="off"') +
+      campo('cf-nome-' + p.chave, p.titulo, 'text', '', 'Nome de quem assina. Aparece no aviso de retorno.') +
+      campo('cf-pin-' + p.chave, 'PIN', 'password', '', 'Ao menos 4 caracteres.', ' autocomplete="off"') +
     '</div>';
   }).join('');
 }
@@ -1105,9 +1115,9 @@ function renderPortao(){
   if(precisaConfigurar && !$('#campos-configurar').innerHTML) renderConfigurar();
   if(!E.papel) return;
   $('#cracha-papel').textContent = tituloPapel(E.papel);
-  $('#cracha-nome').textContent = (E.nomes[E.papel] ? E.nomes[E.papel] + ' · ' : '') + 'você assina só o campo deste papel';
-  $('#card-equipe').hidden = E.papel !== 'dp';
-  $('#card-ajustes').hidden = E.papel !== 'dp';
+  $('#cracha-nome').textContent = E.nomes[E.papel] || '';
+  $('#card-equipe').hidden = false;
+  $('#card-ajustes').hidden = false;
 }
 
 function renderTudo(){
@@ -1123,7 +1133,7 @@ function renderTudo(){
     renderFiltroSetor();
     renderTabela();
     renderQuadro();
-    if(E.papel === 'dp') renderEquipe();
+    renderEquipe();
   }
 }
 
@@ -1187,7 +1197,7 @@ $('#btn-configurar').addEventListener('click', async function(){
     token = d.token;
     try{ sessionStorage.setItem('ferias-token', token); }catch(e){}
     await carregar();
-    toast('PINs definidos. Você entrou como departamento pessoal.');
+    toast('PIN definido. Guarde-o — é com ele que você entra aqui.');
   }catch(e){ toast(e.message, true); }
 });
 
@@ -1236,7 +1246,7 @@ document.addEventListener('click', async function(e){
       var faltam = s ? R.faltamAutorizacoes(s) : [];
       toast(faltam.length
         ? 'Autorizado. Falta: ' + faltam.map(function(p){ return p.titulo.toLowerCase(); }).join(' e ') + '.'
-        : 'Autorizado. As três autorizações estão completas — o aviso de retorno já pode ser impresso.');
+        : 'Autorizado. O aviso de retorno já pode ser impresso.');
       return;
     }
 
@@ -1306,7 +1316,6 @@ document.addEventListener('click', async function(e){
         nome: $('#mf-nome').value.trim(),
         cargo: $('#mf-cargo').value.trim(),
         setor: $('#mf-setor').value.trim(),
-        admissao: $('#mf-admissao').value,
         ativo: $('#mf-ativo').checked
       }});
       fecharModal(); await carregar();

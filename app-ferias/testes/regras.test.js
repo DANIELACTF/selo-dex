@@ -17,8 +17,7 @@ const txt = V => V.erros.map(e => e.t).join(' | ') || '(sem erros)';
 const avisos = V => V.avisos.map(a => a.t).join(' | ') || '(sem avisos)';
 
 const sol = (id, funcId, inicio, dias, extra) => Object.assign({
-  id, funcionarioId:funcId, inicio, dias, status:'autorizada',
-  aut_gestor:'x', aut_dp:'x', aut_diretor:'x'
+  id, funcionarioId:funcId, inicio, dias, status:'autorizada', aut_gestor:'2026-08-01'
 }, extra || {});
 
 /* --- feriados --- */
@@ -60,7 +59,7 @@ ok(V.erros.length === 0, 'choque de setor avisa, não impede', txt(V));
 V = R.validar(bruno, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, daCarla);
 ok(V.choques.length === 0, 'colega de outro setor não conta', JSON.stringify(V.choques));
 
-const emAnalise = [sol('z','f2','2026-10-12',10, { status:'pendente', aut_gestor:'', aut_dp:'', aut_diretor:'' })];
+const emAnalise = [sol('z','f2','2026-10-12',10, { status:'pendente', aut_gestor:'' })];
 V = R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, emAnalise);
 ok(/ainda em análise/.test(avisos(V)), 'pedido do colega ainda em análise também aparece', avisos(V));
 
@@ -85,18 +84,18 @@ let perto = R.addDias(R.hoje(), 10);
 while([0,5,6].includes(perto.getDay()) || R.feriadoEm(R.addDias(perto,1)) || R.feriadoEm(R.addDias(perto,2))) perto = R.addDias(perto,1);
 ok(/pelo menos 30 dias/.test(avisos(R.validar(ana, ped({ inicio:R.ymd(perto), dias:15 }), [], equipe, []))), 'avisa antecedência curta');
 
-/* --- cadeia de autorizações --- */
-const nova = { status:'pendente', inicio:'2026-10-05', dias:20, aut_gestor:'', aut_dp:'', aut_diretor:'' };
-ok(R.faltamAutorizacoes(nova).length === 3, 'pedido novo espera três autorizações');
-ok(R.situacao(nova) === 'pendente', 'sem as três, fica em análise');
-const meio = Object.assign({}, nova, { aut_gestor:'2026-09-01', aut_dp:'2026-09-01' });
-ok(R.faltamAutorizacoes(meio).map(p => p.chave).join() === 'diretor', 'falta só o diretor', R.faltamAutorizacoes(meio).map(p=>p.chave).join());
-ok(R.situacao(meio) === 'pendente', 'duas de três ainda é análise');
-const cheia = Object.assign({}, meio, { aut_diretor:'2026-09-01' });
-ok(R.situacao(cheia) === 'autorizada', 'com as três vira autorizada');
-ok(R.situacao(Object.assign({}, cheia, { inicio:'2026-06-01' })) === 'gozada', 'período que já passou vira já gozada');
+/* --- autorização --- */
+ok(R.PAPEIS.length === 1 && R.PAPEIS[0].chave === 'gestor', 'só o gestor do departamento autoriza',
+   R.PAPEIS.map(p => p.chave).join());
+ok(R.PAPEIS[0].titulo === 'Gestor do departamento', 'título do papel');
+const nova = { status:'pendente', inicio:'2026-10-05', dias:20, aut_gestor:'' };
+ok(R.faltamAutorizacoes(nova).length === 1, 'pedido novo espera a assinatura do gestor');
+ok(R.situacao(nova) === 'pendente', 'sem a assinatura, fica em análise');
+const assinada = Object.assign({}, nova, { aut_gestor:'2026-09-01' });
+ok(R.faltamAutorizacoes(assinada).length === 0, 'assinada não espera mais ninguém');
+ok(R.situacao(assinada) === 'autorizada', 'com a assinatura vira autorizada');
+ok(R.situacao(Object.assign({}, assinada, { inicio:'2026-06-01' })) === 'gozada', 'período que já passou vira já gozada');
 ok(R.situacao(Object.assign({}, nova, { status:'recusada' })) === 'recusada', 'recusada continua recusada');
-ok(R.PAPEIS.map(p => p.chave).join() === 'gestor,dp,diretor', 'os três papéis, nessa ordem');
 
 /* --- quem está fora, para o quadro do setor --- */
 const fora = R.choquesDeSetor(ana, R.pd('2026-10-01'), R.pd('2026-10-31'), equipe, daCarla.concat([sol('w','f3','2026-10-05',10)]));

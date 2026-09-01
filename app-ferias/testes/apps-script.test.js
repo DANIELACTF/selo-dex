@@ -128,54 +128,50 @@ const acharSol = (t, id) => estado(t).solicitacoes.filter(s => s.id === id)[0];
 
 /* --- estado inicial e criação das abas --- */
 let e = estado();
-ok(e.configurado === false && e.papel === '', 'começa sem PINs e sem sessão');
+ok(e.configurado === false && e.papel === '', 'começa sem PIN e sem sessão');
 ok(!!abas['Funcionários'] && !!abas['Solicitações'] && !!abas['Ajustes'], 'cria as três abas sozinho');
-ok(abas['Solicitações']._celulas[0][3] === 'Período' && abas['Solicitações']._celulas[0][7] === 'Gestor',
-   'cabeçalho legível, com uma coluna por autorização', JSON.stringify(abas['Solicitações']._celulas[0].slice(0,10)));
-ok(abas['Funcionários']._celulas[0].indexOf('Dias por período') < 0, 'a coluna de saldo de dias saiu do cadastro');
+ok(abas['Funcionários']._celulas[0].join() === 'ID,Nome,Cargo,Setor,Ativo',
+   'cadastro sem coluna de admissão', abas['Funcionários']._celulas[0].join());
+ok(abas['Solicitações']._celulas[0][3] === 'Período' && abas['Solicitações']._celulas[0][7] === 'Autorizada por',
+   'cabeçalho legível, com uma coluna de autorização', JSON.stringify(abas['Solicitações']._celulas[0].slice(0,10)));
+ok(abas['Solicitações']._celulas[0].indexOf('Diretor') < 0 && abas['Solicitações']._celulas[0].indexOf('Departamento pessoal') < 0,
+   'sem colunas de diretor e departamento pessoal');
 ok(G.motor().fmt(G.motor().pascoa(2026)) === '05/04/2026', 'servidor carrega o motor de regras do regras_js.html');
 ok(G.motor().periodos === undefined, 'o motor não tem mais cálculo de período aquisitivo');
+ok(G.motor().PAPEIS.length === 1 && G.motor().PAPEIS[0].chave === 'gestor', 'só o gestor autoriza');
 
 /* --- proteção antes de configurar --- */
-recusa(() => G.entrarGestao('2468'), 'ainda não foram definidos', 'não dá para entrar antes de definir os PINs');
+recusa(() => G.entrarGestao('2468'), 'ainda não foi definido', 'não dá para entrar antes de definir o PIN');
 recusa(() => G.salvarFuncionario('', { nome:'Intruso' }), 'sessão', 'cadastrar exige sessão');
 
-/* --- definir os três PINs --- */
-const trio = (g, d, dir) => ({
-  gestor:{ nome:'Paulo Ribeiro', pin:g },
-  dp:{ nome:'Thays Moraes', pin:d },
-  diretor:{ nome:'Daniela Carvalho', pin:dir }
-});
-recusa(() => G.configurarPins(trio('123','2222','3333')), 'pelo menos 4', 'PIN curto é recusado');
-recusa(() => G.configurarPins(trio('1111','1111','3333')), 'diferentes entre si', 'PINs iguais são recusados');
-recusa(() => G.configurarPins({ gestor:{ nome:'', pin:'1111' }, dp:{ nome:'a', pin:'2222' }, diretor:{ nome:'b', pin:'3333' } }),
-       'nome', 'exige o nome de cada papel');
-const inicial = G.configurarPins(trio('1111','2222','3333'));
-ok(inicial.papel === 'dp' && inicial.token, 'define os três PINs e entra como DP');
-const tkDp = inicial.token;
-recusa(() => G.configurarPins(trio('7','8','9')), 'já foram definidos', 'não configura duas vezes');
+/* --- definir o PIN --- */
+const setup = pin => ({ gestor:{ nome:'Paulo Ribeiro', pin } });
+recusa(() => G.configurarPins(setup('123')), 'pelo menos 4', 'PIN curto é recusado');
+recusa(() => G.configurarPins({ gestor:{ nome:'', pin:'1111' } }), 'nome', 'exige o nome de quem autoriza');
+const inicial = G.configurarPins(setup('1111'));
+ok(inicial.papel === 'gestor' && inicial.token, 'define o PIN e entra como gestor');
+const tk = inicial.token;
+recusa(() => G.configurarPins(setup('7777')), 'já foi definido', 'não configura duas vezes');
 
-/* --- entrar com cada PIN --- */
+/* --- entrar --- */
 let ent = G.entrarGestao('1111');
-ok(ent.papel === 'gestor' && ent.nome === 'Paulo Ribeiro', 'PIN do gestor entra como gestor', JSON.stringify(ent));
-const tkGestor = ent.token;
-const tkDiretor = G.entrarGestao('3333').token;
-ok(estado(tkDiretor).papel === 'diretor', 'sessão do diretor é reconhecida');
+ok(ent.papel === 'gestor' && ent.nome === 'Paulo Ribeiro', 'entra com o PIN do gestor', JSON.stringify(ent));
 recusa(() => G.entrarGestao('0000'), 'incorreto', 'PIN errado é recusado');
+ok(estado(tk).papel === 'gestor', 'sessão é reconhecida');
 ok(estado('inventado').papel === '', 'token inventado não vale');
 
-/* --- cadastro: só o DP --- */
-recusa(() => G.salvarFuncionario(tkGestor, { nome:'X' }), 'departamento pessoal', 'gestor não cadastra');
-recusa(() => G.salvarFuncionario(tkDiretor, { nome:'X' }), 'departamento pessoal', 'diretor não cadastra');
-ok(G.salvarFuncionario(tkDp, { nome:'Ana Souza Lima', cargo:'Analista fiscal', setor:'Fiscal' }).ok, 'DP cadastra funcionário');
-ok(G.salvarFuncionario(tkDp, { nome:'Carla Monteiro', setor:'Fiscal' }).ok, 'DP cadastra segundo funcionário');
-recusa(() => G.salvarFuncionario(tkDp, { nome:'' }), 'obrigatório', 'nome é obrigatório');
-recusa(() => G.salvarFuncionario(tkDp, { nome:'Z', admissao:'2026-02-30' }), 'não existe', 'data de admissão inexistente é recusada');
-e = estado(tkDp);
+/* --- cadastro sem data de admissão --- */
+ok(G.salvarFuncionario(tk, { nome:'Ana Souza Lima', cargo:'Analista fiscal', setor:'Fiscal' }).ok, 'cadastra funcionário');
+ok(G.salvarFuncionario(tk, { nome:'Carla Monteiro', setor:'Fiscal' }).ok, 'cadastra segundo funcionário');
+recusa(() => G.salvarFuncionario(tk, { nome:'' }), 'obrigatório', 'nome é obrigatório');
+ok(G.salvarFuncionario(tk, { nome:'Com admissão', setor:'Fiscal', admissao:'2026-02-30' }).ok,
+   'data de admissão enviada por engano é ignorada');
+e = estado(tk);
+ok(e.funcionarios.every(f => f.admissao === undefined), 'o cadastro não guarda mais admissão',
+   JSON.stringify(Object.keys(e.funcionarios[0])));
 const ana = e.funcionarios.filter(f => f.nome === 'Ana Souza Lima')[0];
 const carla = e.funcionarios.filter(f => f.nome === 'Carla Monteiro')[0];
 ok(ana && ana.setor === 'Fiscal' && ana.ativo === true, 'lê o funcionário de volta certo', JSON.stringify(ana));
-ok(G.salvarFuncionario(tkDp, { nome:'Sem admissão', setor:'Fiscal' }).ok, 'admissão é opcional');
 
 /* --- o servidor refaz a conferência --- */
 recusa(() => G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-10-09', dias:20 }), 'sexta', 'recusa início na sexta');
@@ -187,36 +183,31 @@ ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-10-05', dias:20, ob
 let sol = estado().solicitacoes[0];
 ok(sol.status === 'pendente' && sol.nome === 'Ana Souza Lima' && sol.inicio === '2026-10-05' && sol.dias === 20,
    'pedido gravado com nome e datas', JSON.stringify(sol));
-ok(!sol.aut_gestor && !sol.aut_dp && !sol.aut_diretor, 'nasce sem nenhuma autorização');
+ok(!sol.aut_gestor, 'nasce sem assinatura');
 const linha = abas['Solicitações']._celulas[1];
 ok(linha[3] === '05/10/2026 a 24/10/2026' && linha[5] === '25/10/2026',
    'planilha mostra período e retorno em português', String(linha[3]) + ' / ' + String(linha[5]));
-
-/* --- saldo não barra mais nada --- */
 ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-12-07', dias:30 }).ok, 'segundo período longo é aceito');
 
-/* --- a cadeia de autorizações --- */
+/* --- uma assinatura basta --- */
 recusa(() => G.autorizarSolicitacao('', sol.id), 'sessão', 'autorizar exige sessão');
-ok(G.autorizarSolicitacao(tkGestor, sol.id).ok, 'gestor autoriza');
+ok(G.autorizarSolicitacao(tk, sol.id).ok, 'gestor autoriza');
 sol = acharSol('', sol.id);
-ok(sol.status === 'pendente' && sol.aut_gestor_nome === 'Paulo Ribeiro', 'uma assinatura não basta', sol.status);
-recusa(() => G.autorizarSolicitacao(tkGestor, sol.id), 'já autorizou', 'o mesmo papel não assina duas vezes');
-ok(G.autorizarSolicitacao(tkDp, sol.id).ok, 'DP autoriza');
-ok(acharSol('', sol.id).status === 'pendente', 'duas de três ainda é em análise');
-ok(G.autorizarSolicitacao(tkDiretor, sol.id).ok, 'diretor autoriza');
-sol = acharSol('', sol.id);
-ok(sol.status === 'autorizada', 'com as três vira autorizada', sol.status);
-ok(sol.aut_diretor_nome === 'Daniela Carvalho' && !!sol.aut_diretor, 'guarda nome e data de quem assinou', JSON.stringify({n:sol.aut_diretor_nome, d:!!sol.aut_diretor}));
-recusa(() => G.autorizarSolicitacao(tkGestor, sol.id), 'não está mais em análise', 'não autoriza o que já está autorizado');
+ok(sol.status === 'autorizada', 'uma assinatura já autoriza', sol.status);
+ok(sol.aut_gestor_nome === 'Paulo Ribeiro' && !!sol.aut_gestor, 'guarda nome e data de quem assinou',
+   JSON.stringify({ n:sol.aut_gestor_nome, d:!!sol.aut_gestor }));
+ok(/^\d{2}\/\d{2}\/\d{4}$/.test(String(abas['Solicitações']._celulas[1][8])),
+   'planilha mostra a data da autorização em português', String(abas['Solicitações']._celulas[1][8]));
+recusa(() => G.autorizarSolicitacao(tk, sol.id), 'não está mais em análise', 'não autoriza o que já está autorizado');
 
 /* --- recusa --- */
 G.enviarSolicitacao({ funcionarioId: carla.id, inicio:'2027-02-01', dias:20 });
 let daCarla = estado().solicitacoes.filter(s => s.funcionarioId === carla.id)[0];
-recusa(() => G.recusarSolicitacao(tkGestor, daCarla.id, ''), 'motivo', 'recusar sem motivo é bloqueado');
-ok(G.recusarSolicitacao(tkDiretor, daCarla.id, 'Setor descoberto.').ok, 'qualquer um dos três pode recusar');
+recusa(() => G.recusarSolicitacao(tk, daCarla.id, ''), 'motivo', 'recusar sem motivo é bloqueado');
+ok(G.recusarSolicitacao(tk, daCarla.id, 'Setor descoberto.').ok, 'gestor recusa');
 daCarla = acharSol('', daCarla.id);
-ok(daCarla.status === 'recusada' && daCarla.recusadaPor === 'Daniela Carvalho', 'registra quem recusou', daCarla.recusadaPor);
-recusa(() => G.autorizarSolicitacao(tkGestor, daCarla.id), 'não está mais em análise', 'não autoriza pedido recusado');
+ok(daCarla.status === 'recusada' && daCarla.recusadaPor === 'Paulo Ribeiro', 'registra quem recusou', daCarla.recusadaPor);
+recusa(() => G.autorizarSolicitacao(tk, daCarla.id), 'não está mais em análise', 'não autoriza pedido recusado');
 
 /* --- cancelamento pelo funcionário --- */
 G.enviarSolicitacao({ funcionarioId: carla.id, inicio:'2027-05-03', dias:10 });
@@ -227,46 +218,42 @@ recusa(() => G.cancelarSolicitacao(outra.id, carla.id, ''), 'em análise', 'não
 recusa(() => G.cancelarSolicitacao(sol.id, ana.id, ''), 'em análise', 'não cancela pedido já autorizado');
 
 /* --- histórico --- */
-recusa(() => G.lancarHistorico(tkGestor, { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }), 'departamento pessoal', 'gestor não lança histórico');
-ok(G.lancarHistorico(tkDp, { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }).ok, 'DP lança férias já combinadas');
+recusa(() => G.lancarHistorico('', { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }), 'sessão', 'histórico exige sessão');
+ok(G.lancarHistorico(tk, { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }).ok, 'gestor lança férias já combinadas');
 const lancada = estado().solicitacoes.filter(s => s.obs.indexOf('Lançado') === 0)[0];
-ok(lancada && lancada.status === 'autorizada' && lancada.aut_gestor && lancada.aut_dp && lancada.aut_diretor,
-   'lançamento entra com as três assinaturas');
+ok(lancada && lancada.status === 'autorizada' && lancada.aut_gestor_nome === 'Paulo Ribeiro', 'lançamento entra já assinado');
 
 /* --- editar funcionário atualiza os pedidos já gravados --- */
-G.salvarFuncionario(tkDp, { id: ana.id, nome:'Ana Souza Lima Rocha', setor:'Contábil' });
-e = estado(tkDp);
+G.salvarFuncionario(tk, { id: ana.id, nome:'Ana Souza Lima Rocha', setor:'Contábil' });
+e = estado(tk);
 ok(e.funcionarios.filter(f => f.id === ana.id)[0].nome === 'Ana Souza Lima Rocha', 'nome atualizado no cadastro');
 ok(e.solicitacoes.filter(s => s.funcionarioId === ana.id).every(s => s.nome === 'Ana Souza Lima Rocha' && s.setor === 'Contábil'),
    'nome e setor atualizados nos pedidos já gravados');
 ok(e.funcionarios.filter(f => f.id === ana.id).length === 1, 'editar não duplica o funcionário');
 
 /* --- planilha devolvendo Date em vez de texto --- */
-abas['Solicitações']._celulas[1][14] = new Date(2026, 9, 5);
+abas['Solicitações']._celulas[1][13] = new Date(2026, 9, 5);
 ok(estado().solicitacoes.filter(s => s.id === sol.id)[0].inicio === '2026-10-05', 'converte data devolvida como Date pelo Sheets');
 
-/* --- ajustes e PINs --- */
-recusa(() => G.salvarEmpresa(tkDiretor, 'X'), 'departamento pessoal', 'diretor não muda os ajustes');
-ok(G.salvarEmpresa(tkDp, 'Contabilidade Selo Ltda').ok, 'DP grava o nome da empresa');
+/* --- ajustes e PIN --- */
+ok(G.salvarEmpresa(tk, 'Contabilidade Selo Ltda').ok, 'grava o nome da empresa');
 ok(estado().empresa === 'Contabilidade Selo Ltda', 'nome da empresa volta no estado');
-ok(estado().nomes.gestor === 'Paulo Ribeiro', 'nomes dos três papéis voltam no estado');
-ok(/docs\.google\.com/.test(G.linkDaPlanilha(tkGestor).url), 'qualquer papel abre a planilha');
-recusa(() => G.trocarPins(tkGestor, { gestor:{ nome:'X' } }), 'departamento pessoal', 'gestor não troca PINs');
-recusa(() => G.trocarPins(tkDp, { gestor:{ pin:'12' } }), 'pelo menos 4', 'PIN novo curto é recusado');
-ok(G.trocarPins(tkDp, { gestor:{ nome:'Paulo R. Ribeiro', pin:'8888' }, dp:{}, diretor:{} }).trocados === 1,
-   'troca um PIN e mantém os outros');
-ok(G.entrarGestao('8888').papel === 'gestor', 'entra com o PIN novo do gestor');
+ok(estado().nomes.gestor === 'Paulo Ribeiro', 'nome do gestor volta no estado');
+ok(/docs\.google\.com/.test(G.linkDaPlanilha(tk).url), 'devolve o link da planilha');
+recusa(() => G.trocarPins('', { gestor:{ nome:'X' } }), 'sessão', 'trocar PIN exige sessão');
+recusa(() => G.trocarPins(tk, { gestor:{ pin:'12' } }), 'pelo menos 4', 'PIN novo curto é recusado');
+ok(G.trocarPins(tk, { gestor:{ nome:'Paulo R. Ribeiro', pin:'8888' } }).trocados === 1, 'troca nome e PIN');
+ok(G.entrarGestao('8888').papel === 'gestor', 'entra com o PIN novo');
 recusa(() => G.entrarGestao('1111'), 'incorreto', 'o PIN antigo não vale mais');
-ok(G.entrarGestao('2222').papel === 'dp', 'o PIN do DP continua valendo');
 ok(estado().nomes.gestor === 'Paulo R. Ribeiro', 'nome do gestor atualizado');
 
 /* --- exclusão --- */
-recusa(() => G.excluirSolicitacao(tkDiretor, daCarla.id), 'departamento pessoal', 'só o DP exclui registro');
+recusa(() => G.excluirSolicitacao('', daCarla.id), 'sessão', 'excluir exige sessão');
 const antes = estado().solicitacoes.length;
-ok(G.excluirSolicitacao(tkDp, daCarla.id).ok, 'DP exclui registro');
+ok(G.excluirSolicitacao(tk, daCarla.id).ok, 'gestor exclui registro');
 ok(estado().solicitacoes.length === antes - 1, 'registro sumiu da planilha');
-recusa(() => G.excluirSolicitacao(tkDp, 'nao-existe'), 'não encontrada', 'excluir inexistente avisa');
-ok(G.removerFuncionario(tkDp, carla.id).ok, 'DP remove funcionário');
+recusa(() => G.excluirSolicitacao(tk, 'nao-existe'), 'não encontrada', 'excluir inexistente avisa');
+ok(G.removerFuncionario(tk, carla.id).ok, 'gestor remove funcionário');
 
 console.log((falhas ? '\n' : '') + testes + ' testes do Apps Script, ' + falhas + ' falha(s)');
 process.exit(falhas ? 1 : 0);

@@ -15,10 +15,11 @@ function motorDeFerias(){
   var DIA = 86400000;
   var SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  /* Quem precisa autorizar. Hoje é só o gestor do departamento; o resto do
+     código percorre esta lista, então acrescentar outro papel aqui já faz a
+     assinatura dele aparecer na tela, no aviso e na conferência do servidor. */
   var PAPEIS = [
-    { chave:'gestor',  titulo:'Gestor do departamento' },
-    { chave:'dp',      titulo:'Departamento pessoal' },
-    { chave:'diretor', titulo:'Diretor' }
+    { chave:'gestor', titulo:'Gestor do departamento' }
   ];
 
   function hoje(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }

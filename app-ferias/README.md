@@ -2,8 +2,8 @@
 
 Previsão e controle das férias da equipe. O funcionário abre um link, vê quem do
 setor dele já está fora, escolhe uma faixa livre e pede. O pedido só vale depois
-de três autorizações: **gestor do departamento, departamento pessoal e diretor**.
-Com as três, sai o **aviso de retorno** para imprimir.
+da autorização do **gestor do departamento**. Autorizado, sai o **aviso de
+retorno** para imprimir.
 
 Ninguém precisa de conta em lugar nenhum — só do endereço.
 
@@ -29,21 +29,18 @@ se perderem. → [Como rodar](#versão-servidor), mais abaixo.
 
 **O funcionário** escolhe o nome, vê o quadro do próprio setor já posicionado no
 mês de hoje, escolhe as datas e envia. Enquanto digita, o app avisa se alguém do
-setor já está fora naquele período e confere o dia de início. Depois acompanha as
-três autorizações na tela dele, uma a uma.
+setor já está fora naquele período e confere o dia de início. Depois acompanha a
+situação na tela dele.
 
-**Quem autoriza** entra com o próprio PIN — o sistema reconhece pelo PIN se é o
-gestor, o departamento pessoal ou o diretor. Cada um assina só o campo dele e vê,
-em destaque, quantos pedidos esperam a assinatura *dele*. Qualquer um dos três
-pode recusar, e a recusa encerra o pedido com o motivo registrado.
+**O gestor do departamento** entra com o PIN dele e vê, em destaque, quantos
+pedidos esperam a assinatura dele. Autoriza com um clique ou recusa com motivo —
+a recusa encerra o pedido, e o funcionário lê o motivo na tela. É ele também quem
+cadastra a equipe, lança férias já combinadas fora do sistema, exclui registros e
+troca o próprio nome e PIN.
 
-**Com as três assinaturas**, o pedido vira *autorizado* e o botão **Aviso de
-retorno** abre um documento com a data de volta em destaque e as três
-autorizações — nome, papel e data de cada uma — pronto para imprimir.
-
-**O departamento pessoal** é quem cadastra a equipe, lança férias já combinadas
-fora do sistema, exclui registros e troca os nomes e PINs. Gestor e diretor só
-autorizam e consultam.
+**Autorizado**, o pedido ganha o botão **Aviso de retorno**: um documento com a
+data de volta em destaque e a assinatura do gestor — nome e data — pronto para
+imprimir.
 
 ## O que é conferido
 
@@ -63,25 +60,24 @@ Feriados estaduais e municipais não estão incluídos.
 
 ## Primeiros passos
 
-1. Abra a aba **Gestão**. Na primeira vez ela pede os três nomes e os três
-   PINs de uma vez. Quem preencher entra como departamento pessoal.
+1. Abra a aba **Gestão**. Na primeira vez ela pede o nome do gestor do
+   departamento e um PIN. Quem preencher já entra.
 2. Cadastre a equipe em **Cadastrar funcionário**. O **setor** é o campo que faz
    o aviso de choque funcionar — preencha sempre.
 3. Use **Lançar férias já combinadas** para pôr no quadro as férias acertadas
    antes do sistema. Entram já autorizadas.
-4. Entregue os PINs ao gestor e ao diretor, e passe o link para a equipe.
+4. Passe o link para a equipe. O PIN fica só com o gestor.
 
 ## Sobre acesso
 
 A tela de solicitação é aberta: quem tem o link escolhe um nome da lista e envia
 um pedido. É o suficiente para controle interno, e é o preço de não ter login.
 
-As autorizações são protegidas de verdade. Cada PIN é guardado embaralhado
-(`scrypt` na versão servidor, `SHA-256` com sal na versão Google), conferido
-sempre do lado do servidor, e a sessão vale 12 horas. O servidor não aceita que
-um papel assine o campo de outro, nem que o mesmo papel assine duas vezes, nem
-que alguém autorize um pedido já recusado. Cadastro e ajustes só respondem ao PIN
-do departamento pessoal. Na versão servidor, dez erros seguidos do mesmo endereço
+A autorização é protegida de verdade. O PIN é guardado embaralhado (`scrypt` na
+versão servidor, `SHA-256` com sal na versão Google), conferido sempre do lado do
+servidor, e a sessão vale 12 horas. O servidor não aceita assinar duas vezes, nem
+autorizar um pedido já recusado ou cancelado, nem cadastrar, excluir ou trocar o
+PIN sem sessão válida. Na versão servidor, dez erros seguidos do mesmo endereço
 travam as tentativas por 5 minutos.
 
 ---
@@ -146,8 +142,8 @@ app-ferias/
     gerar.js               o gerador dos dois arquivos acima
   testes/
     regras.test.js          42 testes das regras
-    api.test.js             67 testes do servidor, com banco temporário
-    apps-script.test.js     75 testes do Codigo.gs, com a planilha simulada
+    api.test.js             56 testes do servidor, com banco temporário
+    apps-script.test.js     68 testes do Codigo.gs, com a planilha simulada
 ```
 
 As regras e a tela têm **uma fonte só**: `publico/regras.js` e
@@ -173,8 +169,9 @@ Apps Script. O `npm test` avisa se você esquecer.
 ## Limites conhecidos
 
 - Feriados estaduais e municipais ficam de fora.
-- Não controla saldo de dias nem período aquisitivo — de propósito.
+- Não controla saldo de dias, período aquisitivo nem data de admissão — de propósito.
+- Uma assinatura só: a do gestor do departamento. Acrescentar outro aprovador é
+  uma linha em `publico/regras.js` (a lista `PAPEIS`), mas exige recriar as
+  colunas da planilha na versão Google.
 - Não calcula o valor das férias nem emite o aviso de férias legal.
-- As três autorizações podem sair em qualquer ordem; o app não força o gestor a
-  assinar antes do diretor.
 - Sem envio de e-mail: cada um vê as novidades ao abrir o link de novo.
