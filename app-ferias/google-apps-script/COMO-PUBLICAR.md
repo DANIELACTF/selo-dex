@@ -85,15 +85,18 @@ Na primeira vez o Google pede permissão para o programa mexer na sua planilha.
 23. O Google mostra o **URL do app da Web**, terminado em `/exec`. Clique em
     **Copiar**. É esse o link da equipe.
 24. Abra o link numa aba nova. O app aparece.
-25. Vá na aba **Gestão**. Como ainda não existe PIN, ele pede que você crie um.
-    **Escolha o PIN agora, antes de mandar o link para alguém** — quem entrar
-    primeiro é quem define.
-26. Cadastre a equipe em **Cadastrar funcionário**. A data de admissão é
-    obrigatória: é dela que sai todo o cálculo de saldo.
-27. Se a empresa já existe há tempos, use **Lançar férias já gozadas** para
-    registrar as férias anteriores. Sem isso, quem já é de casa aparece com o
-    saldo cheio e o prazo vencido.
-28. Mande o link para a equipe. O link é comprido — vale salvar nos favoritos,
+25. Vá na aba **Autorização**. Na primeira vez ela pede os **três nomes e os três
+    PINs** — gestor do departamento, departamento pessoal e diretor. Preencha
+    tudo e clique em **Definir os três PINs**. **Faça isso antes de mandar o link
+    para alguém**: quem chegar primeiro é quem define.
+26. Você entra automaticamente como departamento pessoal. Cadastre a equipe em
+    **Cadastrar funcionário**. O campo **Setor** é o mais importante: é ele que
+    faz o sistema avisar quando dois colegas pedem o mesmo período.
+27. Use **Lançar férias já combinadas** para pôr no quadro as férias que já
+    tinham sido acertadas fora do sistema.
+28. Entregue o PIN do gestor e o do diretor para cada um deles — cada pessoa
+    assina só o campo dela.
+29. Mande o link para a equipe. O link é comprido — vale salvar nos favoritos,
     fixar no grupo do WhatsApp ou encurtar.
 
 Pronto. Não tem servidor para cuidar, nem conta para renovar, nem cobrança.
@@ -116,21 +119,22 @@ equipe continua vendo o antigo.
 Na planilha, em três abas que o app cria sozinho:
 
 - **Funcionários** — o cadastro da equipe.
-- **Solicitações** — um pedido por linha, com nome, período e situação.
+- **Solicitações** — um pedido por linha, com nome, período, retorno, situação e
+  uma coluna para cada autorização, com o nome de quem assinou.
 - **Ajustes** — o nome da empresa.
 
 Você pode abrir a planilha quando quiser e filtrar, imprimir ou baixar em Excel
 (**Arquivo → Fazer o download**). O botão **Abrir a planilha**, dentro da aba
-Gestão, leva direto para ela.
+Autorização, leva direto para ela.
 
-Algumas colunas ficam escondidas de propósito (`ID`, `Início (ISO)` e `ID do
-funcionário`): são o que amarra cada pedido ao seu dono e a data no formato que o
-programa entende. **Não apague nem edite essas colunas**, senão o app perde a
+Algumas colunas ficam escondidas de propósito (`ID`, `Início (ISO)`, `ID do
+funcionário` e as três datas de autorização): são o que amarra cada pedido ao seu
+dono e guarda as datas no formato que o programa entende. **Não apague nem edite essas colunas**, senão o app perde a
 ligação. Corrigir dados pelas telas do app é sempre mais seguro do
 que digitar direto na planilha.
 
-O PIN não fica na planilha — ele é guardado em separado, embaralhado, e nem
-aparece para quem abrir o arquivo.
+Os três PINs não ficam na planilha — são guardados em separado, embaralhados, e
+não aparecem nem para quem abrir o arquivo.
 
 ## Se alguma coisa não sair como o esperado
 
@@ -166,9 +170,10 @@ lista e manda um pedido. É o preço de não ter senha por pessoa, e para contro
 interno costuma bastar — mas quem receber o link consegue, em tese, pedir férias
 no nome de outro. Trate o endereço como interno.
 
-A aprovação, essa sim, é protegida: só entra quem souber o PIN, que é conferido
-no servidor e não no navegador. Aprovar, recusar, cadastrar e excluir só
-acontecem com o PIN correto.
+As autorizações, essas sim, são protegidas: cada um dos três entra com o seu
+próprio PIN, conferido no servidor e não no navegador. O sistema não deixa um
+papel assinar o campo de outro, nem o mesmo papel assinar duas vezes. Cadastrar,
+excluir e trocar PINs só respondem ao PIN do departamento pessoal.
 
 ## Aviso honesto sobre este roteiro
 

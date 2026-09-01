@@ -4,17 +4,30 @@
  * Os dados ficam nesta mesma planilha, em três abas que o próprio programa
  * cria na primeira vez: Funcionários, Solicitações e Ajustes.
  *
- * As regras da CLT vêm do arquivo regras_js.html, o mesmo que a tela usa —
- * é o que garante que a conferência do navegador e a do servidor não divirjam.
+ * Toda solicitação precisa de três autorizações — gestor do departamento,
+ * departamento pessoal e diretor. Cada um entra com o seu PIN e assina só o
+ * campo dele.
+ *
+ * As regras de agendamento vêm do arquivo regras_js.html, o mesmo que a tela
+ * usa — é o que garante que a conferência do navegador e a do servidor não
+ * divirjam.
  */
 
 var ABA_FUNC = 'Funcionários';
 var ABA_SOL  = 'Solicitações';
 var ABA_CFG  = 'Ajustes';
 
-var CAB_FUNC = ['ID','Nome','Cargo','Setor','Admissão','Dias por período','Ativo'];
-var CAB_SOL  = ['ID','Funcionário','Setor','Período','Dias','Situação','Observação','Motivo da recusa',
-                'Período aquisitivo','Enviada em','Decidida em','Início (ISO)','ID do funcionário'];
+var CAB_FUNC = ['ID','Nome','Cargo','Setor','Admissão','Ativo'];
+var CAB_SOL  = ['ID','Funcionário','Setor','Período','Dias','Retorno','Situação',
+                'Gestor','Departamento pessoal','Diretor',
+                'Observação','Motivo da recusa','Recusada por','Enviada em',
+                'Início (ISO)','ID do funcionário',
+                'Aut. gestor (ISO)','Aut. DP (ISO)','Aut. diretor (ISO)'];
+
+/* colunas (1 = primeira) usadas nas atualizações pontuais */
+var COL = { situacao:7, nomeAut:{ gestor:8, dp:9, diretor:10 },
+            motivo:12, recusadaPor:13,
+            isoAut:{ gestor:17, dp:18, diretor:19 } };
 
 var VALIDADE_SESSAO = 12 * 60 * 60 * 1000;
 
@@ -42,6 +55,8 @@ function motor(){
   return _motor;
 }
 
+function papeis(){ return motor().PAPEIS.map(function(p){ return p.chave; }); }
+
 function onOpen(){
   SpreadsheetApp.getUi()
     .createMenu('Quadro de Férias')
@@ -68,9 +83,9 @@ function garantirAbas(){
     s = ss.insertSheet(ABA_SOL);
     s.getRange(1,1,1,CAB_SOL.length).setValues([CAB_SOL]).setFontWeight('bold');
     s.setFrozenRows(1);
-    s.getRange('L:L').setNumberFormat('@');
+    s.getRange('O:O').setNumberFormat('@');
     s.hideColumns(1);
-    s.hideColumns(12, 2);
+    s.hideColumns(15, 5);
   }
   var c = ss.getSheetByName(ABA_CFG);
   if(!c){
@@ -98,42 +113,31 @@ function isoDe(v){
 }
 
 function lerFuncionarios(){
-  var abas = garantirAbas();
-  return linhas(abas.funcionarios).filter(function(l){ return textoDe(l[0]); }).map(function(l){
+  return linhas(garantirAbas().funcionarios).filter(function(l){ return textoDe(l[0]); }).map(function(l){
+    var ativo = textoDe(l[5]).toUpperCase();
     return {
-      id: textoDe(l[0]),
-      nome: textoDe(l[1]),
-      cargo: textoDe(l[2]),
-      setor: textoDe(l[3]),
-      admissao: isoDe(l[4]),
-      diasDireito: Number(l[5]) || 30,
-      ativo: textoDe(l[6]).toUpperCase() !== 'NÃO' && textoDe(l[6]).toUpperCase() !== 'NAO'
+      id: textoDe(l[0]), nome: textoDe(l[1]), cargo: textoDe(l[2]),
+      setor: textoDe(l[3]), admissao: isoDe(l[4]),
+      ativo: ativo !== 'NÃO' && ativo !== 'NAO'
     };
   });
 }
 
 function lerSolicitacoes(){
-  var abas = garantirAbas();
-  return linhas(abas.solicitacoes).filter(function(l){ return textoDe(l[0]); }).map(function(l){
+  return linhas(garantirAbas().solicitacoes).filter(function(l){ return textoDe(l[0]); }).map(function(l){
     return {
-      id: textoDe(l[0]),
-      nome: textoDe(l[1]),
-      setor: textoDe(l[2]),
-      dias: Number(l[4]) || 0,
-      status: textoDe(l[5]).toLowerCase(),
-      obs: textoDe(l[6]),
-      motivo: textoDe(l[7]),
-      periodoAquisitivo: textoDe(l[8]),
-      criadaEm: textoDe(l[9]),
-      decididaEm: textoDe(l[10]),
-      inicio: isoDe(l[11]),
-      funcionarioId: textoDe(l[12])
+      id: textoDe(l[0]), nome: textoDe(l[1]), setor: textoDe(l[2]),
+      dias: Number(l[4]) || 0, status: textoDe(l[6]).toLowerCase(),
+      aut_gestor_nome: textoDe(l[7]), aut_dp_nome: textoDe(l[8]), aut_diretor_nome: textoDe(l[9]),
+      obs: textoDe(l[10]), motivo: textoDe(l[11]), recusadaPor: textoDe(l[12]),
+      criadaEm: textoDe(l[13]), inicio: isoDe(l[14]), funcionarioId: textoDe(l[15]),
+      aut_gestor: textoDe(l[16]), aut_dp: textoDe(l[17]), aut_diretor: textoDe(l[18])
     };
   });
 }
 
-function acharLinha(aba, id, coluna){
-  var col = aba.getRange(1, coluna || 1, aba.getLastRow(), 1).getValues();
+function acharLinha(aba, id){
+  var col = aba.getRange(1, 1, aba.getLastRow(), 1).getValues();
   for(var i = 1; i < col.length; i++){ if(textoDe(col[i][0]) === id) return i + 1; }
   return 0;
 }
@@ -161,43 +165,47 @@ function hashPin(pin, sal){
   var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'quadro-ferias|' + sal + '|' + pin, Utilities.Charset.UTF_8);
   return bytes.map(function(b){ return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('');
 }
-
-function definirPin_(pin){
+function definirPin_(papel, pin){
   var sal = Utilities.getUuid();
-  props().setProperty('pin_sal', sal);
-  props().setProperty('pin_hash', hashPin(pin, sal));
+  props().setProperty('pin_' + papel + '_sal', sal);
+  props().setProperty('pin_' + papel + '_hash', hashPin(pin, sal));
 }
-
-function conferePin_(pin){
-  var sal = props().getProperty('pin_sal');
-  var esperado = props().getProperty('pin_hash');
+function conferePin_(papel, pin){
+  var sal = props().getProperty('pin_' + papel + '_sal');
+  var esperado = props().getProperty('pin_' + papel + '_hash');
   if(!sal || !esperado) return false;
   return hashPin(pin, sal) === esperado;
+}
+function papelDoPin_(pin){
+  var lista = papeis();
+  for(var i = 0; i < lista.length; i++){ if(conferePin_(lista[i], pin)) return lista[i]; }
+  return null;
+}
+function jaConfigurado_(){
+  return papeis().every(function(p){ return !!props().getProperty('pin_' + p + '_hash'); });
 }
 
 function tokens_(){
   try{ return JSON.parse(props().getProperty('sessoes') || '{}'); }catch(e){ return {}; }
 }
-function gravarTokens_(t){ props().setProperty('sessoes', JSON.stringify(t)); }
-
-function novaSessao_(){
-  var agora = Date.now();
-  var t = tokens_(), limpo = {};
-  Object.keys(t).forEach(function(k){ if(t[k] > agora) limpo[k] = t[k]; });
+function novaSessao_(papel){
+  var agora = Date.now(), t = tokens_(), limpo = {};
+  Object.keys(t).forEach(function(k){ if(t[k].ate > agora) limpo[k] = t[k]; });
   var token = Utilities.getUuid().replace(/-/g, '');
-  limpo[token] = agora + VALIDADE_SESSAO;
-  gravarTokens_(limpo);
+  limpo[token] = { ate: agora + VALIDADE_SESSAO, papel: papel };
+  props().setProperty('sessoes', JSON.stringify(limpo));
   return token;
 }
-
-function ehGestor_(token){
-  if(!token) return false;
-  var t = tokens_();
-  return !!(t[token] && t[token] > Date.now());
+function papelDaSessao_(token){
+  if(!token) return '';
+  var s = tokens_()[token];
+  return (s && s.ate > Date.now()) ? s.papel : '';
 }
-
-function exigirGestor_(token){
-  if(!ehGestor_(token)) throw new Error('Sua sessão expirou. Entre de novo com o PIN da gestão.');
+function exigir_(token, papelExigido){
+  var papel = papelDaSessao_(token);
+  if(!papel) throw new Error('Sua sessão expirou. Entre de novo com o seu PIN.');
+  if(papelExigido && papel !== papelExigido) throw new Error('Só o departamento pessoal pode fazer isso.');
+  return papel;
 }
 
 /* ------------------------------------------------------------------ auxiliares */
@@ -212,48 +220,87 @@ function comTrava_(fn){
   finally{ try{ trava.releaseLock(); }catch(e){} }
 }
 
-function ativasDe_(id, todas){
-  return todas.filter(function(s){
-    return s.funcionarioId === id && (s.status === 'pendente' || s.status === 'aprovada');
-  });
+function minhasDe_(id, todas){
+  return todas.filter(function(s){ return s.funcionarioId === id; });
 }
 
-function periodoLegivel_(R, inicioIso, dias){
-  var i = R.pd(inicioIso);
-  return i ? R.fmt(i) + ' a ' + R.fmt(R.addDias(i, dias - 1)) : '';
+function linhaSolicitacao_(R, id, func, inicio, dias, obs, status, criadaEm, autNomes, autIsos, motivo, recusadaPor){
+  var i = R.pd(inicio);
+  return [
+    id, func.nome, func.setor || '',
+    i ? R.fmt(i) + ' a ' + R.fmt(R.addDias(i, dias - 1)) : '',
+    dias,
+    i ? R.fmt(R.addDias(i, dias)) : '',
+    status,
+    autNomes.gestor || '', autNomes.dp || '', autNomes.diretor || '',
+    obs, motivo || '', recusadaPor || '', criadaEm,
+    inicio, func.id,
+    autIsos.gestor || '', autIsos.dp || '', autIsos.diretor || ''
+  ];
 }
 
 /* ------------------------------------------------------------------ chamadas da tela */
 
 function carregarEstado(token){
+  var nomes = {};
+  papeis().forEach(function(p){ nomes[p] = props().getProperty('nome_' + p) || ''; });
   return {
     funcionarios: lerFuncionarios(),
     solicitacoes: lerSolicitacoes(),
     empresa: ajuste('empresa'),
-    temPin: !!props().getProperty('pin_hash'),
-    gestor: ehGestor_(token)
+    nomes: nomes,
+    configurado: jaConfigurado_(),
+    papel: papelDaSessao_(token)
   };
 }
 
-function entrarGestao(pin){
-  pin = String(pin || '');
-  if(pin.length < 4) throw new Error('O PIN precisa de pelo menos 4 caracteres.');
-  return comTrava_(function(){
-    if(!props().getProperty('pin_hash')){
-      definirPin_(pin);
-      return { token: novaSessao_(), definido: true };
+function configurarPins(dados){
+  if(jaConfigurado_()) throw new Error('Os PINs já foram definidos. Use "Trocar nomes e PINs".');
+  var lista = papeis(), pins = [];
+  for(var i = 0; i < lista.length; i++){
+    var d = (dados || {})[lista[i]] || {};
+    var nome = textoDe(d.nome).slice(0,120);
+    var pin = String(d.pin || '');
+    if(!nome) throw new Error('Informe o nome de quem responde por cada papel.');
+    if(pin.length < 4) throw new Error('Cada PIN precisa de pelo menos 4 caracteres.');
+    pins.push({ papel: lista[i], nome: nome, pin: pin });
+  }
+  var soPins = pins.map(function(p){ return p.pin; });
+  for(var a = 0; a < soPins.length; a++){
+    for(var b = a + 1; b < soPins.length; b++){
+      if(soPins[a] === soPins[b]) throw new Error('Os três PINs precisam ser diferentes entre si.');
     }
-    if(!conferePin_(pin)) throw new Error('PIN incorreto.');
-    return { token: novaSessao_(), definido: false };
+  }
+  return comTrava_(function(){
+    pins.forEach(function(p){
+      definirPin_(p.papel, p.pin);
+      props().setProperty('nome_' + p.papel, p.nome);
+    });
+    return { token: novaSessao_('dp'), papel: 'dp' };
   });
 }
 
-function trocarPin(token, atual, novo){
-  exigirGestor_(token);
-  if(!conferePin_(String(atual || ''))) throw new Error('O PIN atual não confere.');
-  if(String(novo || '').length < 4) throw new Error('O novo PIN precisa de pelo menos 4 caracteres.');
-  definirPin_(String(novo));
-  return { ok: true };
+function entrarGestao(pin){
+  if(!jaConfigurado_()) throw new Error('Os PINs ainda não foram definidos.');
+  var papel = papelDoPin_(String(pin || ''));
+  if(!papel) throw new Error('PIN incorreto.');
+  return { token: novaSessao_(papel), papel: papel, nome: props().getProperty('nome_' + papel) || '' };
+}
+
+function trocarPins(token, dados){
+  exigir_(token, 'dp');
+  var trocados = 0;
+  papeis().forEach(function(p){
+    var d = (dados || {})[p] || {};
+    if(d.nome !== undefined) props().setProperty('nome_' + p, textoDe(d.nome).slice(0,120));
+    var pin = String(d.pin || '');
+    if(pin){
+      if(pin.length < 4) throw new Error('Cada PIN precisa de pelo menos 4 caracteres.');
+      definirPin_(p, pin);
+      trocados++;
+    }
+  });
+  return { ok:true, trocados: trocados };
 }
 
 function enviarSolicitacao(dados){
@@ -265,79 +312,95 @@ function enviarSolicitacao(dados){
 
     var todas = lerSolicitacoes();
     var pedido = { id:null, inicio: textoDe(dados.inicio).slice(0,10), dias: Math.round(Number(dados.dias) || 0) };
-    var V = R.validar(func, pedido, ativasDe_(func.id, todas), funcs, todas);
+    var V = R.validar(func, pedido, minhasDe_(func.id, todas), funcs, todas);
     if(V.erros.length) throw new Error(V.erros[0].t);
 
-    var agora = new Date().toISOString();
-    garantirAbas().solicitacoes.appendRow([
-      idNovo_(), func.nome, func.setor || '',
-      periodoLegivel_(R, pedido.inicio, pedido.dias), pedido.dias,
-      'pendente', textoDe(dados.obs).slice(0,500), '',
-      V.slot ? R.fmt(V.slot.p.ini) + ' a ' + R.fmt(V.slot.p.fim) : '',
-      agora, '', pedido.inicio, func.id
-    ]);
-    return { ok: true };
+    garantirAbas().solicitacoes.appendRow(linhaSolicitacao_(
+      R, idNovo_(), func, pedido.inicio, pedido.dias, textoDe(dados.obs).slice(0,500),
+      'pendente', new Date().toISOString(), {}, {}, '', ''));
+    return { ok:true };
   });
 }
 
-function cancelarSolicitacao(id, funcionarioId){
+function cancelarSolicitacao(id, funcionarioId, token){
   return comTrava_(function(){
     var aba = garantirAbas().solicitacoes;
     var linha = acharLinha(aba, String(id || ''));
     if(!linha) throw new Error('Solicitação não encontrada.');
     var atual = aba.getRange(linha, 1, 1, CAB_SOL.length).getValues()[0];
-    if(textoDe(atual[12]) !== String(funcionarioId || '')) throw new Error('Este pedido é de outra pessoa.');
-    if(textoDe(atual[5]).toLowerCase() !== 'pendente') throw new Error('Só dá para cancelar um pedido que ainda está pendente.');
-    aba.getRange(linha, 6).setValue('cancelada');
-    aba.getRange(linha, 11).setValue(new Date().toISOString());
-    return { ok: true };
+    var ehDono = textoDe(atual[15]) === String(funcionarioId || '');
+    if(!ehDono && !papelDaSessao_(token)) throw new Error('Este pedido é de outra pessoa.');
+    if(textoDe(atual[6]).toLowerCase() !== 'pendente') throw new Error('Só dá para cancelar um pedido que ainda está em análise.');
+    aba.getRange(linha, COL.situacao).setValue('cancelada');
+    return { ok:true };
   });
 }
 
-function decidirSolicitacao(token, id, status, motivo){
-  exigirGestor_(token);
-  if(status !== 'aprovada' && status !== 'recusada') throw new Error('Decisão inválida.');
-  motivo = textoDe(motivo).slice(0,300);
-  if(status === 'recusada' && !motivo) throw new Error('Escreva o motivo da recusa.');
+function autorizarSolicitacao(token, id){
+  var papel = exigir_(token);
   return comTrava_(function(){
     var aba = garantirAbas().solicitacoes;
     var linha = acharLinha(aba, String(id || ''));
     if(!linha) throw new Error('Solicitação não encontrada.');
-    aba.getRange(linha, 6).setValue(status);
-    aba.getRange(linha, 8).setValue(motivo);
-    aba.getRange(linha, 11).setValue(new Date().toISOString());
-    return { ok: true };
+    var atual = aba.getRange(linha, 1, 1, CAB_SOL.length).getValues()[0];
+    if(textoDe(atual[6]).toLowerCase() !== 'pendente') throw new Error('Este pedido não está mais em análise.');
+    if(textoDe(atual[COL.isoAut[papel] - 1])) throw new Error('Você já autorizou este pedido.');
+
+    var agora = new Date().toISOString();
+    var nome = props().getProperty('nome_' + papel) || papel;
+    aba.getRange(linha, COL.isoAut[papel]).setValue(agora);
+    aba.getRange(linha, COL.nomeAut[papel]).setValue(nome);
+
+    var completo = papeis().every(function(p){
+      return p === papel || !!textoDe(atual[COL.isoAut[p] - 1]);
+    });
+    if(completo) aba.getRange(linha, COL.situacao).setValue('autorizada');
+    return { ok:true };
+  });
+}
+
+function recusarSolicitacao(token, id, motivo){
+  var papel = exigir_(token);
+  motivo = textoDe(motivo).slice(0,300);
+  if(!motivo) throw new Error('Escreva o motivo da recusa.');
+  return comTrava_(function(){
+    var aba = garantirAbas().solicitacoes;
+    var linha = acharLinha(aba, String(id || ''));
+    if(!linha) throw new Error('Solicitação não encontrada.');
+    var atual = aba.getRange(linha, 1, 1, CAB_SOL.length).getValues()[0];
+    if(textoDe(atual[6]).toLowerCase() !== 'pendente') throw new Error('Este pedido não está mais em análise.');
+    aba.getRange(linha, COL.situacao).setValue('recusada');
+    aba.getRange(linha, COL.motivo).setValue(motivo);
+    aba.getRange(linha, COL.recusadaPor).setValue(props().getProperty('nome_' + papel) || papel);
+    return { ok:true };
   });
 }
 
 function excluirSolicitacao(token, id){
-  exigirGestor_(token);
+  exigir_(token, 'dp');
   return comTrava_(function(){
     var aba = garantirAbas().solicitacoes;
     var linha = acharLinha(aba, String(id || ''));
     if(!linha) throw new Error('Solicitação não encontrada.');
     aba.deleteRow(linha);
-    return { ok: true };
+    return { ok:true };
   });
 }
 
 function salvarFuncionario(token, dados){
-  exigirGestor_(token);
+  exigir_(token, 'dp');
   var R = motor();
   var nome = textoDe(dados.nome).slice(0,120);
   var admissao = textoDe(dados.admissao).slice(0,10);
   if(!nome) throw new Error('O nome é obrigatório.');
-  if(!R.pd(admissao)) throw new Error('Informe uma data de admissão válida.');
-  if(R.pd(admissao) > R.hoje()) throw new Error('A data de admissão não pode estar no futuro.');
-  var dias = Math.round(Number(dados.diasDireito) || 30);
-  if(dias < 1 || dias > 30) dias = 30;
+  if(admissao && !R.pd(admissao)) throw new Error('A data de admissão informada não existe.');
 
   return comTrava_(function(){
     var aba = garantirAbas().funcionarios;
     var linha = dados.id ? acharLinha(aba, String(dados.id)) : 0;
-    var valores = [dados.id && linha ? String(dados.id) : idNovo_(), nome,
+    var valores = [linha ? String(dados.id) : idNovo_(), nome,
                    textoDe(dados.cargo).slice(0,80), textoDe(dados.setor).slice(0,80),
-                   admissao, dias, dados.ativo === false ? 'Não' : 'Sim'];
+                   admissao, dados.ativo === false ? 'Não' : 'Sim'];
     if(linha) aba.getRange(linha, 1, 1, CAB_FUNC.length).setValues([valores]);
     else aba.appendRow(valores);
 
@@ -345,59 +408,54 @@ function salvarFuncionario(token, dados){
       var abaSol = garantirAbas().solicitacoes;
       var dadosSol = linhas(abaSol);
       for(var i = 0; i < dadosSol.length; i++){
-        if(textoDe(dadosSol[i][12]) === valores[0]){
+        if(textoDe(dadosSol[i][15]) === valores[0]){
           abaSol.getRange(i + 2, 2, 1, 2).setValues([[nome, valores[3]]]);
         }
       }
     }
-    return { ok: true };
+    return { ok:true };
   });
 }
 
 function removerFuncionario(token, id){
-  exigirGestor_(token);
+  exigir_(token, 'dp');
   return comTrava_(function(){
     var aba = garantirAbas().funcionarios;
     var linha = acharLinha(aba, String(id || ''));
     if(!linha) throw new Error('Funcionário não encontrado.');
     aba.deleteRow(linha);
-    return { ok: true };
+    return { ok:true };
   });
 }
 
 function lancarHistorico(token, dados){
-  exigirGestor_(token);
+  exigir_(token, 'dp');
   var R = motor();
   return comTrava_(function(){
     var func = lerFuncionarios().filter(function(f){ return f.id === String(dados.funcionarioId || ''); })[0];
     if(!func) throw new Error('Funcionário não encontrado.');
     var inicio = textoDe(dados.inicio).slice(0,10);
     var dias = Math.round(Number(dados.dias) || 0);
-    var dIni = R.pd(inicio);
-    if(!dIni) throw new Error('Informe uma data válida.');
-    if(dias < 1 || dias > 30) throw new Error('Os dias gozados precisam ficar entre 1 e 30.');
-    if(dIni < R.pd(func.admissao)) throw new Error('A data é anterior à admissão.');
+    if(!R.pd(inicio)) throw new Error('Informe uma data válida.');
+    if(dias < 1 || dias > 30) throw new Error('Os dias precisam ficar entre 1 e 30.');
 
-    var alvo = R.periodoAlvo(func, ativasDe_(func.id, lerSolicitacoes()), dIni);
     var agora = new Date().toISOString();
-    garantirAbas().solicitacoes.appendRow([
-      idNovo_(), func.nome, func.setor || '',
-      periodoLegivel_(R, inicio, dias), dias,
-      'aprovada', 'Lançamento retroativo pelo RH.', '',
-      alvo.slot ? R.fmt(alvo.slot.p.ini) + ' a ' + R.fmt(alvo.slot.p.fim) : '',
-      agora, agora, inicio, func.id
-    ]);
-    return { ok: true };
+    var nome = props().getProperty('nome_dp') || 'Departamento pessoal';
+    garantirAbas().solicitacoes.appendRow(linhaSolicitacao_(
+      R, idNovo_(), func, inicio, dias, 'Lançado pelo departamento pessoal.', 'autorizada', agora,
+      { gestor:nome, dp:nome, diretor:nome },
+      { gestor:agora, dp:agora, diretor:agora }, '', ''));
+    return { ok:true };
   });
 }
 
 function salvarEmpresa(token, nome){
-  exigirGestor_(token);
+  exigir_(token, 'dp');
   ajuste('empresa', textoDe(nome).slice(0,120));
-  return { ok: true };
+  return { ok:true };
 }
 
 function linkDaPlanilha(token){
-  exigirGestor_(token);
+  exigir_(token);
   return { url: planilha().getUrl() };
 }

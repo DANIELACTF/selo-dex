@@ -1,11 +1,15 @@
 # Quadro de Férias
 
-Controle interno de solicitação e aprovação de férias. O funcionário abre um
-link, escolhe o nome e pede as férias; o RH entra com um PIN e aprova ou recusa.
+Previsão e controle das férias da equipe. O funcionário abre um link, vê quem do
+setor dele já está fora, escolhe uma faixa livre e pede. O pedido só vale depois
+de três autorizações: **gestor do departamento, departamento pessoal e diretor**.
+Com as três, sai o **aviso de retorno** para imprimir.
+
 Ninguém precisa de conta em lugar nenhum — só do endereço.
 
-O aviso de férias e o cálculo do pagamento continuam saindo do sistema de folha.
-Este app cuida só do combinado: quem vai sair, quando, e se o RH aprovou.
+**O que este app não faz:** saldo de dias, período aquisitivo, aviso de férias e
+cálculo do pagamento continuam no sistema de folha. Aqui é só o combinado: quem
+sai, quando volta, e quem autorizou.
 
 ## Qual versão usar
 
@@ -18,60 +22,67 @@ navegador, uns 10 minutos, de graça, sem manutenção.
 → **[google-apps-script/COMO-PUBLICAR.md](google-apps-script/COMO-PUBLICAR.md)** — roteiro passo a passo, sem jargão.
 
 **Versão servidor** — para quem prefere hospedagem própria e banco em arquivo.
-Precisa de um lugar que rode Node (Render, Railway, uma máquina do escritório) e,
-em geral, de um plano pago para os dados não se perderem.
+Precisa de um lugar que rode Node e, em geral, de um plano pago para os dados não
+se perderem. → [Como rodar](#versão-servidor), mais abaixo.
 
-→ [Como rodar](#versão-servidor), mais abaixo.
+## Como funciona
 
-Comece pela versão Google. Se um dia quiser sair de lá, a versão servidor já
-está pronta e usa exatamente as mesmas regras.
+**O funcionário** escolhe o nome, vê o quadro do próprio setor já posicionado no
+mês de hoje, escolhe as datas e envia. Enquanto digita, o app avisa se alguém do
+setor já está fora naquele período e confere o dia de início. Depois acompanha as
+três autorizações na tela dele, uma a uma.
 
-## O que ele confere
+**Quem autoriza** entra com o próprio PIN — o sistema reconhece pelo PIN se é o
+gestor, o departamento pessoal ou o diretor. Cada um assina só o campo dele e vê,
+em destaque, quantos pedidos esperam a assinatura *dele*. Qualquer um dos três
+pode recusar, e a recusa encerra o pedido com o motivo registrado.
 
-Quando o funcionário monta o pedido, o app separa o que **impede** o envio, o
-que merece **atenção** e o que é só **nota**. O servidor refaz a mesma
-conferência antes de gravar, então não adianta burlar a tela.
+**Com as três assinaturas**, o pedido vira *autorizado* e o botão **Aviso de
+retorno** abre um documento com a data de volta em destaque e as três
+autorizações — nome, papel e data de cada uma — pronto para imprimir.
 
-| Regra | Base legal |
+**O departamento pessoal** é quem cadastra a equipe, lança férias já combinadas
+fora do sistema, exclui registros e troca os nomes e PINs. Gestor e diretor só
+autorizam e consultam.
+
+## O que é conferido
+
+O app confere agendamento, não direito a férias:
+
+| O que | Por quê |
 |---|---|
-| Férias só depois de 12 meses de casa | CLT, art. 130 |
-| Saldo do período aquisitivo (30 dias, ou o que estiver no cadastro) | CLT, art. 130 |
-| No máximo 3 períodos, um com 14 dias ou mais, nenhum abaixo de 5 | CLT, art. 134, §1º |
-| Não começa em sexta, em sábado nem nos dois dias antes de feriado | CLT, art. 134, §3º |
-| Aviso com 30 dias de antecedência (avisa, não impede) | CLT, art. 135 |
+| Choque com colega do mesmo setor | O motivo de o quadro existir — avisa, não impede |
+| Choque com outro período seu | Bloqueia |
+| Início na sexta, no sábado ou nos dois dias antes de feriado | CLT, art. 134, §3º — bloqueia |
+| Menos de 30 dias de antecedência | CLT, art. 135 — avisa |
+| Data no passado, ou mais de 30 dias corridos | Bloqueia |
 
-Também bloqueia períodos sobrepostos da mesma pessoa e avisa quando dois colegas
-do mesmo setor pedem datas que se cruzam — no formulário e com um contorno
-vermelho no quadro do ano.
+Feriados nacionais são calculados sozinhos, inclusive os móveis (pelo algoritmo
+de Meeus para a Páscoa). Carnaval e Corpus Christi entram como ponto facultativo.
+Feriados estaduais e municipais não estão incluídos.
 
-Feriados nacionais são calculados sozinhos, inclusive os móveis (Sexta-feira
-Santa e Corpus Christi, pelo algoritmo de Meeus para a Páscoa). Carnaval e
-Corpus Christi entram como ponto facultativo, não como feriado nacional.
+## Primeiros passos
 
-## Primeiros passos, nas duas versões
-
-1. Abra a aba **Gestão**. Como ainda não existe PIN, a primeira pessoa que
-   entrar define o dele. Escolha o PIN antes de passar o link para a equipe.
-2. Cadastre a equipe em **Cadastrar funcionário**. A data de admissão é
-   obrigatória: todo o cálculo de período aquisitivo sai dela.
-3. Use **Lançar férias já gozadas** para registrar as férias anteriores ao
-   sistema. Sem isso, quem já é de casa aparece com saldo cheio e prazo vencido.
-4. Passe o endereço para a equipe. Funciona no celular.
+1. Abra a aba **Autorização**. Na primeira vez ela pede os três nomes e os três
+   PINs de uma vez. Quem preencher entra como departamento pessoal.
+2. Cadastre a equipe em **Cadastrar funcionário**. O **setor** é o campo que faz
+   o aviso de choque funcionar — preencha sempre.
+3. Use **Lançar férias já combinadas** para pôr no quadro as férias acertadas
+   antes do sistema. Entram já autorizadas.
+4. Entregue os PINs ao gestor e ao diretor, e passe o link para a equipe.
 
 ## Sobre acesso
 
 A tela de solicitação é aberta: quem tem o link escolhe um nome da lista e envia
 um pedido. É o suficiente para controle interno, e é o preço de não ter login.
 
-A área de aprovação é protegida de verdade. O PIN é guardado embaralhado
+As autorizações são protegidas de verdade. Cada PIN é guardado embaralhado
 (`scrypt` na versão servidor, `SHA-256` com sal na versão Google), conferido
-sempre do lado do servidor, e a sessão vale 12 horas. Aprovar, recusar,
-cadastrar, excluir e trocar o PIN só acontecem com sessão válida — o navegador
-não decide nada disso sozinho. Na versão servidor, dez erros seguidos do mesmo
-endereço travam as tentativas por 5 minutos.
-
-Se um dia precisar que cada funcionário só veja o próprio pedido, aí sim entra
-login por pessoa. Hoje não tem.
+sempre do lado do servidor, e a sessão vale 12 horas. O servidor não aceita que
+um papel assine o campo de outro, nem que o mesmo papel assine duas vezes, nem
+que alguém autorize um pedido já recusado. Cadastro e ajustes só respondem ao PIN
+do departamento pessoal. Na versão servidor, dez erros seguidos do mesmo endereço
+travam as tentativas por 5 minutos.
 
 ---
 
@@ -83,11 +94,6 @@ biblioteca externa.
 ```bash
 cd app-ferias
 npm start                 # abre em http://localhost:3000
-```
-
-Para outra porta ou outro lugar de banco:
-
-```bash
 PORT=8080 FERIAS_DADOS=/var/dados/ferias npm start
 ```
 
@@ -118,8 +124,8 @@ WantedBy=multi-user.target
 ```
 
 Se o servidor for ficar acessível fora da rede interna, coloque um proxy com
-HTTPS na frente (nginx, Caddy). O PIN viaja no corpo da requisição: sem HTTPS,
-quem estiver na mesma rede consegue lê-lo. (Na versão Google isso não se aplica —
+HTTPS na frente (nginx, Caddy). Os PINs viajam no corpo da requisição: sem HTTPS,
+quem estiver na mesma rede consegue lê-los. (Na versão Google isso não se aplica —
 o Google já serve tudo por HTTPS.)
 
 ---
@@ -131,7 +137,7 @@ app-ferias/
   servidor.js              versão servidor: HTTP + SQLite, sem dependências
   publico/
     index.html             a tela inteira (HTML, CSS e JS)
-    regras.js              as regras da CLT
+    regras.js              as regras de agendamento
   google-apps-script/
     COMO-PUBLICAR.md       roteiro de publicação no Google
     Codigo.gs              versão Google: planilha no lugar do banco
@@ -139,9 +145,9 @@ app-ferias/
     regras_js.html         gerado a partir de publico/regras.js
     gerar.js               o gerador dos dois arquivos acima
   testes/
-    regras.test.js         29 testes das regras
-    api.test.js            43 testes do servidor, com banco temporário
-    apps-script.test.js    58 testes do Codigo.gs, com a planilha simulada
+    regras.test.js          42 testes das regras
+    api.test.js             67 testes do servidor, com banco temporário
+    apps-script.test.js     75 testes do Codigo.gs, com a planilha simulada
 ```
 
 As regras e a tela têm **uma fonte só**: `publico/regras.js` e
@@ -155,14 +161,13 @@ npm run gerar-google  # regera pagina.html e regras_js.html depois de mexer na t
 ```
 
 Mexeu em `publico/`? Rode `npm run gerar-google` e cole os arquivos novos no
-Apps Script (veja "Quando você mudar alguma coisa" no roteiro de publicação).
-O `npm test` avisa se você esquecer.
+Apps Script. O `npm test` avisa se você esquecer.
 
 ## Limites conhecidos
 
 - Feriados estaduais e municipais ficam de fora.
-- Não calcula o valor das férias nem emite o aviso — isso é da folha.
-- O desconto de dias por faltas injustificadas (art. 130) é digitado pelo RH no
-  campo "dias de férias por período", não vem de um controle de ponto.
-- Abono pecuniário (venda de dias) não é tratado aqui.
-- Sem envio de e-mail: o funcionário vê a resposta ao abrir o link de novo.
+- Não controla saldo de dias nem período aquisitivo — de propósito.
+- Não calcula o valor das férias nem emite o aviso de férias legal.
+- As três autorizações podem sair em qualquer ordem; o app não força o gestor a
+  assinar antes do diretor.
+- Sem envio de e-mail: cada um vê as novidades ao abrir o link de novo.

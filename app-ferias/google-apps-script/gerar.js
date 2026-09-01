@@ -84,28 +84,26 @@ function chamar(nome, args){
 
 async function api(rota, opcoes){
   var o = opcoes || {}, c = o.corpo || {};
-  var mSol = rota.match(/^\\/api\\/solicitacoes\\/([^\\/]+)(\\/cancelar|\\/decisao)?$/);
+  var mSol = rota.match(/^\\/api\\/solicitacoes\\/([^\\/]+)(\\/cancelar|\\/autorizar|\\/recusar)?$/);
   var mFunc = rota.match(/^\\/api\\/funcionarios\\/([^\\/]+)$/);
   try{
     if(rota === '/api/estado')       return await chamar('carregarEstado', [token]);
+    if(rota === '/api/configurar')   return await chamar('configurarPins', [c]);
     if(rota === '/api/pin')          return await chamar('entrarGestao', [c.pin]);
-    if(rota === '/api/pin/trocar')   return await chamar('trocarPin', [token, c.atual, c.novo]);
+    if(rota === '/api/pins')         return await chamar('trocarPins', [token, c]);
     if(rota === '/api/historico')    return await chamar('lancarHistorico', [token, c]);
     if(rota === '/api/empresa')      return await chamar('salvarEmpresa', [token, c.nome]);
     if(rota === '/api/planilha')     return await chamar('linkDaPlanilha', [token]);
     if(rota === '/api/funcionarios') return await chamar('salvarFuncionario', [token, c]);
     if(rota === '/api/solicitacoes') return await chamar('enviarSolicitacao', [c]);
-    if(mFunc && o.metodo === 'DELETE') return await chamar('removerFuncionario', [token, mFunc[1]]);
-    if(mSol && mSol[2] === '/cancelar') return await chamar('cancelarSolicitacao', [mSol[1], c.funcionarioId]);
-    if(mSol && mSol[2] === '/decisao')  return await chamar('decidirSolicitacao', [token, mSol[1], c.status, c.motivo]);
-    if(mSol && o.metodo === 'DELETE')   return await chamar('excluirSolicitacao', [token, mSol[1]]);
+    if(mFunc && o.metodo === 'DELETE')   return await chamar('removerFuncionario', [token, mFunc[1]]);
+    if(mSol && mSol[2] === '/cancelar')  return await chamar('cancelarSolicitacao', [mSol[1], c.funcionarioId, token]);
+    if(mSol && mSol[2] === '/autorizar') return await chamar('autorizarSolicitacao', [token, mSol[1]]);
+    if(mSol && mSol[2] === '/recusar')   return await chamar('recusarSolicitacao', [token, mSol[1], c.motivo]);
+    if(mSol && o.metodo === 'DELETE')    return await chamar('excluirSolicitacao', [token, mSol[1]]);
     throw new Error('Chamada desconhecida: ' + rota);
   }catch(e){
-    if(/sess[ãa]o expirou/i.test(e.message)){
-      E.gestor = false; token = '';
-      try{ sessionStorage.removeItem('ferias-token'); }catch(e2){}
-      renderTudo();
-    }
+    if(/sess[ãa]o expirou/i.test(e.message)){ esquecerSessao(); renderTudo(); }
     throw e;
   }
 }`, arq);

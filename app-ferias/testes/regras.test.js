@@ -1,4 +1,4 @@
-/* Testes das regras de férias.  Uso: node testes/regras.test.js */
+/* Testes das regras de agendamento.  Uso: node testes/regras.test.js */
 'use strict';
 const R = require('../publico/regras.js');
 
@@ -8,82 +8,99 @@ function ok(cond, nome, extra){
   if(!cond){ falhas++; console.log('  FALHOU: ' + nome + (extra ? '  -> ' + extra : '')); }
 }
 
-const func = o => Object.assign({ id:'f1', nome:'Ana Souza Lima', setor:'Fiscal', admissao:'2025-03-11', diasDireito:30 }, o);
-const ped  = o => Object.assign({ id:null, inicio:'', dias:30 }, o);
-const txt  = V => V.erros.map(e => e.t).join(' | ') || '(sem erros)';
+const ana   = { id:'f1', nome:'Ana Souza Lima', setor:'Fiscal' };
+const carla = { id:'f2', nome:'Carla Monteiro', setor:'Fiscal' };
+const bruno = { id:'f3', nome:'Bruno Reis Alves', setor:'Contábil' };
+const equipe = [ana, carla, bruno];
+const ped = o => Object.assign({ id:null, inicio:'', dias:20 }, o);
+const txt = V => V.erros.map(e => e.t).join(' | ') || '(sem erros)';
+const avisos = V => V.avisos.map(a => a.t).join(' | ') || '(sem avisos)';
+
+const sol = (id, funcId, inicio, dias, extra) => Object.assign({
+  id, funcionarioId:funcId, inicio, dias, status:'autorizada',
+  aut_gestor:'x', aut_dp:'x', aut_diretor:'x'
+}, extra || {});
 
 /* --- feriados --- */
 ok(R.fmt(R.pascoa(2026)) === '05/04/2026', 'Páscoa de 2026 em 05/04', R.fmt(R.pascoa(2026)));
-ok(R.fmt(R.pascoa(2027)) === '28/03/2027', 'Páscoa de 2027 em 28/03', R.fmt(R.pascoa(2027)));
 ok(R.feriados(2026)['2026-04-03'].nome === 'Sexta-feira Santa', 'Sexta-feira Santa de 2026 em 03/04');
 ok(R.feriados(2026)['2026-02-17'].tipo === 'facultativo', 'Carnaval entra como ponto facultativo');
 ok(R.feriados(2026)['2026-11-20'].nome === 'Consciência Negra', 'Consciência Negra em 20/11');
 
 /* --- datas --- */
 ok(R.pd('2026-02-30') === null, 'data inexistente é rejeitada');
-ok(R.pd('2026-13-01') === null, 'mês inválido é rejeitado');
 ok(R.fmt(R.pd('2026-10-05')) === '05/10/2026', 'converte ISO para data brasileira');
+ok(R.fmt(R.fimDe({ inicio:'2026-10-05', dias:20 })) === '24/10/2026', 'último dia de férias', R.fmt(R.fimDe({inicio:'2026-10-05',dias:20})));
+ok(R.fmt(R.retornoDe({ inicio:'2026-10-05', dias:20 })) === '25/10/2026', 'dia do retorno');
 
-/* --- períodos --- */
-const ps = R.periodos('2025-03-11', R.hoje());
-ok(R.fmt(ps[0].ini) === '11/03/2025' && R.fmt(ps[0].fim) === '10/03/2026', 'aquisitivo de 11/03/2025 a 10/03/2026', R.fmt(ps[0].fim));
-ok(R.fmt(ps[0].concIni) === '11/03/2026' && R.fmt(ps[0].concFim) === '10/03/2027', 'concessivo de 11/03/2026 a 10/03/2027', R.fmt(ps[0].concFim));
+/* --- não sobrou nada de período aquisitivo --- */
+['periodos','alocar','periodoAlvo','periodoAberto','diasDeDireito'].forEach(nome => {
+  ok(R[nome] === undefined, 'o motor não tem mais ' + nome + '()');
+});
 
 /* --- caminho sem impedimento --- */
-let V = R.validar(func(), ped({ inicio:'2026-10-05', dias:30 }), [], [], []);
-ok(V.erros.length === 0, '30 dias a partir de uma segunda-feira passa', txt(V));
-ok(R.fmt(V.retorno) === '04/11/2026', 'retorno em 04/11/2026', R.fmt(V.retorno));
-ok(V.saldoAntes === 30 && V.saldoDepois === 0, 'saldo vai de 30 para 0', V.saldoAntes + ' -> ' + V.saldoDepois);
+let V = R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, []);
+ok(V.erros.length === 0, '20 dias a partir de uma segunda-feira passa', txt(V));
+ok(R.fmt(V.fim) === '24/10/2026' && R.fmt(V.retorno) === '25/10/2026', 'fim e retorno calculados', R.fmt(V.fim) + ' / ' + R.fmt(V.retorno));
+ok(V.infos.some(i => /Ninguém do setor “Fiscal”/.test(i.t)), 'diz que o setor está livre', JSON.stringify(V.infos.map(i=>i.t)));
 
-/* --- art. 134, §3º --- */
-ok(/não podem começar em sexta/.test(txt(R.validar(func(), ped({ inicio:'2026-10-09', dias:20 }), [], [], []))), 'início na sexta é bloqueado');
-ok(/não podem começar em sábado/.test(txt(R.validar(func(), ped({ inicio:'2026-10-10', dias:20 }), [], [], []))), 'início no sábado é bloqueado');
-ok(/Consciência Negra/.test(txt(R.validar(func(), ped({ inicio:'2026-11-18', dias:20 }), [], [], []))), 'dois dias antes de feriado nacional é bloqueado');
+/* --- pedir muitos dias seguidos não é mais problema de saldo --- */
+V = R.validar(ana, ped({ inicio:'2026-10-05', dias:30 }), [sol('a','f1','2026-01-05',30)], equipe, [sol('a','f1','2026-01-05',30)]);
+ok(V.erros.length === 0, 'segundo período de 30 dias no mesmo ano é aceito', txt(V));
+ok(R.validar(ana, ped({ inicio:'2026-10-05', dias:3 }), [], equipe, []).erros.length === 0, 'três dias é aceito');
+ok(/não pode passar de 30/.test(txt(R.validar(ana, ped({ inicio:'2026-10-05', dias:45 }), [], equipe, []))), 'mais de 30 dias é bloqueado');
 
-/* --- art. 134, §1º --- */
-ok(/menos de 5 dias/.test(txt(R.validar(func(), ped({ inicio:'2026-10-05', dias:4 }), [], [], []))), 'fração abaixo de 5 dias é bloqueada');
+/* --- choque no setor: o motivo do quadro --- */
+const daCarla = [sol('z','f2','2026-10-12',10)];
+V = R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, daCarla);
+ok(V.choques.length === 1 && V.choques[0].nome === 'Carla Monteiro', 'acha o colega do setor no mesmo período', JSON.stringify(V.choques));
+ok(/Já tem gente do setor/.test(avisos(V)), 'avisa sobre o colega', avisos(V));
+ok(V.erros.length === 0, 'choque de setor avisa, não impede', txt(V));
 
-const tres = [
-  { id:'a', funcionarioId:'f1', inicio:'2026-10-05', dias:14, status:'aprovada' },
-  { id:'b', funcionarioId:'f1', inicio:'2026-11-09', dias:8,  status:'aprovada' },
-  { id:'c', funcionarioId:'f1', inicio:'2026-12-07', dias:5,  status:'pendente' }
-];
-ok(/no máximo três/.test(txt(R.validar(func(), ped({ inicio:'2027-01-11', dias:3 }), tres, [], []))), 'quarto período é bloqueado');
-ok(/Saldo insuficiente/.test(txt(R.validar(func(), ped({ inicio:'2027-01-11', dias:10 }), tres.slice(0,2), [], []))), 'saldo insuficiente é detectado');
+V = R.validar(bruno, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, daCarla);
+ok(V.choques.length === 0, 'colega de outro setor não conta', JSON.stringify(V.choques));
 
-const dezEdez = [
-  { id:'a', funcionarioId:'f1', inicio:'2026-10-05', dias:10, status:'aprovada' },
-  { id:'b', funcionarioId:'f1', inicio:'2026-11-09', dias:10, status:'aprovada' }
-];
-ok(/14 dias corridos/.test(txt(R.validar(func(), ped({ inicio:'2027-01-11', dias:10 }), dezEdez, [], []))), 'exige um período de ao menos 14 dias');
+const emAnalise = [sol('z','f2','2026-10-12',10, { status:'pendente', aut_gestor:'', aut_dp:'', aut_diretor:'' })];
+V = R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, emAnalise);
+ok(/ainda em análise/.test(avisos(V)), 'pedido do colega ainda em análise também aparece', avisos(V));
 
-/* --- art. 130 --- */
-ok(/período aquisitivo ainda não fechou/.test(txt(R.validar(func({ admissao:'2026-06-01' }), ped({ inicio:'2026-10-05', dias:30 }), [], [], []))), 'menos de 12 meses de casa é bloqueado');
-const V24 = R.validar(func({ diasDireito:24 }), ped({ inicio:'2026-10-05', dias:24 }), [], [], []);
-ok(V24.erros.length === 0 && V24.direito === 24, 'direito reduzido a 24 dias é respeitado', V24.direito + ' | ' + txt(V24));
-ok(/Saldo insuficiente/.test(txt(R.validar(func({ diasDireito:24 }), ped({ inicio:'2026-10-05', dias:30 }), [], [], []))), 'pedido acima do direito reduzido é bloqueado');
+const recusada = [sol('z','f2','2026-10-12',10, { status:'recusada' })];
+ok(R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, recusada).choques.length === 0, 'pedido recusado do colega não conta');
+const cancelada = [sol('z','f2','2026-10-12',10, { status:'cancelada' })];
+ok(R.validar(ana, ped({ inicio:'2026-10-05', dias:20 }), [], equipe, cancelada).choques.length === 0, 'pedido cancelado do colega não conta');
 
-/* --- limites e sobreposição --- */
-ok(/já passou/.test(txt(R.validar(func(), ped({ inicio:'2026-06-01', dias:30 }), [], [], []))), 'data no passado é bloqueada');
-ok(/não pode passar de 30/.test(txt(R.validar(func(), ped({ inicio:'2026-10-05', dias:45 }), [], [], []))), 'mais de 30 dias é bloqueado');
-ok(/se sobrepõem/.test(txt(R.validar(func(), ped({ inicio:'2026-10-12', dias:10 }),
-  [{ id:'a', funcionarioId:'f1', inicio:'2026-10-05', dias:14, status:'aprovada' }], [], []))), 'sobreposição com o próprio período é bloqueada');
+/* --- choque com o próprio período --- */
+ok(/se sobrepõem/.test(txt(R.validar(ana, ped({ inicio:'2026-10-12', dias:10 }), [sol('a','f1','2026-10-05',14)], equipe, []))),
+   'sobreposição com o próprio período é bloqueada');
 
-/* --- avisos --- */
-const equipe = [func(), { id:'f2', nome:'Bruno Reis', setor:'Fiscal', admissao:'2024-01-08', diasDireito:30 }];
-const doColega = [{ id:'z', funcionarioId:'f2', inicio:'2026-10-12', dias:10, status:'aprovada' }];
-ok(R.validar(func(), ped({ inicio:'2026-10-05', dias:20 }), [], equipe, doColega).avisos.some(a => /mesmo setor/.test(a.t)), 'avisa sobreposição no mesmo setor');
+/* --- dia de início (art. 134, §3º) --- */
+ok(/não podem começar em sexta/.test(txt(R.validar(ana, ped({ inicio:'2026-10-09' }), [], equipe, []))), 'início na sexta é bloqueado');
+ok(/não podem começar em sábado/.test(txt(R.validar(ana, ped({ inicio:'2026-10-10' }), [], equipe, []))), 'início no sábado é bloqueado');
+ok(/Consciência Negra/.test(txt(R.validar(ana, ped({ inicio:'2026-11-18' }), [], equipe, []))), 'dois dias antes de feriado nacional é bloqueado');
+ok(/domingo/.test(avisos(R.validar(ana, ped({ inicio:'2026-10-11' }), [], equipe, []))), 'início no domingo só avisa');
+ok(/já passou/.test(txt(R.validar(ana, ped({ inicio:'2026-06-01' }), [], equipe, []))), 'data no passado é bloqueada');
 
+/* --- antecedência --- */
 let perto = R.addDias(R.hoje(), 10);
 while([0,5,6].includes(perto.getDay()) || R.feriadoEm(R.addDias(perto,1)) || R.feriadoEm(R.addDias(perto,2))) perto = R.addDias(perto,1);
-ok(R.validar(func(), ped({ inicio:R.ymd(perto), dias:15 }), [], [], []).avisos.some(a => /30 dias de antecedência/.test(a.t)), 'avisa antecedência menor que 30 dias');
+ok(/pelo menos 30 dias/.test(avisos(R.validar(ana, ped({ inicio:R.ymd(perto), dias:15 }), [], equipe, []))), 'avisa antecedência curta');
 
-/* --- saldo com histórico --- */
-const ab = R.periodoAberto(func({ admissao:'2023-04-03' }), [
-  { id:'h1', funcionarioId:'f1', inicio:'2024-05-06', dias:30, status:'aprovada' },
-  { id:'h2', funcionarioId:'f1', inicio:'2025-05-05', dias:20, status:'aprovada' }
-]);
-ok(ab.saldo === 10, 'saldo de 10 dias no período parcialmente usado', String(ab.saldo));
+/* --- cadeia de autorizações --- */
+const nova = { status:'pendente', inicio:'2026-10-05', dias:20, aut_gestor:'', aut_dp:'', aut_diretor:'' };
+ok(R.faltamAutorizacoes(nova).length === 3, 'pedido novo espera três autorizações');
+ok(R.situacao(nova) === 'pendente', 'sem as três, fica em análise');
+const meio = Object.assign({}, nova, { aut_gestor:'2026-09-01', aut_dp:'2026-09-01' });
+ok(R.faltamAutorizacoes(meio).map(p => p.chave).join() === 'diretor', 'falta só o diretor', R.faltamAutorizacoes(meio).map(p=>p.chave).join());
+ok(R.situacao(meio) === 'pendente', 'duas de três ainda é análise');
+const cheia = Object.assign({}, meio, { aut_diretor:'2026-09-01' });
+ok(R.situacao(cheia) === 'autorizada', 'com as três vira autorizada');
+ok(R.situacao(Object.assign({}, cheia, { inicio:'2026-06-01' })) === 'gozada', 'período que já passou vira já gozada');
+ok(R.situacao(Object.assign({}, nova, { status:'recusada' })) === 'recusada', 'recusada continua recusada');
+ok(R.PAPEIS.map(p => p.chave).join() === 'gestor,dp,diretor', 'os três papéis, nessa ordem');
+
+/* --- quem está fora, para o quadro do setor --- */
+const fora = R.choquesDeSetor(ana, R.pd('2026-10-01'), R.pd('2026-10-31'), equipe, daCarla.concat([sol('w','f3','2026-10-05',10)]));
+ok(fora.length === 1 && fora[0].nome === 'Carla Monteiro', 'quadro do setor só traz o próprio setor', JSON.stringify(fora.map(f=>f.nome)));
 
 console.log((falhas ? '\n' : '') + testes + ' testes de regras, ' + falhas + ' falha(s)');
 process.exit(falhas ? 1 : 0);
