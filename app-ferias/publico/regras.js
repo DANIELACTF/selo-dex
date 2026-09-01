@@ -1,0 +1,219 @@
+/* Regras do Quadro de Férias.
+   O mesmo arquivo roda no navegador (window.Regras) e no servidor
+   (require('./publico/regras.js')), para que a conferência feita na tela
+   seja exatamente a que o servidor refaz antes de gravar.
+
+   O que este arquivo confere é o agendamento: choque de datas dentro do
+   setor, dia de início permitido e antecedência. Saldo de dias e período
+   aquisitivo ficam com o sistema de folha. */
+
+/* INICIO-MOTOR — daqui até FIM-MOTOR é o trecho copiado para a versão do
+   Google Apps Script por google-apps-script/gerar.js. Não mexa nos marcadores. */
+function motorDeFerias(){
+  'use strict';
+
+  var DIA = 86400000;
+  var SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  /* Quem precisa autorizar. Hoje é só o gestor do departamento; o resto do
+     código percorre esta lista, então acrescentar outro papel aqui já faz a
+     assinatura dele aparecer na tela, no aviso e na conferência do servidor. */
+  var PAPEIS = [
+    { chave:'gestor', titulo:'Gestor do departamento' }
+  ];
+
+  function hoje(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function ymd(d){
+    return d ? d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') : '';
+  }
+  function pd(s){
+    if(!s) return null;
+    var p = String(s).split('-');
+    if(p.length !== 3) return null;
+    var d = new Date(+p[0], +p[1]-1, +p[2]);
+    if(isNaN(d.getTime()) || d.getDate() !== +p[2] || d.getMonth() !== +p[1]-1) return null;
+    return d;
+  }
+  function addDias(d,n){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; }
+  function fmt(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear() : '—'; }
+  function fmtCurto(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0') : '—'; }
+  function difDias(a,b){ return Math.round((b - a) / DIA); }
+  function plural(n,s,p){ return n + ' ' + (n === 1 ? s : p); }
+  function sobrepoe(iniA, fimA, iniB, fimB){ return iniA <= fimB && iniB <= fimA; }
+  function primeiroNome(n){ return String(n||'').trim().split(/\s+/)[0] || ''; }
+
+  /* Páscoa — algoritmo de Meeus/Jones/Butcher */
+  function pascoa(y){
+    var a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4,
+        f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30,
+        i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451),
+        mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+    return new Date(y, mes-1, dia);
+  }
+
+  var CACHE = {};
+  function feriados(ano){
+    if(CACHE[ano]) return CACHE[ano];
+    var p = pascoa(ano), m = {};
+    function add(d, nome, tipo){ m[ymd(d)] = { nome:nome, tipo:tipo || 'nacional' }; }
+    add(new Date(ano,0,1),   'Confraternização Universal');
+    add(addDias(p,-48),      'Carnaval (segunda)', 'facultativo');
+    add(addDias(p,-47),      'Carnaval', 'facultativo');
+    add(addDias(p,-2),       'Sexta-feira Santa');
+    add(addDias(p,60),       'Corpus Christi', 'facultativo');
+    add(new Date(ano,3,21),  'Tiradentes');
+    add(new Date(ano,4,1),   'Dia do Trabalho');
+    add(new Date(ano,8,7),   'Independência');
+    add(new Date(ano,9,12),  'Nossa Senhora Aparecida');
+    add(new Date(ano,10,2),  'Finados');
+    add(new Date(ano,10,15), 'Proclamação da República');
+    add(new Date(ano,10,20), 'Consciência Negra');
+    add(new Date(ano,11,25), 'Natal');
+    CACHE[ano] = m;
+    return m;
+  }
+  function feriadoEm(d){ return feriados(d.getFullYear())[ymd(d)] || null; }
+
+  /* ---------------------------------------------------------------- situação */
+
+  function fimDe(s){
+    var i = pd(s.inicio);
+    return i ? addDias(i, (Number(s.dias)||0) - 1) : null;
+  }
+  function retornoDe(s){
+    var i = pd(s.inicio);
+    return i ? addDias(i, Number(s.dias)||0) : null;
+  }
+  /* Uma solicitação vale para o quadro enquanto não foi recusada nem cancelada. */
+  function estaValendo(s){ return s.status === 'pendente' || s.status === 'autorizada'; }
+
+  function faltamAutorizacoes(s){
+    return PAPEIS.filter(function(p){ return !s['aut_' + p.chave]; });
+  }
+  function situacao(s){
+    if(s.status === 'recusada' || s.status === 'cancelada') return s.status;
+    if(faltamAutorizacoes(s).length) return 'pendente';
+    var f = fimDe(s);
+    return (f && f < hoje()) ? 'gozada' : 'autorizada';
+  }
+
+  /* --------------------------------------------------------- choque de setor */
+
+  /* Quem mais do setor está fora no período pedido. */
+  function choquesDeSetor(func, ini, fim, todosFunc, todasReqs, ignorarId){
+    var doSetor = {};
+    (todosFunc || []).forEach(function(f){
+      if(f.id !== func.id && (f.setor || '') === (func.setor || '')) doSetor[f.id] = f;
+    });
+    var fora = [];
+    (todasReqs || []).forEach(function(s){
+      if(s.id && ignorarId && s.id === ignorarId) return;
+      if(!estaValendo(s)) return;
+      var colega = doSetor[s.funcionarioId];
+      if(!colega) return;
+      var si = pd(s.inicio), sf = fimDe(s);
+      if(!si || !sobrepoe(ini, fim, si, sf)) return;
+      fora.push({ funcionarioId:colega.id, nome:colega.nome, inicio:si, fim:sf, situacao:situacao(s) });
+    });
+    return fora.sort(function(a,b){ return a.inicio - b.inicio; });
+  }
+
+  /* ------------------------------------------------------------- conferência */
+
+  /* Devolve { erros, avisos, infos, retorno, fim, choques } */
+  function validar(func, pedido, minhasReqs, todosFunc, todasReqs){
+    var R = { erros:[], avisos:[], infos:[], retorno:null, fim:null, choques:[] };
+    function err(t,l){ R.erros.push({ t:t, l:l || '' }); }
+    function avi(t,l){ R.avisos.push({ t:t, l:l || '' }); }
+    function inf(t,l){ R.infos.push({ t:t, l:l || '' }); }
+
+    var ini = pd(pedido.inicio);
+    var dias = Math.trunc(Number(pedido.dias) || 0);
+    var h = hoje();
+
+    if(!ini){ err('Escolha o primeiro dia de férias.'); return R; }
+    if(dias < 1){ err('Informe quantos dias de férias você quer tirar.'); return R; }
+    if(dias > 30){ err('Um período de férias não pode passar de 30 dias corridos.'); return R; }
+
+    R.fim = addDias(ini, dias - 1);
+    R.retorno = addDias(ini, dias);
+
+    /* --- data no passado --- */
+    var antec = difDias(h, ini);
+    if(antec < 0){ err('A data escolhida já passou.'); return R; }
+
+    /* --- choque com o próprio período --- */
+    (minhasReqs || []).forEach(function(s){
+      if(pedido.id && s.id === pedido.id) return;
+      if(!estaValendo(s)) return;
+      var si = pd(s.inicio), sf = fimDe(s);
+      if(si && sobrepoe(ini, R.fim, si, sf)){
+        err('Você já tem férias marcadas de ' + fmt(si) + ' a ' + fmt(sf) + ' e os períodos se sobrepõem.');
+      }
+    });
+
+    /* --- choque no setor: o motivo de existir deste quadro --- */
+    R.choques = choquesDeSetor(func, ini, R.fim, todosFunc, todasReqs, pedido.id);
+    if(R.choques.length){
+      avi('Já tem gente do setor ' + (func.setor ? '“' + func.setor + '” ' : '') + 'fora nesse período: ' +
+          R.choques.map(function(c){
+            return primeiroNome(c.nome) + ' (' + fmtCurto(c.inicio) + ' a ' + fmtCurto(c.fim) +
+                   (c.situacao === 'pendente' ? ', ainda em análise' : '') + ')';
+          }).join('; ') + '. Se der para trocar a data, o pedido anda mais rápido.');
+    } else if(func.setor){
+      inf('Ninguém do setor “' + func.setor + '” está de férias nesse período.');
+    }
+
+    /* --- dia de início (art. 134, §3º da CLT) --- */
+    var dow = ini.getDay();
+    if(dow === 5 || dow === 6){
+      err('As férias não podem começar em ' + SEMANA[dow] + ': é vedado iniciar nos dois dias que antecedem o repouso semanal.', 'CLT, art. 134, §3º');
+    } else if(dow === 0){
+      avi('O início cai em domingo. Costuma ser mais simples começar na segunda-feira.');
+    }
+    [1,2].forEach(function(n){
+      var f = feriadoEm(addDias(ini,n));
+      if(!f) return;
+      if(f.tipo === 'nacional'){
+        err('As férias não podem começar ' + (n === 1 ? 'na véspera' : 'dois dias antes') + ' de ' + f.nome +
+            ' (' + fmt(addDias(ini,n)) + ').', 'CLT, art. 134, §3º');
+      } else {
+        avi(f.nome + ' cai em ' + fmt(addDias(ini,n)) + '. É ponto facultativo, não feriado nacional, mas confira a prática da empresa.');
+      }
+    });
+    var f0 = feriadoEm(ini);
+    if(f0) avi('O primeiro dia de férias é ' + f0.nome + '.');
+
+    /* --- antecedência --- */
+    if(antec < 30){
+      avi('Faltam ' + plural(antec,'dia','dias') + ' para o início, e ainda faltam três autorizações. Peça com pelo menos 30 dias.', 'CLT, art. 135');
+    }
+
+    /* --- notas --- */
+    inf('Período: ' + fmt(ini) + ' a ' + fmt(R.fim) + ' — retorno ao trabalho em ' + fmt(R.retorno) + ' (' + SEMANA[R.retorno.getDay()] + ').');
+    if(R.retorno.getDay() === 0 || R.retorno.getDay() === 6){
+      inf('O retorno cai em ' + SEMANA[R.retorno.getDay()] + '. Na prática a volta é no primeiro dia útil seguinte, mas as férias terminam mesmo em ' + fmt(R.fim) + '.');
+    }
+    var fr = feriadoEm(R.retorno);
+    if(fr) inf('O dia do retorno é ' + fr.nome + '.');
+
+    return R;
+  }
+
+  return {
+    SEMANA: SEMANA, MESES: MESES, PAPEIS: PAPEIS,
+    hoje: hoje, ymd: ymd, pd: pd, addDias: addDias,
+    fmt: fmt, fmtCurto: fmtCurto, difDias: difDias, plural: plural,
+    sobrepoe: sobrepoe, primeiroNome: primeiroNome,
+    pascoa: pascoa, feriados: feriados, feriadoEm: feriadoEm,
+    fimDe: fimDe, retornoDe: retornoDe, estaValendo: estaValendo,
+    faltamAutorizacoes: faltamAutorizacoes, situacao: situacao,
+    choquesDeSetor: choquesDeSetor, validar: validar
+  };
+}
+/* FIM-MOTOR */
+
+(function(raiz){
+  if(typeof module === 'object' && module.exports) module.exports = motorDeFerias();
+  else raiz.Regras = motorDeFerias();
+})(typeof self !== 'undefined' ? self : this);
