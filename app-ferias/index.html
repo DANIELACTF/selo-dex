@@ -1,0 +1,2036 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--ARTIFACT-BEGIN-->
+<title>Quadro de Férias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+
+  --paper:#EFF1F6;
+  --surface:#FFFFFF;
+  --surface-2:#F5F6FA;
+  --sunken:#E4E7F0;
+  --line:#D5D9E4;
+  --line-strong:#B7BFD1;
+  --ink:#131826;
+  --ink-2:#4B5468;
+  --ink-3:#7B8399;
+  --pen:#2A3EA6;
+  --pen-ink:#FFFFFF;
+  --pen-soft:#E7EAFB;
+  --stamp:#AE3327;
+  --stamp-soft:#FBE9E6;
+  --ok:#1D6B47;
+  --ok-soft:#E2F1E9;
+  --warn:#8F5D0C;
+  --warn-soft:#FAEEDA;
+  --barra-txt:#FFFFFF;
+  --shadow:0 1px 2px rgba(19,24,38,.06),0 8px 24px -12px rgba(19,24,38,.18);
+  --radius:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E121C; --surface:#161B29; --surface-2:#1B2130; --sunken:#111624;
+    --line:#2A3143; --line-strong:#3B4356;
+    --ink:#E8EBF3; --ink-2:#A9B1C4; --ink-3:#7A8296;
+    --pen:#8D9CFF; --pen-ink:#0E121C; --pen-soft:#1E2540;
+    --stamp:#F0897A; --stamp-soft:#33201D;
+    --ok:#63C395; --ok-soft:#12271E;
+    --warn:#E2B463; --warn-soft:#2A2113;
+    --barra-txt:#0E121C;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E121C; --surface:#161B29; --surface-2:#1B2130; --sunken:#111624;
+  --line:#2A3143; --line-strong:#3B4356;
+  --ink:#E8EBF3; --ink-2:#A9B1C4; --ink-3:#7A8296;
+  --pen:#8D9CFF; --pen-ink:#0E121C; --pen-soft:#1E2540;
+  --stamp:#F0897A; --stamp-soft:#33201D;
+  --ok:#63C395; --ok-soft:#12271E;
+  --warn:#E2B463; --warn-soft:#2A2113;
+  --barra-txt:#0E121C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--f-display); margin:0; text-wrap:balance; letter-spacing:-.015em}
+h1{font-size:19px; font-weight:700}
+h2{font-size:17px; font-weight:600}
+h3{font-size:15px; font-weight:600}
+p{margin:0}
+a{color:var(--pen)}
+:focus-visible{outline:2px solid var(--pen); outline-offset:2px; border-radius:3px}
+
+.eyebrow{
+  font-family:var(--f-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+}
+.num{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+
+/* ---------- barra superior ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  background:var(--surface);
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.topbar-in{
+  max-width:1120px; margin:0 auto; padding:11px 20px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:10px; min-width:0}
+.brand svg{display:block; flex:none}
+.brand-txt{min-width:0}
+.brand-txt h1{font-size:16px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.brand-txt .eyebrow{display:block; margin-top:1px}
+
+.tabs{display:flex; gap:2px; padding:2px; background:var(--sunken); border-radius:8px; margin-left:auto}
+.tab{
+  appearance:none; border:0; background:transparent; cursor:pointer;
+  font-family:var(--f-body); font-size:13.5px; font-weight:600; color:var(--ink-2);
+  padding:7px 15px; border-radius:6px;
+}
+.tab[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+.modo{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--f-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-3); white-space:nowrap;
+}
+.dot{width:7px; height:7px; border-radius:50%; background:var(--ink-3); flex:none}
+.dot.on{background:var(--ok)}
+.dot.local{background:var(--warn)}
+
+/* ---------- estrutura ---------- */
+.shell{max-width:1120px; margin:0 auto; padding:22px 20px 64px; display:flex; flex-direction:column; gap:18px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+.card-hd{padding:15px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.card-hd .grow{flex:1; min-width:0}
+.card-bd{padding:18px}
+.card-bd.tight{padding:14px 18px}
+.stack{display:flex; flex-direction:column; gap:14px}
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+
+/* ---------- formulário ---------- */
+.grid-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px}
+.field{display:flex; flex-direction:column; gap:6px; min-width:0}
+.field > label:not(.check){font-family:var(--f-mono); font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-2)}
+.field .hint{font-size:12px; color:var(--ink-3)}
+input[type="text"],input[type="date"],input[type="number"],input[type="password"],input[type="email"],select,textarea{
+  font-family:var(--f-body); font-size:14.5px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:7px;
+  padding:9px 11px; width:100%; min-width:0;
+}
+input[type="date"],input[type="number"]{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+textarea{resize:vertical; min-height:70px}
+select{cursor:pointer}
+input:disabled,select:disabled,textarea:disabled{background:var(--surface-2); color:var(--ink-3); cursor:not-allowed}
+.check{display:flex; align-items:flex-start; gap:9px; cursor:pointer; font-size:14px}
+.check input{margin:2px 0 0; width:16px; height:16px; accent-color:var(--pen); flex:none; cursor:pointer}
+.check span b{display:block; font-weight:600; margin-bottom:1px}
+.check span i{display:block; font-style:normal; font-size:12.5px; color:var(--ink-3); line-height:1.4}
+
+.btn{
+  appearance:none; cursor:pointer; font-family:var(--f-body); font-size:14px; font-weight:600;
+  padding:9px 16px; border-radius:7px; border:1px solid var(--line-strong);
+  background:var(--surface); color:var(--ink); white-space:nowrap;
+}
+.btn:hover{border-color:var(--ink-3)}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+.btn-primary{background:var(--pen); border-color:var(--pen); color:var(--pen-ink)}
+.btn-primary:hover{filter:brightness(1.08); border-color:var(--pen)}
+.btn-ok{background:var(--ok-soft); border-color:var(--ok); color:var(--ok)}
+.btn-no{background:var(--stamp-soft); border-color:var(--stamp); color:var(--stamp)}
+.btn-sm{padding:5px 10px; font-size:12.5px; border-radius:6px}
+.btn-ghost{border-color:transparent; background:transparent; color:var(--ink-2)}
+.btn-ghost:hover{background:var(--surface-2); border-color:transparent}
+
+/* ---------- painel de regras ---------- */
+.regras{background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; display:flex; flex-direction:column; gap:10px}
+.regra{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.45}
+.regra .mk{
+  font-family:var(--f-mono); font-size:10px; font-weight:500; letter-spacing:.06em;
+  padding:2px 6px; border-radius:4px; flex:none; margin-top:1px; text-transform:uppercase;
+}
+.regra.err .mk{background:var(--stamp-soft); color:var(--stamp)}
+.regra.avi .mk{background:var(--warn-soft); color:var(--warn)}
+.regra.inf .mk{background:var(--pen-soft); color:var(--pen)}
+.regra .lei{font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); display:block; margin-top:2px}
+
+.resumo{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+.resumo > div{background:var(--surface); padding:12px 14px}
+.resumo .eyebrow{display:block; margin-bottom:3px}
+.resumo strong{font-family:var(--f-mono); font-size:20px; font-weight:500; font-variant-numeric:tabular-nums; letter-spacing:-.02em; display:block}
+.resumo em{font-style:normal; font-size:12.5px; color:var(--ink-3)}
+
+/* ---------- selo de status ---------- */
+.selo{
+  display:inline-block; font-family:var(--f-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:4px;
+  border:1px solid currentColor; white-space:nowrap;
+}
+.selo.pendente{color:var(--warn); background:var(--warn-soft)}
+.selo.aprovada{color:var(--ok); background:var(--ok-soft)}
+.selo.recusada{color:var(--stamp); background:var(--stamp-soft)}
+.selo.cancelada{color:var(--ink-3); background:var(--surface-2)}
+.selo.gozada{color:var(--ink-2); background:var(--surface-2)}
+
+/* ---------- tabelas ---------- */
+.tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+thead th{
+  text-align:left; font-family:var(--f-mono); font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3);
+  padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface-2); white-space:nowrap;
+}
+tbody td{padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+td.n{font-family:var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+td .nome{font-weight:600}
+td .sub{font-size:12px; color:var(--ink-3)}
+td.acoes{white-space:nowrap; text-align:right}
+td.acoes .btn{margin-left:5px}
+
+.vazio{padding:34px 18px; text-align:center; color:var(--ink-3); font-size:13.5px}
+
+/* ---------- telhas ---------- */
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:12px}
+.tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow)}
+.tile strong{display:block; font-family:var(--f-mono); font-size:27px; font-weight:500; line-height:1.15; letter-spacing:-.03em; font-variant-numeric:tabular-nums; margin:5px 0 2px}
+.tile.alerta{border-color:var(--warn)}
+.tile.alerta strong{color:var(--warn)}
+.tile.risco{border-color:var(--stamp)}
+.tile.risco strong{color:var(--stamp)}
+
+/* ---------- alertas ---------- */
+.alerta-linha{display:flex; gap:11px; align-items:flex-start; padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px; line-height:1.45}
+.alerta-linha:last-child{border-bottom:0}
+.alerta-linha .mk{font-family:var(--f-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:4px; flex:none; margin-top:1px}
+.alerta-linha.grave .mk{background:var(--stamp-soft); color:var(--stamp)}
+.alerta-linha.media .mk{background:var(--warn-soft); color:var(--warn)}
+.alerta-linha b{font-weight:600}
+
+/* ---------- quadro anual ---------- */
+.quadro{display:flex; flex-direction:column; gap:0; min-width:720px}
+.quadro-meses{display:grid; grid-template-columns:170px 1fr; align-items:end; gap:0; padding-bottom:5px}
+.meses{display:grid; grid-template-columns:repeat(12,1fr); border-left:1px solid var(--line)}
+.meses span{
+  font-family:var(--f-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+  padding:0 0 4px 5px; border-right:1px solid var(--line);
+}
+.q-linha{display:grid; grid-template-columns:170px 1fr; align-items:center; border-top:1px solid var(--line); min-height:38px}
+.q-nome{padding:7px 12px 7px 0; font-size:13px; overflow:hidden}
+.q-nome b{display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.q-nome span{display:block; font-size:11.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.q-faixa{position:relative; height:26px; background:var(--surface-2); border-left:1px solid var(--line); border-radius:0 4px 4px 0}
+.q-grade{position:absolute; inset:0; display:grid; grid-template-columns:repeat(12,1fr); pointer-events:none}
+.q-grade i{border-right:1px solid var(--line)}
+.q-barra{
+  position:absolute; top:4px; height:18px; border-radius:3px; min-width:3px;
+  display:flex; align-items:center; padding:0 5px; overflow:hidden;
+  font-family:var(--f-mono); font-size:10px; color:var(--barra-txt); white-space:nowrap;
+}
+.q-barra.aprovada{background:var(--ok)}
+.q-barra.pendente{background:var(--warn)}
+.q-barra.gozada{background:var(--ink-3)}
+.q-barra.choque{box-shadow:0 0 0 2px var(--stamp)}
+.q-hoje{position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--pen); z-index:3}
+.legenda{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-2); align-items:center}
+.legenda i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px}
+
+/* ---------- modal ---------- */
+.modal-fundo{position:fixed; inset:0; background:rgba(10,13,22,.55); z-index:80; display:flex; align-items:flex-start; justify-content:center; padding:28px 16px; overflow-y:auto}
+.modal{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 24px 60px -20px rgba(0,0,0,.5); width:100%; max-width:640px}
+.modal-hd{padding:15px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px}
+.modal-hd h2{flex:1}
+.modal-bd{padding:18px}
+.modal-ft{padding:14px 18px; border-top:1px solid var(--line); display:flex; gap:9px; justify-content:flex-end; flex-wrap:wrap}
+
+/* ---------- documento (aviso de férias) ---------- */
+.doc{font-family:var(--f-body); font-size:13.5px; line-height:1.65; color:var(--ink)}
+.doc h3{text-align:center; font-size:15px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px}
+.doc .doc-lei{text-align:center; font-family:var(--f-mono); font-size:11px; color:var(--ink-3); margin-bottom:18px}
+.doc dl{display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin:0 0 16px}
+.doc dt{font-family:var(--f-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); padding-top:3px}
+.doc dd{margin:0}
+.doc .assin{display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:38px; text-align:center; font-size:12px; color:var(--ink-2)}
+.doc .assin div{border-top:1px solid var(--ink-3); padding-top:6px}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+  background:var(--ink); color:var(--paper); padding:11px 17px; border-radius:8px;
+  font-size:13.5px; z-index:100; box-shadow:0 10px 30px -10px rgba(0,0,0,.6); max-width:calc(100% - 32px);
+}
+.toast.err{background:var(--stamp); color:#fff}
+
+.rodape{max-width:1120px; margin:0 auto; padding:0 20px 40px; font-size:12px; color:var(--ink-3); line-height:1.6}
+.rodape p + p{margin-top:7px}
+
+@media (max-width:640px){
+  .topbar-in{padding:10px 14px; gap:10px}
+  .tabs{width:100%; margin-left:0; order:3}
+  .tab{flex:1}
+  .shell{padding:16px 14px 48px}
+  .card-bd{padding:14px}
+  .doc .assin{grid-template-columns:1fr; gap:30px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important; transition:none!important}
+}
+@media print{
+  body{background:#fff}
+  .topbar,.shell,.rodape,.modal-hd,.modal-ft,.toast{display:none!important}
+  .modal-fundo{position:static; padding:0; background:#fff; display:block; overflow:visible}
+  .modal{max-width:none; border:0; box-shadow:none}
+  .modal-bd{padding:0}
+  .doc{color:#000}
+  .doc dt,.doc .doc-lei,.doc .assin{color:#333}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="29" height="29" rx="6" fill="var(--pen-soft)" stroke="var(--pen)" stroke-opacity=".35"/>
+        <g fill="var(--pen)" fill-opacity=".28">
+          <rect x="5" y="8"  width="3.4" height="3.4" rx="1"/><rect x="10" y="8"  width="3.4" height="3.4" rx="1"/>
+          <rect x="15" y="8" width="3.4" height="3.4" rx="1"/><rect x="20" y="8"  width="3.4" height="3.4" rx="1"/>
+          <rect x="5" y="13" width="3.4" height="3.4" rx="1"/><rect x="20" y="13" width="3.4" height="3.4" rx="1"/>
+          <rect x="5" y="18" width="3.4" height="3.4" rx="1"/><rect x="10" y="18" width="3.4" height="3.4" rx="1"/>
+          <rect x="15" y="18" width="3.4" height="3.4" rx="1"/><rect x="20" y="18" width="3.4" height="3.4" rx="1"/>
+        </g>
+        <g fill="var(--pen)">
+          <rect x="10" y="13" width="3.4" height="3.4" rx="1"/><rect x="15" y="13" width="3.4" height="3.4" rx="1"/>
+        </g>
+      </svg>
+      <div class="brand-txt">
+        <h1 id="empresa-nome">Quadro de Férias</h1>
+        <span class="eyebrow">Solicitação e controle · CLT</span>
+      </div>
+    </div>
+
+    <div class="modo" id="modo-dados" title="Onde os dados ficam guardados">
+      <span class="dot" id="modo-dot"></span><span id="modo-txt">Carregando…</span>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Seções">
+      <button class="tab" role="tab" id="tab-solicitar" aria-selected="true" aria-controls="aba-solicitar" data-aba="solicitar">Solicitar</button>
+      <button class="tab" role="tab" id="tab-gestao" aria-selected="false" aria-controls="aba-gestao" data-aba="gestao">Gestão</button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+
+  <!-- ============ ABA: SOLICITAR ============ -->
+  <section id="aba-solicitar" role="tabpanel" aria-labelledby="tab-solicitar" class="stack">
+
+    <div class="card">
+      <div class="card-hd">
+        <div class="grow">
+          <span class="eyebrow">Passo 1</span>
+          <h2>Quem está pedindo</h2>
+        </div>
+      </div>
+      <div class="card-bd stack">
+        <div class="field">
+          <label for="sel-func">Funcionário</label>
+          <select id="sel-func" disabled>
+            <option value="">Carregando…</option>
+          </select>
+          <span class="hint" id="sem-cadastro" hidden>Nenhum funcionário cadastrado ainda. Peça ao RH para cadastrar a equipe na aba Gestão.</span>
+        </div>
+        <div id="func-info"></div>
+      </div>
+    </div>
+
+    <div class="card" id="card-pedido" hidden>
+      <div class="card-hd">
+        <div class="grow">
+          <span class="eyebrow">Passo 2</span>
+          <h2>Período pretendido</h2>
+        </div>
+      </div>
+      <div class="card-bd stack">
+        <div class="grid-form">
+          <div class="field">
+            <label for="in-inicio">Primeiro dia de férias</label>
+            <input type="date" id="in-inicio">
+            <span class="hint" id="hint-inicio">Não pode cair em sexta, sábado nem na véspera de feriado.</span>
+          </div>
+          <div class="field">
+            <label for="in-dias">Dias corridos</label>
+            <input type="number" id="in-dias" min="1" max="30" step="1" value="30">
+            <span class="hint">Mínimo de 5 dias por período fracionado.</span>
+          </div>
+          <div class="field">
+            <label for="in-retorno">Retorno ao trabalho</label>
+            <input type="text" id="in-retorno" value="—" disabled>
+            <span class="hint">Calculado a partir do início e da quantidade de dias.</span>
+          </div>
+        </div>
+
+        <div class="grid-form">
+          <div class="field">
+            <label class="check" for="in-abono">
+              <input type="checkbox" id="in-abono">
+              <span><b>Vender dias (abono pecuniário)</b><i>Converter parte das férias em dinheiro — art. 143 da CLT.</i></span>
+            </label>
+            <div id="wrap-abono" class="row" style="gap:9px;margin-left:25px" hidden>
+              <input type="number" id="in-abono-dias" min="1" max="10" step="1" value="10" style="width:78px" aria-label="Quantos dias vender">
+              <span class="hint">dias vendidos — no máximo um terço do direito</span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="check" for="in-13">
+              <input type="checkbox" id="in-13">
+              <span><b>Adiantar a 1ª parcela do 13º</b><i>Pago junto com as férias — Lei 4.749/65, art. 2º, §2º.</i></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="in-obs">Observação para o RH <span style="text-transform:none;letter-spacing:0">(opcional)</span></label>
+          <textarea id="in-obs" maxlength="500" placeholder="Ex.: casamento na segunda semana; posso antecipar se atrapalhar o fechamento."></textarea>
+        </div>
+
+        <div id="painel-regras"></div>
+
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn" type="button" id="btn-limpar">Limpar</button>
+          <button class="btn btn-primary" type="button" id="btn-enviar">Enviar solicitação</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-minhas" hidden>
+      <div class="card-hd">
+        <div class="grow"><h2>Minhas solicitações</h2></div>
+      </div>
+      <div id="minhas-lista"></div>
+    </div>
+  </section>
+
+  <!-- ============ ABA: GESTÃO ============ -->
+  <section id="aba-gestao" role="tabpanel" aria-labelledby="tab-gestao" class="stack" hidden>
+
+    <div class="card" id="gestao-bloqueio">
+      <div class="card-hd"><div class="grow"><h2 id="pin-titulo">Área do RH</h2></div></div>
+      <div class="card-bd stack" style="max-width:420px">
+        <p class="small muted" id="pin-texto">Digite o PIN da gestão para ver e aprovar as solicitações.</p>
+        <div class="field">
+          <label for="in-pin">PIN</label>
+          <input type="password" id="in-pin" inputmode="numeric" autocomplete="off" placeholder="••••">
+        </div>
+        <div class="field" id="wrap-pin2" hidden>
+          <label for="in-pin2">Repita o PIN</label>
+          <input type="password" id="in-pin2" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" type="button" id="btn-pin">Entrar</button>
+        </div>
+        <p class="small" style="color:var(--ink-3)">O PIN evita que a equipe abra a área de aprovação por engano. Não é uma senha de segurança — quem tem o link continua tendo acesso técnico aos dados.</p>
+      </div>
+    </div>
+
+    <div id="gestao-conteudo" hidden class="stack">
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="card" id="card-alertas" hidden>
+        <div class="card-hd"><div class="grow"><h2>Precisa de atenção</h2></div></div>
+        <div class="card-bd tight" id="alertas-lista"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <div class="grow"><h2>Solicitações</h2></div>
+          <button class="btn btn-sm" type="button" id="btn-csv">Exportar CSV</button>
+        </div>
+        <div class="card-bd tight">
+          <div class="grid-form">
+            <div class="field">
+              <label for="f-status">Situação</label>
+              <select id="f-status">
+                <option value="todas">Todas</option>
+                <option value="pendente" selected>Pendentes</option>
+                <option value="aprovada">Aprovadas</option>
+                <option value="recusada">Recusadas</option>
+                <option value="cancelada">Canceladas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-setor">Setor</label>
+              <select id="f-setor"><option value="todos">Todos</option></select>
+            </div>
+            <div class="field">
+              <label for="f-busca">Buscar por nome</label>
+              <input type="text" id="f-busca" placeholder="Nome do funcionário">
+            </div>
+          </div>
+        </div>
+        <div id="tabela-wrap"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <div class="grow"><h2>Quadro do ano</h2></div>
+          <div class="row">
+            <button class="btn btn-sm" type="button" id="ano-menos" aria-label="Ano anterior">←</button>
+            <strong class="num" id="ano-atual" style="font-size:15px">—</strong>
+            <button class="btn btn-sm" type="button" id="ano-mais" aria-label="Próximo ano">→</button>
+          </div>
+        </div>
+        <div class="card-bd" style="overflow-x:auto">
+          <div id="quadro"></div>
+        </div>
+        <div class="card-bd tight" style="border-top:1px solid var(--line)">
+          <div class="legenda">
+            <span><i style="background:var(--ok)"></i>Aprovada</span>
+            <span><i style="background:var(--warn)"></i>Pendente</span>
+            <span><i style="background:var(--ink-3)"></i>Já gozada</span>
+            <span><i style="background:var(--pen);width:3px"></i>Hoje</span>
+            <span><i style="background:transparent;box-shadow:0 0 0 2px var(--stamp)"></i>Coincide com colega do mesmo setor</span>
+            <span class="muted">Passe o mouse sobre a barra para ver as datas.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <div class="grow"><h2>Equipe</h2></div>
+          <button class="btn btn-sm" type="button" id="btn-retroativo">Lançar férias já gozadas</button>
+          <button class="btn btn-sm btn-primary" type="button" id="btn-novo-func">Cadastrar funcionário</button>
+        </div>
+        <div id="func-tabela"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="grow"><h2>Dados da empresa</h2></div></div>
+        <div class="card-bd stack">
+          <div class="grid-form">
+            <div class="field">
+              <label for="cfg-empresa">Razão social</label>
+              <input type="text" id="cfg-empresa" placeholder="Nome da empresa">
+            </div>
+            <div class="field">
+              <label for="cfg-cnpj">CNPJ</label>
+              <input type="text" id="cfg-cnpj" placeholder="00.000.000/0001-00">
+            </div>
+            <div class="field">
+              <label for="cfg-cidade">Cidade (para o aviso de férias)</label>
+              <input type="text" id="cfg-cidade" placeholder="São Paulo">
+            </div>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <button class="btn btn-sm btn-ghost" type="button" id="btn-trocar-pin">Trocar o PIN da gestão</button>
+            <button class="btn btn-primary" type="button" id="btn-salvar-cfg">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <p><b>Sobre as regras.</b> As validações seguem os arts. 130, 134, 135, 136, 137, 143 e 145 da CLT e a Lei 4.749/65. O sistema aponta impedimentos e avisos, mas a concessão das férias e a conferência final continuam sendo do empregador e do departamento pessoal.</p>
+  <p>Feriados nacionais são calculados automaticamente. Carnaval e Corpus Christi entram como ponto facultativo, não como feriado nacional. Feriados estaduais e municipais não estão incluídos — confira antes de aprovar.</p>
+</footer>
+
+<div id="modal-raiz"></div>
+<div id="toast-raiz"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* =========================================================================
+   1. Datas e feriados
+   ========================================================================= */
+var DIA = 86400000;
+var SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+var MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+function hoje(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function ymd(d){
+  if(!d) return '';
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function pd(s){
+  if(!s) return null;
+  var p = String(s).split('-');
+  if(p.length !== 3) return null;
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  if(isNaN(d.getTime()) || d.getDate() !== +p[2]) return null;
+  return d;
+}
+function addDias(d,n){ var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; }
+function addAnos(d,n){ return new Date(d.getFullYear()+n, d.getMonth(), d.getDate()); }
+function fmt(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear() : '—'; }
+function fmtCurto(d){ return d ? String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0') : '—'; }
+function difDias(a,b){ return Math.round((b - a) / DIA); }
+function plural(n,s,p){ return n + ' ' + (n === 1 ? s : p); }
+
+/* Páscoa — algoritmo de Meeus/Jones/Butcher */
+function pascoa(y){
+  var a=y%19, b=Math.floor(y/100), c=y%100, d=Math.floor(b/4), e=b%4,
+      f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30,
+      i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451),
+      mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  return new Date(y, mes-1, dia);
+}
+var CACHE_FER = {};
+function feriados(ano){
+  if(CACHE_FER[ano]) return CACHE_FER[ano];
+  var p = pascoa(ano), m = {};
+  function add(d, nome, tipo){ m[ymd(d)] = { nome:nome, tipo:tipo || 'nacional' }; }
+  add(new Date(ano,0,1),  'Confraternização Universal');
+  add(addDias(p,-48),     'Carnaval (segunda)', 'facultativo');
+  add(addDias(p,-47),     'Carnaval', 'facultativo');
+  add(addDias(p,-2),      'Sexta-feira Santa');
+  add(addDias(p,60),      'Corpus Christi', 'facultativo');
+  add(new Date(ano,3,21), 'Tiradentes');
+  add(new Date(ano,4,1),  'Dia do Trabalho');
+  add(new Date(ano,8,7),  'Independência');
+  add(new Date(ano,9,12), 'Nossa Senhora Aparecida');
+  add(new Date(ano,10,2), 'Finados');
+  add(new Date(ano,10,15),'Proclamação da República');
+  add(new Date(ano,10,20),'Consciência Negra');
+  add(new Date(ano,11,25),'Natal');
+  CACHE_FER[ano] = m;
+  return m;
+}
+function feriadoEm(d){ return feriados(d.getFullYear())[ymd(d)] || null; }
+
+/* =========================================================================
+   2. Regras da CLT
+   ========================================================================= */
+
+/* Art. 130 — dias de férias conforme faltas injustificadas no período aquisitivo */
+function diasDeDireito(faltas){
+  var f = Number(faltas) || 0;
+  if(f <= 5)  return 30;
+  if(f <= 14) return 24;
+  if(f <= 23) return 18;
+  if(f <= 32) return 12;
+  return 0;
+}
+function faixaFaltas(faltas){
+  var f = Number(faltas) || 0;
+  if(f <= 5)  return 'até 5 faltas';
+  if(f <= 14) return 'de 6 a 14 faltas';
+  if(f <= 23) return 'de 15 a 23 faltas';
+  if(f <= 32) return 'de 24 a 32 faltas';
+  return 'mais de 32 faltas';
+}
+
+/* Períodos aquisitivos a partir da admissão.
+   Aquisitivo: [admissão + n anos, admissão + (n+1) anos - 1 dia]
+   Concessivo: os 12 meses seguintes ao término do aquisitivo (art. 134/137) */
+function periodos(admissaoStr, ate){
+  var adm = pd(admissaoStr);
+  if(!adm) return [];
+  var limite = addAnos(ate || hoje(), 2), out = [], n = 0;
+  while(n < 80){
+    var ini = addAnos(adm, n);
+    var fim = addDias(addAnos(adm, n+1), -1);
+    out.push({ n:n+1, ini:ini, fim:fim, concIni:addDias(fim,1), concFim:addAnos(fim,1) });
+    if(ini > limite) break;
+    n++;
+  }
+  return out;
+}
+
+/* Distribui as solicitações ativas do funcionário entre os períodos aquisitivos,
+   sempre do mais antigo em aberto para o mais novo. */
+function alocar(func, reqs){
+  var direito = diasDeDireito(func.faltas);
+  var ate = hoje();
+  reqs.forEach(function(r){ var d = pd(r.inicio); if(d && d > ate) ate = d; });
+  var ps = periodos(func.admissao, ate);
+  var estado = ps.map(function(p){ return { p:p, usados:0, itens:[] }; });
+  var mapa = {};
+  var ordenadas = reqs.slice().sort(function(a,b){ return String(a.inicio).localeCompare(String(b.inicio)); });
+
+  ordenadas.forEach(function(r){
+    var ini = pd(r.inicio);
+    if(!ini) return;
+    var custo = (Number(r.dias)||0) + (Number(r.abonoDias)||0);
+    var adquiridos = estado.filter(function(s){ return s.p.fim < ini; });
+    if(!adquiridos.length) return;
+    var alvo = null, i;
+    for(i = 0; i < adquiridos.length; i++){
+      if(adquiridos[i].usados + custo <= direito){ alvo = adquiridos[i]; break; }
+    }
+    if(!alvo){
+      for(i = 0; i < adquiridos.length; i++){
+        if(adquiridos[i].usados < direito){ alvo = adquiridos[i]; break; }
+      }
+    }
+    if(!alvo) alvo = adquiridos[adquiridos.length - 1];
+    alvo.usados += custo;
+    alvo.itens.push(r);
+    mapa[r.id] = alvo;
+  });
+  return { direito:direito, estado:estado, mapa:mapa };
+}
+
+/* Período aquisitivo que deve receber uma nova solicitação iniciando em `ini` */
+function periodoAlvo(func, reqs, ini){
+  var a = alocar(func, reqs);
+  var adquiridos = a.estado.filter(function(s){ return s.p.fim < ini; });
+  if(!adquiridos.length) return { slot:null, direito:a.direito, aloc:a };
+  var slot = null;
+  for(var i = 0; i < adquiridos.length; i++){
+    if(adquiridos[i].usados < a.direito){ slot = adquiridos[i]; break; }
+  }
+  if(!slot) slot = adquiridos[adquiridos.length - 1];
+  return { slot:slot, direito:a.direito, aloc:a };
+}
+
+function sobrepoe(iniA, fimA, iniB, fimB){ return iniA <= fimB && iniB <= fimA; }
+
+/* Validação completa de uma solicitação.
+   Devolve { erros:[], avisos:[], infos:[], retorno, slot, direito, saldoAntes, saldoDepois } */
+function validar(func, pedido, reqsAtivas, todosFunc, todasReqs){
+  var R = { erros:[], avisos:[], infos:[], retorno:null, slot:null, direito:0, saldoAntes:0, saldoDepois:0 };
+  function err(t,l){ R.erros.push({ t:t, l:l||'' }); }
+  function avi(t,l){ R.avisos.push({ t:t, l:l||'' }); }
+  function inf(t,l){ R.infos.push({ t:t, l:l||'' }); }
+
+  var ini = pd(pedido.inicio);
+  var dias = Math.trunc(Number(pedido.dias) || 0);
+  var abono = pedido.abono ? Math.trunc(Number(pedido.abonoDias) || 0) : 0;
+  var h = hoje();
+
+  if(!ini){ err('Escolha o primeiro dia de férias.'); return R; }
+  if(!pd(func.admissao)){ err('A data de admissão de ' + func.nome + ' não está cadastrada. O RH precisa completar o cadastro antes.'); return R; }
+  if(dias < 1){ err('Informe quantos dias de férias você quer tirar.'); return R; }
+  if(dias > 30) err('Um período de férias não pode passar de 30 dias corridos.');
+
+  R.retorno = addDias(ini, dias);
+
+  /* --- período aquisitivo --- */
+  var alvo = periodoAlvo(func, reqsAtivas, ini);
+  R.direito = alvo.direito;
+  if(!alvo.slot){
+    var pr = periodos(func.admissao, ini)[0];
+    err('O período aquisitivo ainda não fechou. ' + func.nome.split(' ')[0] + ' completa 12 meses de casa em ' + fmt(pr.fim) + ' e só pode iniciar as férias a partir de ' + fmt(pr.concIni) + '.', 'CLT, art. 130');
+    return R;
+  }
+  R.slot = alvo.slot;
+  var p = alvo.slot.p;
+
+  if(R.direito === 0){
+    err('Com ' + faixaFaltas(func.faltas) + ' injustificadas no período aquisitivo, não há direito a férias neste período.', 'CLT, art. 130');
+    return R;
+  }
+  if(R.direito < 30){
+    inf('Direito de ' + R.direito + ' dias neste período (' + faixaFaltas(func.faltas) + ' injustificadas).', 'CLT, art. 130');
+  }
+
+  R.saldoAntes = R.direito - alvo.slot.usados;
+  R.saldoDepois = R.saldoAntes - dias - abono;
+
+  if(dias + abono > R.saldoAntes){
+    err('Saldo insuficiente: restam ' + plural(R.saldoAntes,'dia','dias') + ' no período aquisitivo de ' +
+        fmt(p.ini) + ' a ' + fmt(p.fim) + ', e o pedido consome ' + plural(dias + abono,'dia','dias') +
+        (abono ? ' (' + dias + ' de descanso + ' + abono + ' de abono)' : '') + '.');
+  }
+
+  /* --- fracionamento (art. 134 §1º) --- */
+  var noPeriodo = alvo.slot.itens;
+  if(dias < 5 && dias + abono < R.saldoAntes){
+    err('Nenhum período fracionado pode ter menos de 5 dias corridos.', 'CLT, art. 134, §1º');
+  }
+  if(noPeriodo.length >= 3){
+    err('Este período aquisitivo já tem 3 períodos de férias marcados. A CLT permite no máximo três.', 'CLT, art. 134, §1º');
+  }
+  var fracoes = noPeriodo.map(function(r){ return Number(r.dias)||0; }).concat([dias]);
+  var temGrande = fracoes.some(function(d){ return d >= 14; });
+  var totalMarcado = fracoes.reduce(function(a,b){ return a+b; }, 0) + abono +
+                     noPeriodo.reduce(function(a,r){ return a + (Number(r.abonoDias)||0); }, 0);
+  if(fracoes.length > 1 && !temGrande){
+    if(totalMarcado >= R.direito){
+      err('Ao fracionar, um dos períodos precisa ter no mínimo 14 dias corridos — nenhum dos períodos marcados alcança isso.', 'CLT, art. 134, §1º');
+    } else {
+      avi('Ao fracionar, um dos períodos precisa ter no mínimo 14 dias corridos. Ainda dá para acertar isso no próximo pedido.', 'CLT, art. 134, §1º');
+    }
+  }
+  if(fracoes.length > 1){
+    inf('Fracionamento em ' + fracoes.length + ' períodos depende da concordância do funcionário.', 'CLT, art. 134, §1º');
+  }
+
+  /* --- dia de início (art. 134 §3º) --- */
+  var dow = ini.getDay();
+  if(dow === 5 || dow === 6){
+    err('As férias não podem começar em ' + SEMANA[dow] + ': é vedado iniciar nos dois dias que antecedem o repouso semanal.', 'CLT, art. 134, §3º');
+  } else if(dow === 0){
+    avi('O início cai em domingo. Costuma ser mais simples começar na segunda-feira.');
+  }
+  var f1 = feriadoEm(addDias(ini,1)), f2 = feriadoEm(addDias(ini,2)), f0 = feriadoEm(ini);
+  [[f1,1],[f2,2]].forEach(function(par){
+    var f = par[0];
+    if(!f) return;
+    if(f.tipo === 'nacional'){
+      err('As férias não podem começar ' + (par[1] === 1 ? 'na véspera' : 'dois dias antes') + ' de ' + f.nome + ' (' + fmt(addDias(ini,par[1])) + ').', 'CLT, art. 134, §3º');
+    } else {
+      avi(f.nome + ' cai em ' + fmt(addDias(ini,par[1])) + '. É ponto facultativo, não feriado nacional, mas confira a prática da empresa.');
+    }
+  });
+  if(f0) avi('O primeiro dia de férias é ' + f0.nome + '.');
+
+  /* --- antecedência (art. 135) --- */
+  var antec = difDias(h, ini);
+  if(antec < 0){
+    err('A data escolhida já passou.');
+  } else if(antec < 30){
+    avi('Faltam ' + plural(antec,'dia','dias') + ' para o início. O aviso de férias precisa ser entregue com 30 dias de antecedência.', 'CLT, art. 135');
+  }
+
+  /* --- sobreposição com os próprios pedidos --- */
+  var fim = addDias(ini, dias - 1);
+  reqsAtivas.forEach(function(r){
+    if(r.id === pedido.id) return;
+    var ri = pd(r.inicio); if(!ri) return;
+    var rf = addDias(ri, (Number(r.dias)||0) - 1);
+    if(sobrepoe(ini, fim, ri, rf)){
+      err('Você já tem férias marcadas de ' + fmt(ri) + ' a ' + fmt(rf) + ' e os períodos se sobrepõem.');
+    }
+  });
+
+  /* --- abono pecuniário (art. 143) --- */
+  if(abono > 0){
+    var maxAbono = Math.floor(R.direito / 3);
+    if(abono > maxAbono){
+      err('O abono é limitado a um terço do direito — no máximo ' + plural(maxAbono,'dia','dias') + ' neste período.', 'CLT, art. 143');
+    }
+    if(noPeriodo.some(function(r){ return (Number(r.abonoDias)||0) > 0; })){
+      err('Já existe abono pecuniário pedido neste período aquisitivo. Só cabe um por período.', 'CLT, art. 143');
+    }
+    var prazoAbono = addDias(p.fim, -15);
+    if(h > prazoAbono){
+      avi('O prazo para requerer o abono era até ' + fmt(prazoAbono) + ' (15 dias antes do fim do período aquisitivo). Fora do prazo, depende de acordo com a empresa.', 'CLT, art. 143, §1º');
+    }
+    inf('Abono de ' + plural(abono,'dia','dias') + ': o descanso cai para ' + plural(dias,'dia','dias') + ' e os demais são pagos em dinheiro.', 'CLT, art. 143');
+  }
+
+  /* --- período concessivo (art. 137) --- */
+  if(ini > p.concFim){
+    err('O período concessivo venceu em ' + fmt(p.concFim) + '. Férias concedidas depois disso são pagas em dobro — marque uma data anterior ou trate o caso com a contabilidade.', 'CLT, art. 137');
+  } else {
+    var faltamConc = difDias(ini, p.concFim);
+    if(faltamConc <= 60){
+      avi('Este é o limite: o período concessivo vence em ' + fmt(p.concFim) + '. Depois disso as férias saem em dobro.', 'CLT, art. 137');
+    }
+    if(R.saldoDepois > 0 && difDias(h, p.concFim) <= 120){
+      avi('Sobram ' + plural(R.saldoDepois,'dia','dias') + ' neste período aquisitivo e o prazo para gozá-los termina em ' + fmt(p.concFim) + '.', 'CLT, art. 137');
+    }
+  }
+
+  /* --- adiantamento do 13º --- */
+  if(pedido.adiant13){
+    if(h.getMonth() !== 0){
+      avi('O adiantamento da 1ª parcela do 13º junto às férias precisa ser requerido em janeiro do ano correspondente. Fora de janeiro, depende de acordo com a empresa.', 'Lei 4.749/65, art. 2º, §2º');
+    } else {
+      inf('Pedido de adiantamento do 13º registrado dentro do prazo de janeiro.', 'Lei 4.749/65, art. 2º, §2º');
+    }
+  }
+
+  /* --- colegas do mesmo setor --- */
+  if(todosFunc && todasReqs){
+    var mesmoSetor = {};
+    todosFunc.forEach(function(f){ if(f.id !== func.id && (f.setor||'') === (func.setor||'')) mesmoSetor[f.id] = f; });
+    var choques = [];
+    todasReqs.forEach(function(r){
+      if(r.status !== 'aprovada' && r.status !== 'pendente') return;
+      var col = mesmoSetor[r.funcionarioId]; if(!col) return;
+      var ri = pd(r.inicio); if(!ri) return;
+      var rf = addDias(ri, (Number(r.dias)||0) - 1);
+      if(sobrepoe(ini, fim, ri, rf)) choques.push(col.nome.split(' ')[0] + ' (' + fmtCurto(ri) + '–' + fmtCurto(rf) + ')');
+    });
+    if(choques.length){
+      avi('Coincide com férias de ' + choques.join(', ') + ' no mesmo setor. O RH decide se dá para cobrir.');
+    }
+  }
+
+  /* --- informações finais --- */
+  inf('Período: ' + fmt(ini) + ' a ' + fmt(fim) + ' — retorno ao trabalho em ' + fmt(R.retorno) + ' (' + SEMANA[R.retorno.getDay()] + ').');
+  if(R.retorno.getDay() === 0 || R.retorno.getDay() === 6){
+    inf('O retorno cai em ' + SEMANA[R.retorno.getDay()] + '. Na prática a volta é no primeiro dia útil seguinte, mas as férias terminam mesmo em ' + fmt(fim) + '.');
+  }
+  var ferRetorno = feriadoEm(R.retorno);
+  if(ferRetorno) inf('O dia do retorno é ' + ferRetorno.nome + '.');
+  inf('Pagamento das férias até ' + fmt(addDias(ini,-2)) + ', dois dias antes do início.', 'CLT, art. 145');
+  inf('Período aquisitivo: ' + fmt(p.ini) + ' a ' + fmt(p.fim) + ' · concessivo até ' + fmt(p.concFim) + '.');
+
+  return R;
+}
+
+/* =========================================================================
+   3. Utilitários de interface
+   ========================================================================= */
+var $  = function(s,r){ return (r||document).querySelector(s); };
+var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+
+function esc(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function uid(){
+  return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+var toastTimer = null;
+function toast(msg, erro){
+  var raiz = $('#toast-raiz');
+  raiz.innerHTML = '<div class="toast' + (erro ? ' err' : '') + '" role="status">' + esc(msg) + '</div>';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ raiz.innerHTML = ''; }, erro ? 6500 : 3800);
+}
+function primeiroNome(n){ return String(n||'').trim().split(/\s+/)[0] || ''; }
+
+async function sha(txt){
+  try{
+    if(window.crypto && crypto.subtle){
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('quadro-ferias|' + txt));
+      return Array.prototype.map.call(new Uint8Array(buf), function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    }
+  }catch(e){ /* segue para o fallback */ }
+  var h = 5381;
+  for(var i = 0; i < txt.length; i++){ h = ((h << 5) + h + txt.charCodeAt(i)) | 0; }
+  return 'f' + (h >>> 0).toString(16);
+}
+
+/* =========================================================================
+   4. Armazenamento — banco compartilhado quando existir, senão o navegador
+   ========================================================================= */
+var CHAVE = 'quadro-ferias-v1';
+
+var Dados = {
+  modo: 'carregando',      // carregando | compartilhado | local
+  db: null,
+  funcionarios: [],
+  solicitacoes: [],
+  config: { empresa:'', cnpj:'', cidade:'', pinHash:'' },
+  aoMudar: function(){},
+
+  async iniciar(){
+    var db = null;
+    try{
+      if(window.claude && typeof window.claude.use === 'function'){
+        db = await window.claude.use('db');
+      }
+    }catch(e){ db = null; }
+
+    if(db){
+      this.db = db;
+      this.modo = 'compartilhado';
+      this._assinar();
+    } else {
+      this.modo = 'local';
+      this._lerLocal();
+      this.aoMudar();
+    }
+  },
+
+  _assinar(){
+    var self = this;
+    function erroDb(e){
+      var c = e && e.code;
+      if(c === 'revoked') toast('O acesso aos dados compartilhados foi encerrado. Recarregue a página.', true);
+      else if(c === 'resource_exhausted') toast('Muitas operações ao mesmo tempo. Aguarde alguns segundos.', true);
+      else toast('Não foi possível ler os dados agora. Recarregue a página se o problema continuar.', true);
+    }
+    this.db.collection('funcionarios').onSnapshot(function(snap){
+      self.funcionarios = snap.docs.map(function(d){ var o = Object.assign({}, d.data()); o.id = d.id; return o; });
+      self.aoMudar();
+    }, erroDb);
+
+    this.db.collection('solicitacoes').onSnapshot(function(snap){
+      self.solicitacoes = snap.docs.map(function(d){ var o = Object.assign({}, d.data()); o.id = d.id; return o; });
+      self.aoMudar();
+    }, erroDb);
+
+    this.db.doc('config/app').onSnapshot(function(snap){
+      self.config = Object.assign({ empresa:'', cnpj:'', cidade:'', pinHash:'' }, snap.exists ? snap.data() : {});
+      self.aoMudar();
+    }, erroDb);
+  },
+
+  _lerLocal(){
+    try{
+      var cru = localStorage.getItem(CHAVE);
+      if(cru){
+        var o = JSON.parse(cru);
+        this.funcionarios = Array.isArray(o.funcionarios) ? o.funcionarios : [];
+        this.solicitacoes = Array.isArray(o.solicitacoes) ? o.solicitacoes : [];
+        this.config = Object.assign({ empresa:'', cnpj:'', cidade:'', pinHash:'' }, o.config || {});
+      }
+    }catch(e){ /* navegador sem armazenamento: segue em memória */ }
+  },
+
+  _gravarLocal(){
+    try{
+      localStorage.setItem(CHAVE, JSON.stringify({
+        funcionarios: this.funcionarios,
+        solicitacoes: this.solicitacoes,
+        config: this.config
+      }));
+    }catch(e){ /* cota cheia ou armazenamento bloqueado */ }
+  },
+
+  _upsert(lista, obj){
+    var i = lista.findIndex(function(x){ return x.id === obj.id; });
+    if(i >= 0) lista[i] = obj; else lista.push(obj);
+  },
+
+  async salvarFuncionario(f){
+    if(!f.id) f.id = uid();
+    if(this.db){
+      var corpo = Object.assign({}, f); delete corpo.id;
+      await this.db.doc('funcionarios/' + f.id).set(corpo);
+    } else {
+      this._upsert(this.funcionarios, f);
+      this._gravarLocal(); this.aoMudar();
+    }
+    return f;
+  },
+
+  async removerFuncionario(id){
+    if(this.db){
+      await this.db.doc('funcionarios/' + id).delete();
+    } else {
+      this.funcionarios = this.funcionarios.filter(function(f){ return f.id !== id; });
+      this._gravarLocal(); this.aoMudar();
+    }
+  },
+
+  async salvarSolicitacao(s){
+    if(!s.id) s.id = uid();
+    if(this.db){
+      var corpo = Object.assign({}, s); delete corpo.id;
+      await this.db.doc('solicitacoes/' + s.id).set(corpo);
+    } else {
+      this._upsert(this.solicitacoes, s);
+      this._gravarLocal(); this.aoMudar();
+    }
+    return s;
+  },
+
+  async removerSolicitacao(id){
+    if(this.db){
+      await this.db.doc('solicitacoes/' + id).delete();
+    } else {
+      this.solicitacoes = this.solicitacoes.filter(function(s){ return s.id !== id; });
+      this._gravarLocal(); this.aoMudar();
+    }
+  },
+
+  async salvarConfig(c){
+    this.config = Object.assign({}, this.config, c);
+    if(this.db){
+      await this.db.doc('config/app').set(this.config);
+    } else {
+      this._gravarLocal(); this.aoMudar();
+    }
+  }
+};
+
+function erroDeGravacao(e){
+  var c = e && e.code;
+  if(c === 'quota_exceeded') return 'O banco de dados atingiu o limite de registros. Apague solicitações antigas antes de gravar novas.';
+  if(c === 'resource_exhausted') return 'Muitas gravações ao mesmo tempo. Espere alguns segundos e tente de novo.';
+  if(c === 'revoked' || c === 'not_granted') return 'Sem permissão para gravar aqui. Peça o acesso a quem publicou a página.';
+  if(c === 'invalid_argument') return 'Os dados do formulário não foram aceitos pelo banco. Revise os campos e tente de novo.';
+  return 'Não foi possível gravar agora. Tente novamente em instantes.';
+}
+
+/* =========================================================================
+   5. Estado da tela
+   ========================================================================= */
+var S = {
+  aba: 'solicitar',
+  funcId: '',
+  gestaoLiberada: false,
+  ano: hoje().getFullYear(),
+  filtro: { status:'pendente', setor:'todos', q:'' },
+  form: { inicio:'', dias:30, abono:false, abonoDias:10, adiant13:false, obs:'' },
+  modal: null
+};
+
+function ativas(reqs){
+  return reqs.filter(function(r){ return r.status === 'pendente' || r.status === 'aprovada'; });
+}
+function reqsDe(id){
+  return Dados.solicitacoes.filter(function(r){ return r.funcionarioId === id; });
+}
+function funcPorId(id){
+  return Dados.funcionarios.filter(function(f){ return f.id === id; })[0] || null;
+}
+function fimDe(r){ var i = pd(r.inicio); return i ? addDias(i, (Number(r.dias)||0) - 1) : null; }
+function situacao(r){
+  var f = fimDe(r);
+  if(r.status === 'aprovada' && f && f < hoje()) return 'gozada';
+  return r.status;
+}
+var ROTULO = { pendente:'Pendente', aprovada:'Aprovada', recusada:'Recusada', cancelada:'Cancelada', gozada:'Já gozada' };
+function selo(r){
+  var s = situacao(r);
+  return '<span class="selo ' + s + '">' + ROTULO[s] + '</span>';
+}
+
+/* =========================================================================
+   6. Aba Solicitar
+   ========================================================================= */
+function renderSelectFunc(){
+  var sel = $('#sel-func');
+  var ativos = Dados.funcionarios.filter(function(f){ return f.ativo !== false; })
+    .sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+
+  $('#sem-cadastro').hidden = ativos.length > 0 || Dados.modo === 'carregando';
+  sel.disabled = Dados.modo === 'carregando' || !ativos.length;
+
+  var opts = ['<option value="">' + (Dados.modo === 'carregando' ? 'Carregando…' : 'Selecione seu nome') + '</option>'];
+  ativos.forEach(function(f){
+    opts.push('<option value="' + esc(f.id) + '"' + (f.id === S.funcId ? ' selected' : '') + '>' +
+      esc(f.nome) + (f.setor ? ' — ' + esc(f.setor) : '') + '</option>');
+  });
+  sel.innerHTML = opts.join('');
+  if(S.funcId && !funcPorId(S.funcId)){ S.funcId = ''; sel.value = ''; }
+}
+
+function renderFuncInfo(){
+  var alvoEl = $('#func-info');
+  var f = funcPorId(S.funcId);
+  $('#card-pedido').hidden = !f;
+  $('#card-minhas').hidden = !f;
+  if(!f){ alvoEl.innerHTML = ''; return; }
+
+  if(!pd(f.admissao)){
+    alvoEl.innerHTML = '<div class="regras"><div class="regra err"><span class="mk">Erro</span>' +
+      '<span>A data de admissão não está cadastrada. Peça ao RH para completar o cadastro na aba Gestão.</span></div></div>';
+    $('#card-pedido').hidden = true;
+    return;
+  }
+
+  var a = alocar(f, ativas(reqsDe(f.id)));
+  var h = hoje();
+  var slot = a.estado.filter(function(s){ return s.p.fim < h && s.usados < a.direito; })[0]
+          || a.estado.filter(function(s){ return s.p.fim < h; }).pop();
+
+  if(!slot){
+    var p0 = a.estado[0].p;
+    alvoEl.innerHTML = '<div class="regras"><div class="regra inf"><span class="mk">Aviso</span><span>' +
+      'Primeiro período aquisitivo em andamento: de ' + fmt(p0.ini) + ' a ' + fmt(p0.fim) + '. ' +
+      'As férias podem ser marcadas a partir de ' + fmt(p0.concIni) + '.<span class="lei">CLT, art. 130</span></span></div></div>';
+    $('#card-pedido').hidden = true;
+    return;
+  }
+
+  var saldo = a.direito - slot.usados;
+  var restaConc = difDias(h, slot.p.concFim);
+  alvoEl.innerHTML =
+    '<div class="resumo">' +
+      '<div><span class="eyebrow">Saldo de dias</span><strong>' + saldo + '</strong><em>de ' + a.direito + ' do período</em></div>' +
+      '<div><span class="eyebrow">Período aquisitivo</span><strong style="font-size:13px;white-space:nowrap">' + fmt(slot.p.ini) + ' – ' + fmt(slot.p.fim) + '</strong><em>' + (a.direito < 30 ? faixaFaltas(f.faltas) + ' injustificadas' : 'sem desconto por faltas') + '</em></div>' +
+      '<div><span class="eyebrow">Gozar até</span><strong style="font-size:14px">' + fmt(slot.p.concFim) + '</strong><em>' + (restaConc < 0 ? 'prazo vencido — dobra' : restaConc <= 120 ? 'faltam ' + restaConc + ' dias' : 'dentro do prazo') + '</em></div>' +
+      '<div><span class="eyebrow">Admissão</span><strong style="font-size:14px">' + fmt(pd(f.admissao)) + '</strong><em>' + esc(f.cargo || '—') + '</em></div>' +
+    '</div>';
+}
+
+function lerForm(){
+  S.form.inicio    = $('#in-inicio').value;
+  S.form.dias      = $('#in-dias').value;
+  S.form.abono     = $('#in-abono').checked;
+  S.form.abonoDias = $('#in-abono-dias').value;
+  S.form.adiant13  = $('#in-13').checked;
+  S.form.obs       = $('#in-obs').value;
+}
+function escreverForm(){
+  $('#in-inicio').value     = S.form.inicio;
+  $('#in-dias').value       = S.form.dias;
+  $('#in-abono').checked    = S.form.abono;
+  $('#in-abono-dias').value = S.form.abonoDias;
+  $('#in-13').checked       = S.form.adiant13;
+  $('#in-obs').value        = S.form.obs;
+  $('#wrap-abono').hidden   = !S.form.abono;
+}
+
+function renderRegras(){
+  var f = funcPorId(S.funcId);
+  var painel = $('#painel-regras');
+  var btn = $('#btn-enviar');
+  if(!f){ painel.innerHTML = ''; return; }
+
+  var pedido = {
+    id: null,
+    inicio: S.form.inicio,
+    dias: S.form.dias,
+    abono: S.form.abono,
+    abonoDias: S.form.abonoDias,
+    adiant13: S.form.adiant13
+  };
+
+  var ini = pd(S.form.inicio), d = Math.trunc(Number(S.form.dias) || 0);
+  $('#in-retorno').value = (ini && d > 0) ? fmt(addDias(ini, d)) + ' (' + SEMANA[addDias(ini,d).getDay()] + ')' : '—';
+
+  if(!S.form.inicio){
+    painel.innerHTML = '<div class="regras"><div class="regra inf"><span class="mk">Falta</span>' +
+      '<span>Escolha o primeiro dia de férias para conferirmos as regras da CLT.</span></div></div>';
+    btn.disabled = true;
+    return;
+  }
+
+  var R = validar(f, pedido, ativas(reqsDe(f.id)), Dados.funcionarios, Dados.solicitacoes);
+  var linhas = [];
+  R.erros.forEach(function(x){ linhas.push(linhaRegra('err','Impede', x)); });
+  R.avisos.forEach(function(x){ linhas.push(linhaRegra('avi','Atenção', x)); });
+  R.infos.forEach(function(x){ linhas.push(linhaRegra('inf','Nota', x)); });
+
+  painel.innerHTML = '<div class="regras">' + linhas.join('') + '</div>';
+  btn.disabled = R.erros.length > 0 || Dados.modo === 'carregando';
+  btn.textContent = R.erros.length ? 'Corrija os impedimentos' : (R.avisos.length ? 'Enviar mesmo assim' : 'Enviar solicitação');
+}
+function linhaRegra(cls, marca, x){
+  return '<div class="regra ' + cls + '"><span class="mk">' + marca + '</span><span>' + esc(x.t) +
+    (x.l ? '<span class="lei">' + esc(x.l) + '</span>' : '') + '</span></div>';
+}
+
+function renderMinhas(){
+  var alvoEl = $('#minhas-lista');
+  var f = funcPorId(S.funcId);
+  if(!f){ alvoEl.innerHTML = ''; return; }
+  var lista = reqsDe(f.id).filter(function(r){ return !!pd(r.inicio); })
+    .sort(function(a,b){ return String(b.inicio).localeCompare(String(a.inicio)); });
+  if(!lista.length){
+    alvoEl.innerHTML = '<div class="vazio">Nenhuma solicitação enviada ainda.</div>';
+    return;
+  }
+  var linhas = lista.map(function(r){
+    var ini = pd(r.inicio), fim = fimDe(r);
+    var extras = [];
+    if(Number(r.abonoDias)) extras.push('abono de ' + plural(Number(r.abonoDias),'dia','dias'));
+    if(r.adiant13) extras.push('adiantamento do 13º');
+    return '<tr>' +
+      '<td class="n">' + fmt(ini) + '<div class="sub">até ' + fmt(fim) + '</div></td>' +
+      '<td class="n">' + (Number(r.dias)||0) + '<div class="sub">' + (extras.length ? esc(extras.join(' · ')) : 'sem extras') + '</div></td>' +
+      '<td>' + selo(r) + (r.motivo ? '<div class="sub">' + esc(r.motivo) + '</div>' : '') + '</td>' +
+      '<td class="acoes">' +
+        (r.status === 'pendente'
+          ? '<button class="btn btn-sm" type="button" data-cancelar="' + esc(r.id) + '">Cancelar</button>'
+          : '') +
+      '</td></tr>';
+  });
+  alvoEl.innerHTML =
+    '<div class="tbl-wrap" style="border:0;border-radius:0">' +
+    '<table><thead><tr><th>Início</th><th>Dias</th><th>Situação</th><th></th></tr></thead>' +
+    '<tbody>' + linhas.join('') + '</tbody></table></div>';
+}
+
+async function enviarSolicitacao(){
+  var f = funcPorId(S.funcId);
+  if(!f) return;
+  lerForm();
+  var pedido = { id:null, inicio:S.form.inicio, dias:S.form.dias, abono:S.form.abono, abonoDias:S.form.abonoDias, adiant13:S.form.adiant13 };
+  var R = validar(f, pedido, ativas(reqsDe(f.id)), Dados.funcionarios, Dados.solicitacoes);
+  if(R.erros.length){ toast('Ainda há impedimentos no pedido.', true); renderRegras(); return; }
+
+  var reg = {
+    id: uid(),
+    funcionarioId: f.id,
+    nome: f.nome,
+    setor: f.setor || '',
+    inicio: S.form.inicio,
+    dias: Math.trunc(Number(S.form.dias) || 0),
+    abonoDias: S.form.abono ? Math.trunc(Number(S.form.abonoDias) || 0) : 0,
+    adiant13: !!S.form.adiant13,
+    obs: String(S.form.obs || '').slice(0,500),
+    status: 'pendente',
+    criadaEm: new Date().toISOString(),
+    decididaEm: '',
+    motivo: '',
+    periodoAquisitivo: R.slot ? fmt(R.slot.p.ini) + ' a ' + fmt(R.slot.p.fim) : ''
+  };
+
+  var btn = $('#btn-enviar');
+  btn.disabled = true;
+  try{
+    await Dados.salvarSolicitacao(reg);
+    S.form = { inicio:'', dias:30, abono:false, abonoDias:10, adiant13:false, obs:'' };
+    escreverForm();
+    renderTudo();
+    toast('Solicitação enviada. O RH vai avaliar e você acompanha a situação aqui.');
+  }catch(e){
+    toast(erroDeGravacao(e), true);
+    btn.disabled = false;
+  }
+}
+
+/* =========================================================================
+   7. Aba Gestão — resumo, alertas e tabela
+   ========================================================================= */
+function renderTiles(){
+  var h = hoje(), em60 = addDias(h,60);
+  var pend = Dados.solicitacoes.filter(function(r){ return r.status === 'pendente'; });
+  var emCurso = Dados.solicitacoes.filter(function(r){
+    var i = pd(r.inicio);
+    return r.status === 'aprovada' && i && i <= h && fimDe(r) >= h;
+  });
+  var proximas = Dados.solicitacoes.filter(function(r){
+    var i = pd(r.inicio);
+    return r.status === 'aprovada' && i && i > h && i <= em60;
+  });
+  var risco = calcularAlertas().filter(function(a){ return a.nivel === 'grave'; });
+
+  $('#tiles').innerHTML = [
+    tile(pend.length, 'Solicitações pendentes', pend.length ? 'alerta' : ''),
+    tile(emCurso.length, 'De férias hoje', ''),
+    tile(proximas.length, 'Aprovadas nos próximos 60 dias', ''),
+    tile(risco.length, 'Riscos de férias em dobro', risco.length ? 'risco' : '')
+  ].join('');
+}
+function tile(n, rot, cls){
+  return '<div class="tile ' + cls + '"><span class="eyebrow">' + esc(rot) + '</span><strong>' + n + '</strong></div>';
+}
+
+/* Alertas: períodos concessivos vencendo ou vencidos com saldo em aberto */
+function calcularAlertas(){
+  var h = hoje(), out = [];
+  Dados.funcionarios.forEach(function(f){
+    if(f.ativo === false || !pd(f.admissao)) return;
+    var a = alocar(f, ativas(reqsDe(f.id)));
+    if(a.direito === 0) return;
+    a.estado.forEach(function(s){
+      if(s.p.fim >= h) return;                  // aquisitivo ainda aberto
+      var saldo = a.direito - s.usados;
+      if(saldo <= 0) return;
+      var faltam = difDias(h, s.p.concFim);
+      if(faltam < 0){
+        out.push({ nivel:'grave', func:f, texto: plural(saldo,'dia','dias') + ' do período ' + fmt(s.p.ini) + '–' + fmt(s.p.fim) +
+          ' não foram gozados e o prazo venceu em ' + fmt(s.p.concFim) + '. As férias já são devidas em dobro.', lei:'CLT, art. 137' });
+      } else if(faltam <= 150){
+        out.push({ nivel:'media', func:f, texto: plural(saldo,'dia','dias') + ' em aberto do período ' + fmt(s.p.ini) + '–' + fmt(s.p.fim) +
+          ' precisam ser gozados até ' + fmt(s.p.concFim) + ' (faltam ' + plural(faltam,'dia','dias') + ').', lei:'CLT, art. 137' });
+      }
+    });
+  });
+  return out.sort(function(a,b){ return a.nivel === b.nivel ? 0 : (a.nivel === 'grave' ? -1 : 1); });
+}
+
+function renderAlertas(){
+  var todos = calcularAlertas();
+  var lista = todos.slice(0,12);
+  var resto = todos.length - lista.length;
+  $('#card-alertas').hidden = !todos.length;
+  if(!todos.length) return;
+  $('#alertas-lista').innerHTML = (resto > 0
+    ? '<div class="alerta-linha media"><span class="mk">Nota</span><span>Mostrando os 12 casos mais urgentes de ' + todos.length +
+      '. Se a equipe acabou de ser cadastrada, use <b>Lançar férias já gozadas</b> para registrar o histórico e limpar os alertas antigos.</span></div>'
+    : '') + lista.map(function(a){
+    return '<div class="alerta-linha ' + a.nivel + '"><span class="mk">' + (a.nivel === 'grave' ? 'Vencido' : 'Vence') + '</span>' +
+      '<span><b>' + esc(a.func.nome) + '</b>' + (a.func.setor ? ' · ' + esc(a.func.setor) : '') + '<br>' + esc(a.texto) +
+      '<span class="lei" style="font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)"> ' + esc(a.lei) + '</span></span></div>';
+  }).join('');
+}
+
+function renderFiltroSetor(){
+  var setores = {};
+  Dados.funcionarios.forEach(function(f){ if(f.setor) setores[f.setor] = 1; });
+  var nomes = Object.keys(setores).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+  var sel = $('#f-setor');
+  sel.innerHTML = '<option value="todos">Todos</option>' + nomes.map(function(s){
+    return '<option value="' + esc(s) + '"' + (S.filtro.setor === s ? ' selected' : '') + '>' + esc(s) + '</option>';
+  }).join('');
+  if(S.filtro.setor !== 'todos' && nomes.indexOf(S.filtro.setor) < 0) S.filtro.setor = 'todos';
+  sel.value = S.filtro.setor;
+}
+
+function solicitacoesFiltradas(){
+  var q = S.filtro.q.trim().toLowerCase();
+  return Dados.solicitacoes.filter(function(r){
+    if(S.filtro.status !== 'todas'){
+      if(S.filtro.status === 'aprovada'){
+        if(r.status !== 'aprovada') return false;
+      } else if(r.status !== S.filtro.status) return false;
+    }
+    if(S.filtro.setor !== 'todos' && (r.setor || '') !== S.filtro.setor) return false;
+    if(q && String(r.nome || '').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).filter(function(r){ return !!pd(r.inicio); })
+  .sort(function(a,b){
+    if(a.status === 'pendente' && b.status !== 'pendente') return -1;
+    if(b.status === 'pendente' && a.status !== 'pendente') return 1;
+    return String(a.inicio).localeCompare(String(b.inicio));
+  });
+}
+
+function renderTabela(){
+  var lista = solicitacoesFiltradas();
+  if(!lista.length){
+    $('#tabela-wrap').innerHTML = '<div class="vazio">Nenhuma solicitação com esses filtros.</div>';
+    return;
+  }
+  var linhas = lista.map(function(r){
+    var ini = pd(r.inicio), fim = fimDe(r);
+    var extras = [];
+    if(Number(r.abonoDias)) extras.push('abono ' + Number(r.abonoDias) + 'd');
+    if(r.adiant13) extras.push('adiant. 13º');
+    var acoes = [];
+    if(r.status === 'pendente'){
+      acoes.push('<button class="btn btn-sm btn-ok" type="button" data-aprovar="' + esc(r.id) + '">Aprovar</button>');
+      acoes.push('<button class="btn btn-sm btn-no" type="button" data-recusar="' + esc(r.id) + '">Recusar</button>');
+    } else if(r.status === 'aprovada'){
+      acoes.push('<button class="btn btn-sm" type="button" data-aviso="' + esc(r.id) + '">Aviso de férias</button>');
+    }
+    acoes.push('<button class="btn btn-sm btn-ghost" type="button" data-excluir="' + esc(r.id) + '" title="Excluir registro">Excluir</button>');
+    return '<tr>' +
+      '<td><span class="nome">' + esc(r.nome) + '</span><div class="sub">' + esc(r.setor || 'sem setor') + '</div></td>' +
+      '<td class="n">' + fmt(ini) + ' – ' + fmt(fim) + '<div class="sub">retorna ' + fmt(addDias(ini, Number(r.dias)||0)) + '</div></td>' +
+      '<td class="n">' + (Number(r.dias)||0) + '<div class="sub">' + (extras.length ? esc(extras.join(' · ')) : '—') + '</div></td>' +
+      '<td>' + selo(r) +
+        (r.obs ? '<div class="sub">' + esc(r.obs) + '</div>' : '') +
+        (r.motivo ? '<div class="sub"><b>Motivo:</b> ' + esc(r.motivo) + '</div>' : '') + '</td>' +
+      '<td class="n">' + (r.periodoAquisitivo ? esc(r.periodoAquisitivo) : '—') + '</td>' +
+      '<td class="acoes">' + acoes.join('') + '</td>' +
+    '</tr>';
+  });
+  $('#tabela-wrap').innerHTML =
+    '<div class="tbl-wrap" style="border:0;border-radius:0;border-top:1px solid var(--line)">' +
+    '<table><thead><tr><th>Funcionário</th><th>Período</th><th>Dias</th><th>Situação</th><th>Aquisitivo</th><th></th></tr></thead>' +
+    '<tbody>' + linhas.join('') + '</tbody></table></div>';
+}
+
+/* =========================================================================
+   8. Quadro do ano
+   ========================================================================= */
+function renderQuadro(){
+  $('#ano-atual').textContent = S.ano;
+  var ini = new Date(S.ano,0,1), fim = new Date(S.ano,11,31);
+  var total = difDias(ini, fim) + 1;
+  var func = Dados.funcionarios.filter(function(f){ return f.ativo !== false; })
+    .sort(function(a,b){ return (a.setor||'zz').localeCompare(b.setor||'zz','pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'); });
+
+  if(!func.length){
+    $('#quadro').innerHTML = '<div class="vazio">Cadastre a equipe para ver o quadro do ano.</div>';
+    return;
+  }
+
+  var cabec = '<div class="quadro-meses"><div class="eyebrow">' + S.ano + '</div><div class="meses">' +
+    MESES.map(function(m){ return '<span>' + m + '</span>'; }).join('') + '</div></div>';
+
+  var h = hoje();
+  var marcaHoje = (h >= ini && h <= fim)
+    ? '<div class="q-hoje" style="left:' + ((difDias(ini,h) / total) * 100).toFixed(3) + '%"></div>' : '';
+
+  var porSetor = {};
+  Dados.solicitacoes.forEach(function(r){
+    if(r.status !== 'aprovada' && r.status !== 'pendente') return;
+    var ri = pd(r.inicio); if(!ri) return;
+    var dono = funcPorId(r.funcionarioId); if(!dono || dono.ativo === false) return;
+    var chave = dono.setor || '';
+    (porSetor[chave] = porSetor[chave] || []).push({ func:r.funcionarioId, nome:dono.nome, ini:ri, fim:fimDe(r) });
+  });
+
+  var linhas = func.map(function(f){
+    var barras = Dados.solicitacoes.filter(function(r){
+      if(r.funcionarioId !== f.id) return false;
+      if(r.status !== 'aprovada' && r.status !== 'pendente') return false;
+      var ri = pd(r.inicio); if(!ri) return false;
+      return sobrepoe(ri, fimDe(r), ini, fim);
+    }).map(function(r){
+      var ri = pd(r.inicio), rf = fimDe(r);
+      var a = ri < ini ? ini : ri, b = rf > fim ? fim : rf;
+      var esq = (difDias(ini,a) / total) * 100;
+      var larg = ((difDias(a,b) + 1) / total) * 100;
+      var cls = situacao(r) === 'gozada' ? 'gozada' : r.status;
+      var rot = fmtCurto(ri) + '–' + fmtCurto(rf);
+      var colegas = (porSetor[f.setor || ''] || []).filter(function(o){
+        return o.func !== f.id && sobrepoe(ri, rf, o.ini, o.fim);
+      }).map(function(o){ return primeiroNome(o.nome); });
+      var titulo = f.nome + ': ' + fmt(ri) + ' a ' + fmt(rf) + ' · ' + ROTULO[situacao(r)] +
+        (colegas.length ? ' · coincide com ' + colegas.join(', ') : '');
+      return '<div class="q-barra ' + cls + (colegas.length ? ' choque' : '') + '" style="left:' + esq.toFixed(3) + '%;width:' + larg.toFixed(3) + '%" ' +
+        'title="' + esc(titulo) + '">' + (larg > 6 ? esc(rot) : '') + '</div>';
+    }).join('');
+
+    return '<div class="q-linha">' +
+      '<div class="q-nome"><b>' + esc(f.nome) + '</b><span>' + esc(f.setor || 'sem setor') + '</span></div>' +
+      '<div class="q-faixa"><div class="q-grade">' + MESES.map(function(){ return '<i></i>'; }).join('') + '</div>' +
+        barras + marcaHoje + '</div>' +
+    '</div>';
+  });
+
+  $('#quadro').innerHTML = '<div class="quadro">' + cabec + linhas.join('') + '</div>';
+}
+
+/* =========================================================================
+   9. Cadastro da equipe
+   ========================================================================= */
+function renderFuncTabela(){
+  var lista = Dados.funcionarios.slice().sort(function(a,b){
+    return (a.setor||'zz').localeCompare(b.setor||'zz','pt-BR') || a.nome.localeCompare(b.nome,'pt-BR');
+  });
+  if(!lista.length){
+    $('#func-tabela').innerHTML = '<div class="vazio">Nenhum funcionário cadastrado. Comece por “Cadastrar funcionário”.</div>';
+    return;
+  }
+  var h = hoje();
+  var linhas = lista.map(function(f){
+    var saldoTxt = '—', concTxt = '—';
+    if(pd(f.admissao)){
+      var a = alocar(f, ativas(reqsDe(f.id)));
+      var slot = a.estado.filter(function(s){ return s.p.fim < h && s.usados < a.direito; })[0];
+      if(slot){
+        saldoTxt = (a.direito - slot.usados) + ' de ' + a.direito;
+        concTxt = fmt(slot.p.concFim);
+      } else if(a.estado.filter(function(s){ return s.p.fim < h; }).length){
+        saldoTxt = '0 de ' + a.direito;
+        concTxt = 'em dia';
+      } else {
+        saldoTxt = 'aquisitivo em curso';
+        concTxt = fmt(a.estado[0].p.concIni);
+      }
+    }
+    return '<tr>' +
+      '<td><span class="nome">' + esc(f.nome) + '</span><div class="sub">' + esc(f.cargo || '—') + (f.ativo === false ? ' · inativo' : '') + '</div></td>' +
+      '<td>' + esc(f.setor || '—') + '</td>' +
+      '<td class="n">' + fmt(pd(f.admissao)) + '</td>' +
+      '<td class="n">' + (Number(f.faltas) || 0) + '</td>' +
+      '<td class="n">' + esc(saldoTxt) + '<div class="sub">até ' + esc(concTxt) + '</div></td>' +
+      '<td class="acoes">' +
+        '<button class="btn btn-sm" type="button" data-editar-func="' + esc(f.id) + '">Editar</button>' +
+        '<button class="btn btn-sm btn-ghost" type="button" data-remover-func="' + esc(f.id) + '">Remover</button>' +
+      '</td></tr>';
+  });
+  $('#func-tabela').innerHTML =
+    '<div class="tbl-wrap" style="border:0;border-radius:0;border-top:1px solid var(--line)">' +
+    '<table><thead><tr><th>Nome</th><th>Setor</th><th>Admissão</th><th>Faltas inj.</th><th>Saldo</th><th></th></tr></thead>' +
+    '<tbody>' + linhas.join('') + '</tbody></table></div>';
+}
+
+/* =========================================================================
+   10. Janelas (cadastro, recusa, aviso de férias)
+   ========================================================================= */
+function fecharModal(){ S.modal = null; $('#modal-raiz').innerHTML = ''; }
+
+function abrirModal(titulo, corpo, rodape){
+  S.modal = true;
+  $('#modal-raiz').innerHTML =
+    '<div class="modal-fundo" data-fundo="1"><div class="modal" role="dialog" aria-modal="true" aria-label="' + esc(titulo) + '">' +
+      '<div class="modal-hd"><h2>' + esc(titulo) + '</h2>' +
+        '<button class="btn btn-sm btn-ghost" type="button" data-fechar="1" aria-label="Fechar">Fechar</button></div>' +
+      '<div class="modal-bd">' + corpo + '</div>' +
+      '<div class="modal-ft">' + rodape + '</div>' +
+    '</div></div>';
+  var primeiro = $('#modal-raiz input, #modal-raiz textarea, #modal-raiz select');
+  if(primeiro) primeiro.focus();
+}
+
+function modalFuncionario(id){
+  var f = id ? funcPorId(id) : null;
+  var d = f || { nome:'', cargo:'', setor:'', email:'', admissao:'', faltas:0, ativo:true };
+  abrirModal(f ? 'Editar funcionário' : 'Cadastrar funcionário',
+    '<div class="stack">' +
+      '<div class="grid-form">' +
+        campo('mf-nome','Nome completo','text', esc(d.nome), '') +
+        campo('mf-cargo','Cargo','text', esc(d.cargo), '') +
+        campo('mf-setor','Setor','text', esc(d.setor), 'Usado para avisar quando dois colegas do mesmo setor pedem o mesmo período.') +
+        campo('mf-admissao','Data de admissão','date', esc(d.admissao), 'Base de todo o cálculo de período aquisitivo.') +
+        campo('mf-faltas','Faltas injustificadas no período','number', String(Number(d.faltas)||0), 'Reduz os dias de direito conforme o art. 130 da CLT.') +
+        campo('mf-email','E-mail (opcional)','text', esc(d.email), '') +
+      '</div>' +
+      '<label class="check" for="mf-ativo"><input type="checkbox" id="mf-ativo"' + (d.ativo === false ? '' : ' checked') + '>' +
+        '<span><b>Funcionário ativo</b><i>Inativos somem da lista de solicitação e do quadro do ano.</i></span></label>' +
+    '</div>',
+    '<button class="btn" type="button" data-fechar="1">Cancelar</button>' +
+    '<button class="btn btn-primary" type="button" data-salvar-func="' + esc(id || '') + '">Salvar</button>');
+}
+function campo(id, rot, tipo, valor, dica){
+  return '<div class="field"><label for="' + id + '">' + esc(rot) + '</label>' +
+    '<input type="' + tipo + '" id="' + id + '" value="' + valor + '"' + (tipo === 'number' ? ' min="0" step="1"' : '') + '>' +
+    (dica ? '<span class="hint">' + esc(dica) + '</span>' : '') + '</div>';
+}
+
+function modalRetroativo(){
+  var ativos = Dados.funcionarios.filter(function(f){ return f.ativo !== false && pd(f.admissao); })
+    .sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); });
+  if(!ativos.length){ toast('Cadastre a equipe antes de lançar o histórico.', true); return; }
+  abrirModal('Lançar férias já gozadas',
+    '<div class="stack">' +
+      '<p class="small muted">Use isto para registrar férias que aconteceram antes do sistema existir. ' +
+      'O lançamento entra direto como aprovado, consome o saldo do período aquisitivo correspondente e some dos alertas de prazo vencido.</p>' +
+      '<div class="grid-form">' +
+        '<div class="field"><label for="mt-func">Funcionário</label><select id="mt-func">' +
+          ativos.map(function(f){ return '<option value="' + esc(f.id) + '">' + esc(f.nome) + '</option>'; }).join('') +
+        '</select></div>' +
+        campo('mt-inicio','Primeiro dia gozado','date','','') +
+        campo('mt-dias','Dias corridos','number','30','') +
+        campo('mt-abono','Dias vendidos como abono','number','0','Deixe 0 se não houve abono pecuniário.') +
+      '</div>' +
+    '</div>',
+    '<button class="btn" type="button" data-fechar="1">Cancelar</button>' +
+    '<button class="btn btn-primary" type="button" data-salvar-retro="1">Lançar</button>');
+}
+
+function modalRecusa(id){
+  var r = Dados.solicitacoes.filter(function(x){ return x.id === id; })[0];
+  if(!r) return;
+  abrirModal('Recusar solicitação',
+    '<div class="stack">' +
+      '<p class="small muted">' + esc(r.nome) + ' pediu ' + plural(Number(r.dias)||0,'dia','dias') + ' a partir de ' + fmt(pd(r.inicio)) + '.</p>' +
+      '<div class="field"><label for="mr-motivo">Motivo da recusa</label>' +
+      '<textarea id="mr-motivo" maxlength="300" placeholder="Ex.: fechamento fiscal na primeira quinzena; sugerimos início em 03/03."></textarea>' +
+      '<span class="hint">O funcionário vê este texto na tela dele. Sugira uma alternativa quando fizer sentido.</span></div>' +
+    '</div>',
+    '<button class="btn" type="button" data-fechar="1">Voltar</button>' +
+    '<button class="btn btn-no" type="button" data-confirmar-recusa="' + esc(id) + '">Recusar</button>');
+}
+
+function modalAviso(id){
+  var r = Dados.solicitacoes.filter(function(x){ return x.id === id; })[0];
+  if(!r) return;
+  var f = funcPorId(r.funcionarioId) || { nome:r.nome, cargo:'', setor:r.setor, admissao:'' };
+  var c = Dados.config;
+  var ini = pd(r.inicio), fim = fimDe(r);
+  var linhas = [
+    ['Empregador', (c.empresa || '—') + (c.cnpj ? ' · CNPJ ' + c.cnpj : '')],
+    ['Empregado', f.nome + (f.cargo ? ' · ' + f.cargo : '') + (f.setor ? ' · ' + f.setor : '')],
+    ['Admissão', fmt(pd(f.admissao))],
+    ['Período aquisitivo', r.periodoAquisitivo || '—'],
+    ['Período de gozo', fmt(ini) + ' a ' + fmt(fim) + ' (' + plural(Number(r.dias)||0,'dia corrido','dias corridos') + ')'],
+    ['Abono pecuniário', Number(r.abonoDias) ? plural(Number(r.abonoDias),'dia convertido em dinheiro','dias convertidos em dinheiro') + ' (art. 143)' : 'não requerido'],
+    ['Adiantamento do 13º', r.adiant13 ? 'requerido junto às férias' : 'não requerido'],
+    ['Retorno ao trabalho', fmt(addDias(ini, Number(r.dias)||0))],
+    ['Pagamento até', fmt(addDias(ini,-2)) + ' (art. 145)']
+  ];
+  abrirModal('Aviso de férias',
+    '<div class="doc">' +
+      '<h3>Aviso e recibo de férias</h3>' +
+      '<div class="doc-lei">Art. 135 da CLT — comunicação por escrito com 30 dias de antecedência</div>' +
+      '<dl>' + linhas.map(function(l){ return '<dt>' + esc(l[0]) + '</dt><dd>' + esc(l[1]) + '</dd>'; }).join('') + '</dl>' +
+      '<p>Comunicamos que o período de férias acima foi concedido e deverá ser gozado nas datas indicadas. ' +
+      'O pagamento da remuneração das férias, acrescida do terço constitucional, será efetuado até dois dias antes do início do período.</p>' +
+      '<p style="margin-top:14px">' + esc(c.cidade || '____________________') + ', ' + fmt(hoje()) + '.</p>' +
+      '<div class="assin"><div>Empregador</div><div>' + esc(f.nome) + '</div></div>' +
+    '</div>',
+    '<button class="btn" type="button" data-fechar="1">Fechar</button>' +
+    '<button class="btn btn-primary" type="button" data-imprimir="1">Imprimir</button>');
+}
+
+function modalPin(){
+  abrirModal('Trocar o PIN da gestão',
+    '<div class="stack" style="max-width:340px">' +
+      '<div class="field"><label for="mp-atual">PIN atual</label><input type="password" id="mp-atual" inputmode="numeric" autocomplete="off"></div>' +
+      '<div class="field"><label for="mp-novo">Novo PIN</label><input type="password" id="mp-novo" inputmode="numeric" autocomplete="off"></div>' +
+      '<div class="field"><label for="mp-novo2">Repita o novo PIN</label><input type="password" id="mp-novo2" inputmode="numeric" autocomplete="off"></div>' +
+    '</div>',
+    '<button class="btn" type="button" data-fechar="1">Cancelar</button>' +
+    '<button class="btn btn-primary" type="button" data-trocar-pin="1">Trocar</button>');
+}
+
+/* =========================================================================
+   11. Exportação para o departamento pessoal
+   ========================================================================= */
+function csvCampo(v){
+  var s = String(v == null ? '' : v);
+  return /[";\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+async function exportarCsv(){
+  var lista = solicitacoesFiltradas();
+  if(!lista.length){ toast('Não há solicitações nos filtros atuais para exportar.', true); return; }
+  var cab = ['Funcionario','Setor','Inicio','Fim','Dias','Abono (dias)','Adiantamento 13o','Retorno','Pagar ate','Periodo aquisitivo','Situacao','Observacao','Motivo da decisao'];
+  var linhas = lista.map(function(r){
+    var ini = pd(r.inicio);
+    return [
+      r.nome, r.setor || '', fmt(ini), fmt(fimDe(r)), Number(r.dias)||0, Number(r.abonoDias)||0,
+      r.adiant13 ? 'sim' : 'nao', fmt(addDias(ini, Number(r.dias)||0)), fmt(addDias(ini,-2)),
+      r.periodoAquisitivo || '', ROTULO[situacao(r)], r.obs || '', r.motivo || ''
+    ].map(csvCampo).join(';');
+  });
+  var texto = '﻿' + cab.map(csvCampo).join(';') + '\n' + linhas.join('\n');
+  var nome = 'ferias-' + ymd(hoje()) + '.csv';
+
+  var dl = null;
+  try{
+    if(window.claude && typeof window.claude.use === 'function') dl = await window.claude.use('downloads');
+  }catch(e){ dl = null; }
+
+  if(dl){
+    try{
+      await dl.save({ filename:nome, data:texto });
+      toast('Arquivo salvo.');
+    }catch(e){
+      if(e && e.code === 'declined') return;
+      toast('Não foi possível salvar o arquivo agora.', true);
+    }
+    return;
+  }
+  try{
+    var blob = new Blob([texto], { type:'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }catch(e){
+    toast('Este navegador não permitiu baixar o arquivo.', true);
+  }
+}
+
+/* =========================================================================
+   12. Confirmação
+   ========================================================================= */
+var acaoPendente = null;
+function pedirConfirmacao(titulo, texto, rotulo, perigo, fn){
+  acaoPendente = fn;
+  abrirModal(titulo,
+    '<p class="small">' + esc(texto) + '</p>',
+    '<button class="btn" type="button" data-fechar="1">Cancelar</button>' +
+    '<button class="btn ' + (perigo ? 'btn-no' : 'btn-primary') + '" type="button" data-confirmar-acao="1">' + esc(rotulo) + '</button>');
+}
+
+/* =========================================================================
+   13. Desenho geral
+   ========================================================================= */
+function renderModo(){
+  var dot = $('#modo-dot'), txt = $('#modo-txt');
+  dot.className = 'dot' + (Dados.modo === 'compartilhado' ? ' on' : Dados.modo === 'local' ? ' local' : '');
+  if(Dados.modo === 'compartilhado'){
+    txt.textContent = 'Dados compartilhados';
+    $('#modo-dados').title = 'Todo mundo que abre este link vê as mesmas solicitações.';
+  } else if(Dados.modo === 'local'){
+    txt.textContent = 'Somente neste dispositivo';
+    $('#modo-dados').title = 'Sem banco compartilhado: os dados ficam guardados apenas neste navegador.';
+  } else {
+    txt.textContent = 'Carregando…';
+  }
+}
+
+function renderGestaoGate(){
+  var temPin = !!Dados.config.pinHash;
+  $('#gestao-bloqueio').hidden = S.gestaoLiberada;
+  $('#gestao-conteudo').hidden = !S.gestaoLiberada;
+  if(S.gestaoLiberada) return;
+  $('#pin-titulo').textContent = temPin ? 'Área do RH' : 'Defina o PIN da gestão';
+  $('#pin-texto').textContent = temPin
+    ? 'Digite o PIN da gestão para ver e aprovar as solicitações.'
+    : 'Ninguém definiu um PIN ainda. Escolha um agora — ele passa a ser pedido para entrar nesta área.';
+  $('#wrap-pin2').hidden = temPin;
+  $('#btn-pin').textContent = temPin ? 'Entrar' : 'Definir PIN';
+  $('#btn-pin').disabled = Dados.modo === 'carregando';
+}
+
+function renderConfig(){
+  var c = Dados.config;
+  $('#empresa-nome').textContent = c.empresa ? c.empresa : 'Quadro de Férias';
+  [['#cfg-empresa','empresa'],['#cfg-cnpj','cnpj'],['#cfg-cidade','cidade']].forEach(function(par){
+    var el = $(par[0]);
+    if(el && document.activeElement !== el) el.value = c[par[1]] || '';
+  });
+}
+
+function renderTudo(){
+  renderModo();
+  renderConfig();
+  renderSelectFunc();
+  renderFuncInfo();
+  renderRegras();
+  renderMinhas();
+  renderGestaoGate();
+  if(S.gestaoLiberada){
+    renderTiles();
+    renderAlertas();
+    renderFiltroSetor();
+    renderTabela();
+    renderQuadro();
+    renderFuncTabela();
+  }
+}
+
+function trocarAba(nome){
+  S.aba = nome;
+  $$('.tab').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.aba === nome)); });
+  $('#aba-solicitar').hidden = nome !== 'solicitar';
+  $('#aba-gestao').hidden = nome !== 'gestao';
+  if(nome === 'gestao') renderTudo();
+}
+
+/* =========================================================================
+   14. Eventos
+   ========================================================================= */
+$$('.tab').forEach(function(b){
+  b.addEventListener('click', function(){ trocarAba(b.dataset.aba); });
+});
+
+$('#sel-func').addEventListener('change', function(){
+  S.funcId = this.value;
+  S.form = { inicio:'', dias:30, abono:false, abonoDias:10, adiant13:false, obs:'' };
+  escreverForm();
+  renderFuncInfo(); renderRegras(); renderMinhas();
+});
+
+['#in-inicio','#in-dias','#in-abono','#in-abono-dias','#in-13','#in-obs'].forEach(function(sel){
+  var el = $(sel);
+  el.addEventListener('input', function(){
+    lerForm();
+    $('#wrap-abono').hidden = !S.form.abono;
+    renderRegras();
+  });
+  el.addEventListener('change', function(){
+    lerForm();
+    $('#wrap-abono').hidden = !S.form.abono;
+    renderRegras();
+  });
+});
+
+$('#btn-limpar').addEventListener('click', function(){
+  S.form = { inicio:'', dias:30, abono:false, abonoDias:10, adiant13:false, obs:'' };
+  escreverForm(); renderRegras();
+});
+$('#btn-enviar').addEventListener('click', enviarSolicitacao);
+
+$('#f-status').addEventListener('change', function(){ S.filtro.status = this.value; renderTabela(); });
+$('#f-setor').addEventListener('change', function(){ S.filtro.setor = this.value; renderTabela(); });
+$('#f-busca').addEventListener('input', function(){ S.filtro.q = this.value; renderTabela(); });
+$('#btn-csv').addEventListener('click', exportarCsv);
+$('#ano-menos').addEventListener('click', function(){ S.ano--; renderQuadro(); });
+$('#ano-mais').addEventListener('click', function(){ S.ano++; renderQuadro(); });
+$('#btn-novo-func').addEventListener('click', function(){ modalFuncionario(null); });
+$('#btn-retroativo').addEventListener('click', modalRetroativo);
+$('#btn-trocar-pin').addEventListener('click', modalPin);
+
+$('#btn-salvar-cfg').addEventListener('click', async function(){
+  try{
+    await Dados.salvarConfig({
+      empresa: $('#cfg-empresa').value.trim(),
+      cnpj: $('#cfg-cnpj').value.trim(),
+      cidade: $('#cfg-cidade').value.trim()
+    });
+    renderConfig();
+    toast('Dados da empresa salvos.');
+  }catch(e){ toast(erroDeGravacao(e), true); }
+});
+
+$('#btn-pin').addEventListener('click', async function(){
+  var temPin = !!Dados.config.pinHash;
+  var v1 = $('#in-pin').value.trim();
+  if(v1.length < 4){ toast('Use pelo menos 4 caracteres no PIN.', true); return; }
+  if(!temPin){
+    if(v1 !== $('#in-pin2').value.trim()){ toast('Os dois PINs não são iguais.', true); return; }
+    try{
+      await Dados.salvarConfig({ pinHash: await sha(v1) });
+      S.gestaoLiberada = true;
+      $('#in-pin').value = ''; $('#in-pin2').value = '';
+      renderTudo();
+      toast('PIN definido. Guarde-o com o RH.');
+    }catch(e){ toast(erroDeGravacao(e), true); }
+    return;
+  }
+  if(await sha(v1) === Dados.config.pinHash){
+    S.gestaoLiberada = true;
+    $('#in-pin').value = '';
+    renderTudo();
+  } else {
+    toast('PIN incorreto.', true);
+  }
+});
+$('#in-pin').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('#btn-pin').click(); });
+$('#in-pin2').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('#btn-pin').click(); });
+
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && S.modal) fecharModal();
+});
+
+document.addEventListener('click', async function(e){
+  var alvo = e.target.closest ? e.target.closest('[data-fechar],[data-fundo],[data-aprovar],[data-recusar],[data-excluir],[data-aviso],[data-cancelar],[data-editar-func],[data-remover-func],[data-salvar-func],[data-salvar-retro],[data-confirmar-recusa],[data-imprimir],[data-trocar-pin],[data-confirmar-acao]') : null;
+  if(!alvo) return;
+  var d = alvo.dataset;
+
+  if(d.fundo && e.target !== alvo) return;
+  if(d.fechar || d.fundo){ fecharModal(); return; }
+  if(d.imprimir){ window.print(); return; }
+
+  if(d.confirmarAcao){
+    var fn = acaoPendente; acaoPendente = null; fecharModal();
+    if(fn) await fn();
+    return;
+  }
+
+  if(d.aprovar){
+    var r = Dados.solicitacoes.filter(function(x){ return x.id === d.aprovar; })[0];
+    if(!r) return;
+    try{
+      await Dados.salvarSolicitacao(Object.assign({}, r, { status:'aprovada', decididaEm:new Date().toISOString(), motivo:'' }));
+      toast('Férias de ' + primeiroNome(r.nome) + ' aprovadas. O aviso já pode ser impresso.');
+      renderTudo();
+    }catch(err){ toast(erroDeGravacao(err), true); }
+    return;
+  }
+
+  if(d.recusar){ modalRecusa(d.recusar); return; }
+
+  if(d.confirmarRecusa){
+    var rr = Dados.solicitacoes.filter(function(x){ return x.id === d.confirmarRecusa; })[0];
+    if(!rr) return;
+    var motivo = ($('#mr-motivo') ? $('#mr-motivo').value : '').trim();
+    if(!motivo){ toast('Escreva o motivo — o funcionário precisa saber por quê.', true); return; }
+    try{
+      await Dados.salvarSolicitacao(Object.assign({}, rr, { status:'recusada', decididaEm:new Date().toISOString(), motivo:motivo.slice(0,300) }));
+      fecharModal(); renderTudo();
+      toast('Solicitação recusada com o motivo registrado.');
+    }catch(err){ toast(erroDeGravacao(err), true); }
+    return;
+  }
+
+  if(d.aviso){ modalAviso(d.aviso); return; }
+
+  if(d.cancelar){
+    var rc = Dados.solicitacoes.filter(function(x){ return x.id === d.cancelar; })[0];
+    if(!rc) return;
+    pedirConfirmacao('Cancelar solicitação',
+      'Cancelar o pedido de ' + plural(Number(rc.dias)||0,'dia','dias') + ' a partir de ' + fmt(pd(rc.inicio)) + '? Os dias voltam para o seu saldo.',
+      'Cancelar pedido', true, async function(){
+        try{
+          await Dados.salvarSolicitacao(Object.assign({}, rc, { status:'cancelada', decididaEm:new Date().toISOString() }));
+          renderTudo(); toast('Pedido cancelado.');
+        }catch(err){ toast(erroDeGravacao(err), true); }
+      });
+    return;
+  }
+
+  if(d.excluir){
+    var rx = Dados.solicitacoes.filter(function(x){ return x.id === d.excluir; })[0];
+    if(!rx) return;
+    pedirConfirmacao('Excluir registro',
+      'Apagar de vez a solicitação de ' + rx.nome + ' (' + fmt(pd(rx.inicio)) + ')? Não dá para desfazer. Para manter o histórico, prefira recusar.',
+      'Excluir', true, async function(){
+        try{ await Dados.removerSolicitacao(rx.id); renderTudo(); toast('Registro excluído.'); }
+        catch(err){ toast(erroDeGravacao(err), true); }
+      });
+    return;
+  }
+
+  if(d.editarFunc){ modalFuncionario(d.editarFunc); return; }
+
+  if(d.removerFunc){
+    var fr = funcPorId(d.removerFunc);
+    if(!fr) return;
+    pedirConfirmacao('Remover funcionário',
+      'Remover ' + fr.nome + ' do cadastro? As solicitações já enviadas continuam na lista. Para tirar da lista sem apagar, desmarque “funcionário ativo”.',
+      'Remover', true, async function(){
+        try{ await Dados.removerFuncionario(fr.id); renderTudo(); toast('Funcionário removido.'); }
+        catch(err){ toast(erroDeGravacao(err), true); }
+      });
+    return;
+  }
+
+  if(d.salvarFunc !== undefined){
+    var nome = $('#mf-nome').value.trim();
+    var admissao = $('#mf-admissao').value;
+    if(!nome){ toast('O nome é obrigatório.', true); return; }
+    if(!pd(admissao)){ toast('Informe a data de admissão — todo o cálculo depende dela.', true); return; }
+    if(pd(admissao) > hoje()){ toast('A data de admissão não pode estar no futuro.', true); return; }
+    var atual = d.salvarFunc ? funcPorId(d.salvarFunc) : null;
+    var reg = Object.assign({}, atual || {}, {
+      id: d.salvarFunc || uid(),
+      nome: nome.slice(0,120),
+      cargo: $('#mf-cargo').value.trim().slice(0,80),
+      setor: $('#mf-setor').value.trim().slice(0,80),
+      email: $('#mf-email').value.trim().slice(0,120),
+      admissao: admissao,
+      faltas: Math.max(0, Math.trunc(Number($('#mf-faltas').value) || 0)),
+      ativo: $('#mf-ativo').checked
+    });
+    try{
+      await Dados.salvarFuncionario(reg);
+      fecharModal(); renderTudo();
+      toast(atual ? 'Cadastro atualizado.' : nome.split(' ')[0] + ' cadastrado.');
+    }catch(err){ toast(erroDeGravacao(err), true); }
+    return;
+  }
+
+  if(d.salvarRetro){
+    var fRetro = funcPorId($('#mt-func').value);
+    var iniRetro = pd($('#mt-inicio').value);
+    var diasRetro = Math.trunc(Number($('#mt-dias').value) || 0);
+    var abonoRetro = Math.max(0, Math.trunc(Number($('#mt-abono').value) || 0));
+    if(!fRetro){ toast('Escolha o funcionário.', true); return; }
+    if(!iniRetro){ toast('Informe o primeiro dia gozado.', true); return; }
+    if(diasRetro < 1 || diasRetro > 30){ toast('Os dias gozados precisam ficar entre 1 e 30.', true); return; }
+    if(iniRetro < pd(fRetro.admissao)){ toast('A data é anterior à admissão de ' + primeiroNome(fRetro.nome) + '.', true); return; }
+    var alocRetro = periodoAlvo(fRetro, ativas(reqsDe(fRetro.id)), iniRetro);
+    try{
+      await Dados.salvarSolicitacao({
+        id: uid(),
+        funcionarioId: fRetro.id,
+        nome: fRetro.nome,
+        setor: fRetro.setor || '',
+        inicio: ymd(iniRetro),
+        dias: diasRetro,
+        abonoDias: abonoRetro,
+        adiant13: false,
+        obs: 'Lançamento retroativo pelo RH.',
+        status: 'aprovada',
+        criadaEm: new Date().toISOString(),
+        decididaEm: new Date().toISOString(),
+        motivo: '',
+        periodoAquisitivo: alocRetro.slot ? fmt(alocRetro.slot.p.ini) + ' a ' + fmt(alocRetro.slot.p.fim) : ''
+      });
+      fecharModal(); renderTudo();
+      toast('Férias de ' + primeiroNome(fRetro.nome) + ' lançadas no histórico.');
+    }catch(err){ toast(erroDeGravacao(err), true); }
+    return;
+  }
+
+  if(d.trocarPin){
+    var at = $('#mp-atual').value.trim(), nv = $('#mp-novo').value.trim(), nv2 = $('#mp-novo2').value.trim();
+    if(await sha(at) !== Dados.config.pinHash){ toast('O PIN atual não confere.', true); return; }
+    if(nv.length < 4){ toast('O novo PIN precisa de pelo menos 4 caracteres.', true); return; }
+    if(nv !== nv2){ toast('Os dois campos do novo PIN não são iguais.', true); return; }
+    try{
+      await Dados.salvarConfig({ pinHash: await sha(nv) });
+      fecharModal(); toast('PIN trocado.');
+    }catch(err){ toast(erroDeGravacao(err), true); }
+    return;
+  }
+});
+
+/* =========================================================================
+   15. Início
+   ========================================================================= */
+Dados.aoMudar = renderTudo;
+escreverForm();
+renderTudo();
+Dados.iniciar().then(renderTudo);
+
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>

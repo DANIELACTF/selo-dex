@@ -63,3 +63,9 @@ fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
+
+# Gerado por app-ferias/gerar-artifact.py
+app-ferias/artifact.html
+
+# Node
+node_modules/
