@@ -153,6 +153,16 @@ class Escrituracao(object):
         return self._itens_cache
 
     @property
+    def estabelecimentos(self):
+        """{CNPJ: COD_EST} a partir do registro 0140."""
+        if not hasattr(self, "_est_cache"):
+            self._est_cache = {}
+            for r in self.get("0140"):
+                if r.txt("CNPJ"):
+                    self._est_cache[r.txt("CNPJ")] = r.txt("COD_EST")
+        return self._est_cache
+
+    @property
     def participantes(self):
         if not hasattr(self, "_part_cache"):
             self._part_cache = {r.txt("COD_PART"): r for r in self.get("0150")}
@@ -239,6 +249,9 @@ def parse(caminho, tipo=None):
     pai_a100 = None
     pai_m100 = None
     pai_m500 = None
+    pai_c500 = None
+    est_atual = ""
+    pai_d500 = None
     sem_layout = set()
 
     for num, linha in enumerate(linhas, start=1):
@@ -260,6 +273,12 @@ def parse(caminho, tipo=None):
             reg = _montar_registro(cod, valores[1:], nomes)
         reg["_linha"] = num
 
+        # os registros de abertura por estabelecimento definem a quem pertencem os
+        # documentos seguintes - sem isso, arquivos de varias filiais viram um bolo so
+        if cod in ("C010", "A010", "D010", "F010", "I010", "0140"):
+            est_atual = reg.txt("CNPJ") or (reg.get("_valores", [""]) or [""])[0]
+        reg["_cnpj_est"] = est_atual
+
         # hierarquia util para rastrear a nota de origem dos itens
         if cod == "C100":
             pai_c100 = reg
@@ -273,6 +292,21 @@ def parse(caminho, tipo=None):
             reg["_ind_oper"] = pai_c100.txt("IND_OPER")
             reg["_ind_emit"] = pai_c100.txt("IND_EMIT")
             reg["_cod_part"] = pai_c100.txt("COD_PART")
+            reg["_cnpj_est"] = pai_c100.get("_cnpj_est", "")
+        elif cod == "C500":
+            pai_c500 = reg
+        elif cod in ("C501", "C505") and pai_c500 is not None:
+            reg["_num_doc"] = pai_c500.txt("NUM_DOC")
+            reg["_cod_part"] = pai_c500.txt("COD_PART")
+            reg["_dt_doc"] = pai_c500.txt("DT_DOC")
+            reg["_cod_mod"] = pai_c500.txt("COD_MOD")
+        elif cod == "D500":
+            pai_d500 = reg
+        elif cod in ("D501", "D505") and pai_d500 is not None:
+            reg["_num_doc"] = pai_d500.txt("NUM_DOC")
+            reg["_cod_part"] = pai_d500.txt("COD_PART")
+            reg["_dt_doc"] = pai_d500.txt("DT_DOC")
+            reg["_cod_mod"] = pai_d500.txt("COD_MOD")
         elif cod == "D100":
             pai_d100 = reg
         elif cod in ("D101", "D105") and pai_d100 is not None:
@@ -285,6 +319,8 @@ def parse(caminho, tipo=None):
             reg["_num_doc"] = pai_a100.txt("NUM_DOC")
             reg["_cod_part"] = pai_a100.txt("COD_PART")
             reg["_dt_doc"] = pai_a100.txt("DT_DOC")
+            reg["_ind_oper"] = pai_a100.txt("IND_OPER")
+            reg["_cod_sit"] = pai_a100.txt("COD_SIT")
         elif cod == "M100":
             pai_m100 = reg
         elif cod == "M105" and pai_m100 is not None:

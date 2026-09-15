@@ -13,7 +13,7 @@ Recebe três insumos e devolve apuração + achados + considerações tributári
 |---|---|---|
 | EFD-Contribuições (PIS/COFINS) | `.txt` do SPED | para a análise de PIS/COFINS |
 | EFD ICMS/IPI (SPED Fiscal) | `.txt` do SPED | para a análise de ICMS e para o cruzamento físico |
-| Movimentação de produtos | `.xlsx` ou `.csv` | para detectar omissão de receita |
+| Movimentação de produtos | `.xlsx`, `.xls` (binário antigo) ou `.csv` | para detectar omissão de receita e conferir a escrituração |
 
 Cada insumo é opcional isoladamente: o agente roda com o que receber e declara
 explicitamente o que **não** pôde ser testado.
@@ -48,6 +48,20 @@ Sem dependências externas — Python 3.8+ puro. Opções úteis:
 - `--tabela-ncm-extra meu.csv` para complementar a tabela de NCM com os produtos do cliente;
 - `--prefixo <nome>` para nomear os entregáveis.
 
+### 2b. Saber qual dos dois formatos de planilha chegou
+
+O script reconhece dois formatos e escolhe sozinho:
+
+- **Saldo de estoque** (estoque inicial, entradas, saídas, estoque final) → testes CR-*,
+  que procuram omissão de receita por diferença física.
+- **Analítico por documento** (uma linha por item de nota, com seções de Entradas,
+  Saídas e Serviços) → testes MA-*, que conferem a escrituração item a item contra
+  o sistema do cliente. É o cruzamento mais forte: pega divergência de CST, de valor
+  e documento não escriturado.
+
+O relatório diz qual formato foi usado. Se o cliente mandar o analítico, **não peça
+o de saldo** — o analítico responde mais.
+
 ### 3. Conferir o mapeamento da planilha antes de acreditar no cruzamento
 
 O relatório mostra quais colunas foram reconhecidas (`Codigo -> codigo`,
@@ -64,6 +78,11 @@ mede**. Antes de apresentar:
 - **Confirme o NCM** de todo achado PC-01/PC-02 na legislação vigente na competência.
   A tabela `assets/ncm_regimes.csv` é apoio curado, não fonte oficial, e traz uma
   coluna `confianca` — o que estiver como `media` exige conferência item a item.
+- **Antes de apontar documento faltando (MA-01/MA-02/MA-05), separe o bloco.** A planilha
+  do cliente costuma jogar aquisição de serviço (CFOP 1933/2933) e energia (CFOP 1253/2253)
+  na seção de Entradas, enquanto o SPED as escritura nos blocos A e C500. Comparar só o
+  C170 produz uma montanha de falso positivo. E CFOP de comodato (1908/2908) ou uso e
+  consumo em regra não gera crédito — a ausência é esperada.
 - **Descarte explicações inocentes antes de apontar omissão de receita.** CR-03
   (saída física maior que a escriturada) pode ser quebra, perda, consumo interno,
   brinde, amostra, remessa não considerada ou erro de unidade de medida. Pergunte
@@ -107,10 +126,15 @@ importado · IC-05 saída com ST e débito próprio · IC-06 entrada tributada s
 crédito · IC-07 alíquota interestadual fora do padrão · IC-08 saída desonerada sem
 estorno proporcional · IC-09 E116 ≠ E110.
 
-**Cruzamento físico × fiscal** — CR-01 planilha não fecha · CR-02 entrada sem nota ·
-CR-03 **saída sem nota (omissão de receita)** · CR-04 nota sem baixa de estoque ·
-CR-05 produto do SPED ausente na planilha · CR-06 estoque final ≠ inventário H010 ·
-CR-07 produto sem NCM.
+**Cruzamento físico × fiscal (planilha de saldo)** — CR-01 planilha não fecha ·
+CR-02 entrada sem nota · CR-03 **saída sem nota (omissão de receita)** · CR-04 nota sem
+baixa de estoque · CR-05 produto do SPED ausente na planilha · CR-06 estoque final ≠
+inventário H010 · CR-07 produto sem NCM.
+
+**Cruzamento planilha analítica × SPED** — MA-01 documento do cliente com crédito e fora
+da escrituração · MA-02 documento do cliente fora da escrituração sem crédito
+(informativo) · MA-03 divergência de valor ou tributo · MA-04 divergência de CST ·
+MA-05 documento escriturado sem lastro no sistema do cliente.
 
 ## Referências
 

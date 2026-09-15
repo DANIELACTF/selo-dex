@@ -179,6 +179,29 @@ EFD_CONTRIBUICOES = {
         "IND_NAT_FRT", "VL_ITEM", "CST_COFINS", "NAT_BC_CRED", "VL_BC_COFINS",
         "ALIQ_COFINS", "VL_COFINS", "COD_CTA",
     ],
+    "C500": [
+        "COD_PART", "COD_MOD", "COD_SIT", "SER", "SUB", "NUM_DOC", "DT_DOC",
+        "DT_ENT", "VL_DOC", "VL_ICMS", "COD_INF", "VL_PIS", "VL_COFINS", "CHV_DOCe",
+    ],
+    "C501": [
+        "CST_PIS", "VL_ITEM", "NAT_BC_CRED", "VL_BC_PIS", "ALIQ_PIS", "VL_PIS", "COD_CTA",
+    ],
+    "C505": [
+        "CST_COFINS", "VL_ITEM", "NAT_BC_CRED", "VL_BC_COFINS", "ALIQ_COFINS",
+        "VL_COFINS", "COD_CTA",
+    ],
+    "D500": [
+        "IND_OPER", "COD_PART", "COD_MOD", "COD_SIT", "SER", "SUB", "NUM_DOC",
+        "DT_DOC", "DT_A_P", "VL_DOC", "VL_DESC", "VL_SERV", "VL_SERV_NT", "VL_TERC",
+        "VL_DA", "VL_BC_ICMS", "VL_ICMS", "COD_INF", "VL_PIS", "VL_COFINS",
+    ],
+    "D501": [
+        "CST_PIS", "VL_ITEM", "NAT_BC_CRED", "VL_BC_PIS", "ALIQ_PIS", "VL_PIS", "COD_CTA",
+    ],
+    "D505": [
+        "CST_COFINS", "VL_ITEM", "NAT_BC_CRED", "VL_BC_COFINS", "ALIQ_COFINS",
+        "VL_COFINS", "COD_CTA",
+    ],
     "F100": [
         "IND_OPER", "COD_PART", "COD_ITEM", "DT_OPER", "VL_OPER", "CST_PIS",
         "VL_BC_PIS", "ALIQ_PIS", "VL_PIS", "CST_COFINS", "VL_BC_COFINS",

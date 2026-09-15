@@ -51,6 +51,7 @@ def extrair_linhas(esc, incluir_icms=True):
         cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
         linhas.append(LinhaFiscal(
             origem="C170", arquivo=esc.arquivo, linha=r.get("_linha"),
+            estabelecimento=esc.estabelecimentos.get(r.get("_cnpj_est", ""), r.get("_cnpj_est", "")),
             tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
             doc=r.get("_num_doc", ""), serie=r.get("_ser", ""),
             chave=r.get("_chv_nfe", ""), data=r.get("_dt_doc", ""),
@@ -91,10 +92,16 @@ def extrair_linhas(esc, incluir_icms=True):
     _pareia_consolidados(esc, linhas, "C191", "C195")
 
     # --- A170: itens de NFS-e (servicos) ---
+    # No registro A100, IND_OPER 0 = aquisicao de servico (entrada, gera credito) e
+    # 1 = prestacao de servico (saida, gera debito). Tratar todo A170 como saida
+    # joga credito de servico contratado dentro do debito e quebra a apuracao.
     for r in esc.get("A170"):
+        if _doc_cancelado(r):
+            continue
         linhas.append(LinhaFiscal(
             origem="A170", arquivo=esc.arquivo, linha=r.get("_linha"),
-            tipo="SAIDA", doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
+            tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), ""),
+            doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
             cod_part=r.get("_cod_part", ""), cod_item=r.txt("COD_ITEM"),
             descricao=r.txt("DESCR_COMPL"),
             vl_item=r.dec("VL_ITEM"), vl_desc=r.dec("VL_DESC"),
@@ -122,6 +129,33 @@ def extrair_linhas(esc, incluir_icms=True):
 
     # --- D101/D105: fretes (creditos sobre transporte) ---
     _pareia_fretes(esc, linhas)
+
+    # --- C501/C505 (energia eletrica) e D501/D505 (comunicacao/transporte) ---
+    # Sao creditos comuns e faceis de perder de vista: entram na apuracao pelo
+    # bloco M sem aparecer em nenhum C170.
+    _pareia_creditos(esc, linhas, "C501", "C505", "Energia eletrica")
+    _pareia_creditos(esc, linhas, "D501", "D505", "Comunicacao/transporte")
+    return linhas
+
+
+def _pareia_creditos(esc, linhas, reg_pis, reg_cofins, rotulo):
+    """Pareia registros de credito em que PIS e COFINS vem separados."""
+    cofins = list(esc.get(reg_cofins))
+    for i, r in enumerate(esc.get(reg_pis)):
+        c = cofins[i] if i < len(cofins) else None
+        linhas.append(LinhaFiscal(
+            origem="%s/%s" % (reg_pis, reg_cofins), arquivo=esc.arquivo,
+            linha=r.get("_linha"), tipo="ENTRADA", doc=r.get("_num_doc", ""),
+            data=r.get("_dt_doc", ""), cod_part=r.get("_cod_part", ""),
+            descricao=rotulo, vl_item=r.dec("VL_ITEM"),
+            nat_bc_cred=r.txt("NAT_BC_CRED"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=c.txt("CST_COFINS") if c else "",
+            bc_cofins=c.dec("VL_BC_COFINS") if c else ZERO,
+            aliq_cofins=c.dec("ALIQ_COFINS") if c else ZERO,
+            vl_cofins=c.dec("VL_COFINS") if c else ZERO,
+        ))
     return linhas
 
 

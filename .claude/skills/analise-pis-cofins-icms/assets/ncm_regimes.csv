@@ -52,3 +52,31 @@ ncm_prefixo;regime;grupo;descricao;base_legal;aliq_pis_ind;aliq_cofins_ind;cst_s
 4902;ALIQUOTA_ZERO;LIVROS;Jornais e publicacoes periodicas;Lei 10.865/2004 art. 28;;;06;media;Confirmar enquadramento.
 3003.90.56;TRIBUTADO;FARMACEUTICO;EXCECAO - fora do monofasico farmaceutico;Lei 10.147/2000 art. 1 I a (ressalva expressa);;;01;alta;Tributacao normal pelo regime da empresa. Linha existe para vencer o prefixo 3003 na busca.
 3004.90.46;TRIBUTADO;FARMACEUTICO;EXCECAO - fora do monofasico farmaceutico;Lei 10.147/2000 art. 1 I a (ressalva expressa);;;01;alta;Tributacao normal pelo regime da empresa. Linha existe para vencer o prefixo 3004 na busca.
+0201;ALIQUOTA_ZERO;CARNES;Carnes de bovino frescas ou refrigeradas;Lei 10.925/2004 art. 1 XIX a (Lei 12.839/2013);;;06;alta;Desoneracao da cesta basica. Nao gera credito na aquisicao nem debito na venda.
+0202;ALIQUOTA_ZERO;CARNES;Carnes de bovino congeladas;Lei 10.925/2004 art. 1 XIX a (Lei 12.839/2013);;;06;alta;
+0203;ALIQUOTA_ZERO;CARNES;Carnes de suino;Lei 10.925/2004 art. 1 XIX a (Lei 12.839/2013);;;06;alta;
+0204;ALIQUOTA_ZERO;CARNES;Carnes de ovino e caprino;Lei 10.925/2004 art. 1 XIX a (Lei 12.839/2013);;;06;alta;
+0206.2;ALIQUOTA_ZERO;CARNES;Miudezas comestiveis de bovino congeladas;Lei 10.925/2004 art. 1 XIX a (Lei 12.839/2013);;;06;alta;
+0207;ALIQUOTA_ZERO;CARNES;Carnes e miudezas de aves;Lei 10.925/2004 art. 1 XIX b (Lei 12.839/2013);;;06;alta;
+0210.1;ALIQUOTA_ZERO;CARNES;Carnes de suino salgadas secas ou defumadas;Lei 10.925/2004 art. 1 XIX (Lei 12.839/2013);;;06;media;Conferir o subitem exato na TIPI vigente.
+0210.20;ALIQUOTA_ZERO;CARNES;Carnes de bovino salgadas secas ou defumadas (charque);Lei 10.925/2004 art. 1 XIX (Lei 12.839/2013);;;06;media;Conferir o subitem exato na TIPI vigente.
+0302;ALIQUOTA_ZERO;PESCADO;Peixes frescos ou refrigerados;Lei 10.925/2004 art. 1 XX a (Lei 12.839/2013);;;06;media;A lei ressalva subitens (p. ex. 0302.90.00) e exclui peixes ornamentais. Conferir item a item.
+0303;ALIQUOTA_ZERO;PESCADO;Peixes congelados;Lei 10.925/2004 art. 1 XX b (Lei 12.839/2013);;;06;media;Conferir ressalvas da TIPI.
+0304;ALIQUOTA_ZERO;PESCADO;Files de peixe e outras carnes de peixe;Lei 10.925/2004 art. 1 XX b (Lei 12.839/2013);;;06;media;Conferir ressalvas da TIPI.
+0405.10.00;ALIQUOTA_ZERO;LATICINIOS;Manteiga;Lei 10.925/2004 art. 1 XXIV (Lei 12.839/2013);;;06;alta;
+0406;ALIQUOTA_ZERO;LATICINIOS;Queijos;Lei 10.925/2004 art. 1 XII;;;06;media;A lei alcanca apenas tipos determinados (mussarela minas prato coalho ricota requeijao provolone parmesao fresco nao maturado e do reino). Conferir o produto e nao so o NCM.
+0403;ALIQUOTA_ZERO;LATICINIOS;Leite fermentado e bebidas lacteas;Lei 10.925/2004 art. 1 XI;;;06;media;Conferir se o produto esta entre os listados no inciso.
+0901;ALIQUOTA_ZERO;CAFE;Cafe em grao torrado ou moido;Lei 10.925/2004 art. 1 XXI (Lei 12.839/2013);;;06;alta;
+2101.1;ALIQUOTA_ZERO;CAFE;Extratos e essencias de cafe (cafe soluvel);Lei 10.925/2004 art. 1 XXI (Lei 12.839/2013);;;06;media;
+1701.14.00;ALIQUOTA_ZERO;ACUCAR;Demais acucares de cana;Lei 10.925/2004 art. 1 XXII (Lei 12.839/2013);;;06;alta;Somente 1701.14.00 e 1701.99.00. Acucar de beterraba (1701.12) nao esta no inciso.
+1701.99.00;ALIQUOTA_ZERO;ACUCAR;Outros acucares;Lei 10.925/2004 art. 1 XXII (Lei 12.839/2013);;;06;alta;
+1507;ALIQUOTA_ZERO;OLEOS;Oleo de soja e suas fracoes;Lei 10.925/2004 art. 1 XXIII (Lei 12.839/2013);;;06;alta;
+1508;ALIQUOTA_ZERO;OLEOS;Oleo de amendoim;Lei 10.925/2004 art. 1 XXIII (Lei 12.839/2013);;;06;media;Confirmar o alcance da faixa 15.08 a 15.14 na redacao vigente.
+1509;ALIQUOTA_ZERO;OLEOS;Azeite de oliva;Lei 10.925/2004 art. 1 XXIII (Lei 12.839/2013);;;06;media;Confirmar o alcance da faixa 15.08 a 15.14 na redacao vigente.
+1512;ALIQUOTA_ZERO;OLEOS;Oleo de girassol cartamo ou algodao;Lei 10.925/2004 art. 1 XXIII (Lei 12.839/2013);;;06;media;Confirmar o alcance da faixa 15.08 a 15.14 na redacao vigente.
+1517.10.00;ALIQUOTA_ZERO;OLEOS;Margarina;Lei 10.925/2004 art. 1 XXV (Lei 12.839/2013);;;06;alta;Somente margarina (1517.10.00). Demais misturas da posicao 1517 nao estao no inciso.
+1102.20;ALIQUOTA_ZERO;CEREAIS;Farinha de milho (fuba);Lei 10.925/2004 art. 1 IX;;;06;alta;
+1106.20;ALIQUOTA_ZERO;CEREAIS;Farinha de mandioca;Lei 10.925/2004 art. 1 V;;;06;alta;
+1001;ALIQUOTA_ZERO;CEREAIS;Trigo em graos;Lei 10.925/2004 art. 1 XV;;;06;media;
+1902;ALIQUOTA_ZERO;MASSAS;Massas alimenticias;Lei 10.925/2004 art. 1 (Lei 12.655/2012);;;06;media;Confirmar o inciso e o alcance na redacao vigente antes de quantificar.
+4818.10.00;ALIQUOTA_ZERO;HIGIENE;Papel higienico;Lei 10.925/2004 art. 1 XXVIII (Lei 12.839/2013);;;06;media;Somente 4818.10.00. Papel toalha (4818.20 e 4818.90) nao esta no inciso.

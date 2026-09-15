@@ -232,17 +232,47 @@ def montar_markdown(resultado):
         a("## 4. Cruzamento entre a movimentacao de produtos e o SPED")
         a("")
         cr = resultado["cruzamento"]
-        a("Planilha: %s (aba %s), cabecalho na linha %d, %d itens lidos."
-          % (cr["resumo"]["arquivo"], cr["resumo"]["aba"],
-             cr["resumo"]["linha_do_cabecalho"], cr["resumo"]["qtd_itens"]))
+        res = cr["resumo"]
+        a("Planilha: %s (aba %s), formato **%s**, cabecalho na linha %s."
+          % (res.get("arquivo", "-"), res.get("aba", "-"),
+             res.get("formato", "-"), res.get("linha_do_cabecalho", "-")))
         a("")
+        if res.get("registros_por_secao"):
+            a("Registros lidos por secao: %s."
+              % ", ".join("%s = %d" % (k, v)
+                          for k, v in sorted(res["registros_por_secao"].items())))
+            a("")
+        elif res.get("qtd_itens") is not None:
+            a("Itens lidos: %d." % res["qtd_itens"])
+            a("")
+        if cr.get("totais"):
+            t = cr["totais"]
+            a("**Confronto de totais entre a planilha e o SPED**")
+            a("")
+            linhas_t = []
+            for secao in ("entrada", "saida"):
+                d = t.get(secao)
+                if not d:
+                    continue
+                linhas_t.append([
+                    secao.upper(),
+                    "%d / %d" % (d["docs_planilha"], d["docs_sped"]),
+                    brl(d["planilha_valor"]), brl(d["sped_valor"]),
+                    brl(d["planilha_valor"] - d["sped_valor"]),
+                    brl(d["planilha_tributo"]), brl(d["sped_tributo"]),
+                ])
+            a(_tabela_md(["Secao", "Docs planilha / SPED", "Valor planilha",
+                          "Valor SPED", "Diferenca", "PIS+COFINS planilha",
+                          "PIS+COFINS SPED"], linhas_t))
+            a("Itens comparados par a par: %d." % t.get("itens_comparados", 0))
+            a("")
         a("Colunas reconhecidas: %s"
           % ("; ".join("%s -> %s" % (k, v)
-                       for k, v in cr["resumo"]["colunas_reconhecidas"].items()) or "-"))
+                       for k, v in res.get("colunas_reconhecidas", {}).items()) or "-"))
         a("")
-        for aviso in cr["resumo"].get("avisos", []):
+        for aviso in res.get("avisos", []):
             a("- ATENCAO: %s" % aviso)
-        if cr["resumo"].get("avisos"):
+        if res.get("avisos"):
             a("")
         destaques = [l for l in cr["comparativo"]
                      if abs(l["diferenca_saidas"]) > 0 or abs(l["diferenca_entradas"]) > 0]

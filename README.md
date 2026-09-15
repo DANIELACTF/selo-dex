@@ -44,8 +44,14 @@ declara no relatório o que não pôde ser testado.
 ### Requisitos
 
 Python 3.8+ e mais nada. Sem `pandas`, sem `openpyxl`: a leitura e a escrita de
-`.xlsx` são feitas com `zipfile` e `xml.etree` da biblioteca padrão, e todo valor
-monetário trafega em `Decimal`.
+`.xlsx` são feitas com `zipfile` e `xml.etree` da biblioteca padrão, o `.xls`
+binário antigo (OLE2/BIFF) tem leitor próprio em `fiscal/xls_legacy.py`, e todo
+valor monetário trafega em `Decimal`.
+
+A planilha de movimentação é aceita em dois formatos, detectados automaticamente:
+**saldo de estoque** (estoque inicial, entradas, saídas, estoque final) e
+**analítico por documento** (uma linha por item de nota fiscal, com seções de
+Entradas, Saídas e Serviços).
 
 ### Testes
 
@@ -65,7 +71,8 @@ disparam onde a escrituração está correta.
 |---|---|
 | PIS/COFINS | monofásico tributado indevidamente, crédito indevido em monofásico, saída desonerada sem enquadramento, alíquota fora do regime, valor ≠ base × alíquota, CST divergente entre PIS e COFINS, ICMS na base, ICMS-ST fora da base do crédito, aquisição sem crédito no não cumulativo, frete sem crédito, devolução de venda sem crédito, CST desonerado com valor destacado, CST ausente, bloco M × documentos, aritmética do M200/M600, crédito não descontado |
 | ICMS | E110 × analíticos, aritmética do E110, crédito em operação sem direito, alíquota interestadual de importado, saída com ST e débito próprio, entrada tributada sem crédito, alíquota interestadual fora do padrão, saída desonerada sem estorno proporcional, E116 × E110 |
-| Físico × fiscal | planilha não fecha, entrada sem nota, **saída sem nota (omissão de receita)**, nota sem baixa de estoque, produto do SPED ausente na planilha, estoque final ≠ inventário H010, produto sem NCM |
+| Físico × fiscal (planilha de saldo) | planilha não fecha, entrada sem nota, **saída sem nota (omissão de receita)**, nota sem baixa de estoque, produto do SPED ausente na planilha, estoque final ≠ inventário H010, produto sem NCM |
+| Planilha analítica × SPED | documento do cliente com crédito fora da escrituração, documento fora da escrituração sem crédito, divergência de valor ou tributo, divergência de CST, documento escriturado sem lastro no sistema do cliente |
 
 ### Ressalvas
 

@@ -159,10 +159,17 @@ def ler_grade(caminho, aba=None):
     ext = os.path.splitext(caminho)[1].lower()
     if ext in (".xlsx", ".xlsm"):
         return ler_xlsx(caminho, aba)
+    if ext in (".xls", ".xlt"):
+        from . import xls_legacy
+        return xls_legacy.ler(caminho, aba)
     if ext in (".csv", ".txt", ".tsv"):
         return os.path.basename(caminho), ler_csv(caminho)
     if zipfile.is_zipfile(caminho):     # .xlsx com extensao trocada
         return ler_xlsx(caminho, aba)
+    with io.open(caminho, "rb") as fh:  # .xls binario com extensao trocada
+        if fh.read(8) == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+            from . import xls_legacy
+            return xls_legacy.ler(caminho, aba)
     return os.path.basename(caminho), ler_csv(caminho)
 
 

@@ -22,7 +22,8 @@ if _AQUI not in sys.path:
 from fiscal import analise_icms, analise_pis_cofins, cruzamento, ncm, parser, relatorio
 from fiscal.extracao import extrair_linhas
 from fiscal.modelo import ordenar_achados, SEV_ALTA, ZERO
-from fiscal.planilha import ler_movimentacao
+from fiscal import movimentacao_analitica
+from fiscal.planilha import ler_grade, ler_movimentacao
 
 EXTENSOES_SPED = (".txt", ".sped", ".efd", ".dat")
 
@@ -102,9 +103,11 @@ def executar(args):
     nomes, cnpjs, ufs, competencias = [], [], [], []
     linhas_por_item = {}
     inventario = {}
+    todas_as_linhas = []
 
     for esc in escrituracoes_contrib:
         linhas = extrair_linhas(esc)
+        todas_as_linhas.extend(linhas)
         bloco = analise_pis_cofins.analisar(esc, tabela, linhas)
         resultado["pis_cofins"].append(bloco)
         resultado["achados"].extend(bloco["achados"])
@@ -115,6 +118,7 @@ def executar(args):
 
     for esc in escrituracoes_icms:
         linhas = extrair_linhas(esc)
+        todas_as_linhas.extend(linhas)
         bloco = analise_icms.analisar(esc, linhas)
         resultado["icms"].append(bloco)
         resultado["achados"].extend(bloco["achados"])
@@ -137,20 +141,34 @@ def executar(args):
             "fora da analise." % esc.arquivo)
 
     if args.movimentacao:
-        mov = ler_movimentacao(args.movimentacao, args.aba)
         ctx = {"competencia": ", ".join(sorted(set(c for c in competencias if c))),
                "cnpj": cnpjs[0] if cnpjs else ""}
-        cruz = cruzamento.cruzar(mov, linhas_por_item, inventario, ctx)
-        resultado["cruzamento"] = {
-            "resumo": mov.resumo(),
-            "comparativo": cruz["comparativo"],
-        }
-        resultado["achados"].extend(cruz["achados"])
-        if not linhas_por_item:
-            resultado["ressalvas"].append(
-                "O cruzamento rodou sem quantidades do SPED: nenhum registro C170 com "
-                "quantidade foi encontrado. Confira se os arquivos entregues incluem a EFD "
-                "ICMS/IPI ou uma EFD-Contribuicoes escriturada por item.")
+        nome_aba, grade = ler_grade(args.movimentacao, args.aba)
+        # dois formatos de planilha no mercado: saldo de estoque (EI + E - S = EF) e
+        # relatorio analitico por documento fiscal. O segundo permite conferir a
+        # escrituracao item a item, entao e usado quando reconhecido.
+        if movimentacao_analitica.detectar(grade):
+            registros, diagnostico = movimentacao_analitica.ler(grade)
+            cruz = movimentacao_analitica.cruzar(registros, todas_as_linhas, ctx)
+            diagnostico.update({"arquivo": os.path.basename(args.movimentacao),
+                                "aba": nome_aba, "formato": "analitica por documento"})
+            resultado["cruzamento"] = {"resumo": diagnostico,
+                                       "comparativo": [],
+                                       "totais": cruz["resumo"]}
+            resultado["achados"].extend(cruz["achados"])
+        else:
+            mov = ler_movimentacao(args.movimentacao, args.aba)
+            cruz = cruzamento.cruzar(mov, linhas_por_item, inventario, ctx)
+            resumo = mov.resumo()
+            resumo["formato"] = "saldo de estoque"
+            resultado["cruzamento"] = {"resumo": resumo,
+                                       "comparativo": cruz["comparativo"]}
+            resultado["achados"].extend(cruz["achados"])
+            if not linhas_por_item:
+                resultado["ressalvas"].append(
+                    "O cruzamento rodou sem quantidades do SPED: nenhum registro C170 com "
+                    "quantidade foi encontrado. Confira se os arquivos entregues incluem a "
+                    "EFD ICMS/IPI ou uma EFD-Contribuicoes escriturada por item.")
     else:
         resultado["ressalvas"].append(
             "Planilha de movimentacao nao fornecida: o cruzamento entre estoque fisico e "

@@ -378,3 +378,144 @@ class TestPontaAPonta(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestMovimentacaoAnalitica(unittest.TestCase):
+    """Planilha analitica por documento (uma linha por item de nota fiscal).
+
+    O layout real que motivou este modulo repete os rotulos 'R$ Base', 'Aliq.' e
+    'CST' em cada bloco de tributo e ainda erra o rotulo das ultimas colunas de
+    valor - por isso o mapeamento se ancora nos rotulos distintivos.
+    """
+
+    CAB = ["Filial", "Codigo", "Numero", "Data", "Produto", "CFOP", "NCM", "Qtde",
+           "R$ Unit.", "R$ Produto",
+           "R$ Base", "Aliq.", "R$ ICMS", "CST",
+           "R$ Base", "Aliq.", "R$ PIS", "CST",
+           "R$ Base", "Aliq.", "R$ COFINS", "CST",
+           "R$ Base", "Aliq.", "R$ COFINS"]
+    GRUPOS = ["", "", "", "", "", "", "", "", "", "",
+              "ICMS", "", "", "", "PIS", "", "", "", "COFINS", "", "", "", "ICMS ST"]
+
+    GRADE = [
+        ["Movimentacao de Produtos - de: 01/07/2026 ate 31/07/2026"],
+        ["Empresa: 0052 - EXEMPLO LTDA"],
+        ["Entradas"],
+        GRUPOS,
+        CAB,
+        ["52", "1", "1001", "02/07/2026", "P001 - CARNE BOVINA", "1102", "02013000",
+         "10", "100,00", "1000,00",
+         "0", "0", "0", "060", "1000,00", "1,65", "16,50", "50",
+         "1000,00", "7,60", "76,00", "50", "0", "0", "0"],
+        ["52", "2", "1002", "03/07/2026", "P002 - SEM LASTRO", "1102", "94013000",
+         "5", "100,00", "500,00",
+         "500,00", "18", "90,00", "000", "500,00", "1,65", "8,25", "50",
+         "500,00", "7,60", "38,00", "50", "0", "0", "0"],
+        ["Saidas"],
+        GRUPOS,
+        CAB,
+        ["52", "3", "9001", "20/07/2026", "P001 - CARNE BOVINA", "5102", "02013000",
+         "4", "100,00", "400,00",
+         "400,00", "12", "48,00", "000", "400,00", "1,65", "6,60", "01",
+         "400,00", "7,60", "30,40", "01", "0", "0", "0"],
+    ]
+
+    def test_detecta_layout_analitico(self):
+        from fiscal import movimentacao_analitica as ma
+        self.assertTrue(ma.detectar(self.GRADE))
+        self.assertFalse(ma.detectar([["Codigo", "Estoque Inicial", "Entradas"]]))
+
+    def test_le_secoes_e_mapeia_tributos(self):
+        from fiscal import movimentacao_analitica as ma
+        registros, diag = ma.ler(self.GRADE)
+        self.assertEqual(diag["registros_por_secao"], {"ENTRADA": 2, "SAIDA": 1})
+        ent = [r for r in registros if r.secao == "ENTRADA"][0]
+        self.assertEqual(ent.codigo, "P001")
+        self.assertEqual(ent.descricao, "CARNE BOVINA")
+        self.assertEqual(ent.ncm, "02013000")
+        self.assertEqual(ent.pis_cst, "50")
+        self.assertEqual(ent.pis_valor, Decimal("16.50"))
+        self.assertEqual(ent.cofins_valor, Decimal("76.00"))
+        self.assertEqual(ent.icms_valor, Decimal("0"))
+        sai = [r for r in registros if r.secao == "SAIDA"][0]
+        self.assertEqual(sai.pis_cst, "01")
+        self.assertEqual(sai.icms_valor, Decimal("48.00"))
+
+    def _linhas_sped(self, **ajustes):
+        from fiscal.modelo import LinhaFiscal
+        base = dict(origem="C170", tipo="ENTRADA", doc="1001", cod_item="P001",
+                    vl_item=Decimal("1000"), vl_pis=Decimal("16.50"),
+                    vl_cofins=Decimal("76.00"), cst_pis="50")
+        base.update(ajustes)
+        return [LinhaFiscal(**base)]
+
+    def test_documento_da_planilha_ausente_do_sped(self):
+        from fiscal import movimentacao_analitica as ma
+        registros, _ = ma.ler(self.GRADE)
+        saida = ma.cruzar(registros, self._linhas_sped())
+        por = {a.codigo: a for a in saida["achados"]}
+        self.assertTrue(por["MA-01"].relevante)
+        self.assertIn("1002", por["MA-01"].amostras[0]["ref"])
+        self.assertFalse(por["MA-03"].relevante)
+        self.assertFalse(por["MA-04"].relevante)
+
+    def test_divergencia_de_valor_e_de_cst(self):
+        from fiscal import movimentacao_analitica as ma
+        registros, _ = ma.ler(self.GRADE)
+        linhas = self._linhas_sped(vl_pis=Decimal("99.00"), cst_pis="70")
+        por = {a.codigo: a for a in ma.cruzar(registros, linhas)["achados"]}
+        self.assertTrue(por["MA-03"].relevante)
+        self.assertTrue(por["MA-04"].relevante)
+        self.assertIn("CST 50", por["MA-04"].amostras[0]["obs"])
+
+    def test_codigo_com_zeros_a_esquerda_casa(self):
+        from fiscal import movimentacao_analitica as ma
+        registros, _ = ma.ler(self.GRADE)
+        linhas = self._linhas_sped(cod_item="001")
+        registros[0].codigo = "1"          # planilha sem os zeros a esquerda
+        por = {a.codigo: a for a in ma.cruzar(registros, linhas)["achados"]}
+        self.assertFalse(por["MA-03"].relevante)
+
+    def test_servico_em_secao_propria_nao_vira_falso_positivo(self):
+        from fiscal import movimentacao_analitica as ma
+        grade = [l[:] for l in self.GRADE] + [
+            ["Servicos"], self.GRUPOS, self.CAB,
+            ["52", "9", "7777", "09/07/2026", "SERVICOS - PRESTADOS", "", "", "1",
+             "100,00", "100,00",
+             "0", "0", "0", "", "100,00", "1,65", "1,65", "01",
+             "100,00", "7,60", "7,60", "01", "0", "0", "0"],
+        ]
+        registros, _ = ma.ler(grade)
+        from fiscal.modelo import LinhaFiscal
+        linhas = self._linhas_sped() + [LinhaFiscal(
+            origem="A170", tipo="SAIDA", doc="7777", cod_item="SERVICOS",
+            vl_item=Decimal("100"), vl_pis=Decimal("1.65"),
+            vl_cofins=Decimal("7.60"), cst_pis="01")]
+        por = {a.codigo: a for a in ma.cruzar(registros, linhas)["achados"]}
+        self.assertFalse(por["MA-05"].relevante,
+                         "servico escriturado no bloco A nao pode ser apontado como "
+                         "ausente do sistema do cliente")
+
+
+class TestXlsLegacy(unittest.TestCase):
+    def test_rejeita_arquivo_que_nao_e_ole2(self):
+        from fiscal import xls_legacy
+        with tempfile.NamedTemporaryFile("wb", suffix=".xls", delete=False) as fh:
+            fh.write(b"isto nao e um xls")
+            caminho = fh.name
+        try:
+            with self.assertRaises(xls_legacy.ErroXls):
+                xls_legacy.ler(caminho)
+        finally:
+            os.unlink(caminho)
+
+    def test_decodifica_valor_rk(self):
+        from fiscal.xls_legacy import _valor_rk
+        self.assertEqual(_valor_rk((100 << 2) | 0x02), 100.0)          # inteiro
+        self.assertAlmostEqual(_valor_rk((12345 << 2) | 0x03), 123.45)  # inteiro /100
+
+    def test_texto_curto_do_boundsheet(self):
+        # o nome da aba usa contagem de caracteres em 1 byte, nao 2
+        from fiscal.xls_legacy import _texto_curto
+        dados = b"\x00" * 6 + bytes([4, 0x01]) + "Aba1".encode("utf-16-le")
+        self.assertEqual(_texto_curto(dados, 6, True)[0], "Aba1")

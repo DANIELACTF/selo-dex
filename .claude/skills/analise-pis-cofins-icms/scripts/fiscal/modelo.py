@@ -26,7 +26,7 @@ class LinhaFiscal(object):
         "cst_pis", "bc_pis", "aliq_pis", "vl_pis",
         "cst_cofins", "bc_cofins", "aliq_cofins", "vl_cofins",
         "cst_icms", "bc_icms", "aliq_icms", "vl_icms", "bc_icms_st", "vl_icms_st",
-        "nat_bc_cred", "linha", "arquivo",
+        "nat_bc_cred", "linha", "arquivo", "estabelecimento",
     )
 
     def __init__(self, **kw):
@@ -39,7 +39,8 @@ class LinhaFiscal(object):
                 setattr(self, campo, ZERO)
         for campo in ("origem", "tipo", "doc", "serie", "chave", "data", "cod_part",
                       "cfop", "cod_item", "ncm", "descricao", "unid", "cst_pis",
-                      "cst_cofins", "cst_icms", "nat_bc_cred", "arquivo"):
+                      "cst_cofins", "cst_icms", "nat_bc_cred", "arquivo",
+                      "estabelecimento"):
             if getattr(self, campo) is None:
                 setattr(self, campo, "")
 
