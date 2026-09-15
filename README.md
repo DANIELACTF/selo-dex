@@ -44,38 +44,93 @@ basta subir essa pasta como skill.
 Exemplo do resultado:
 [Fichas de Onboarding Fiscal — lote de 20/08/2026](https://claude.ai/code/artifact/5e543225-3f21-45de-90db-3bde1a2b0ed5)
 
-## Alternativa: CLI em Python (uso em lote)
+## O script único: `moraex.py`
 
-Opcional — serve para processar vários e-mails de uma vez ou rodar em
-automação própria. Requer Python 3.10+ e `reportlab` (para gerar o PDF).
+Toda a rotina passa por **um comando só**, com subcomandos na ordem do
+fluxo. Requer Python 3.10+ e as dependências de `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
+python moraex.py --help
 ```
 
-1. Copie o corpo do e-mail "EMPRESA NOVA" da Thays (texto puro do Outlook)
-   para um arquivo `.txt`.
+| Comando | O que faz | Quando |
+|---|---|---|
+| `triagem --email <txt>` | Fichas de Abertura + lista de pendentes | Chegou o e-mail da Thays |
+| `planilha` | Formulário de particularidades (.xlsx) | Antes da reunião com o Paulo |
+| `etapa1 --email <txt>` | As duas acima, de uma vez | — |
+| `pastas --planilha <xlsx>` | CSV do lote + comando do PowerShell | Depois da reunião |
+| `carteira --planilha <xlsx> --carteira <xlsx>` | Alimenta a Carteira respeitando a carência | Depois da reunião |
+| `etapa2 --planilha <xlsx> --carteira <xlsx>` | As duas acima, de uma vez | — |
+| `status --carteira <xlsx>` | Quem está em carência, quem já libera | A qualquer momento |
+| `skills [--empacotar]` | Valida e empacota as skills para upload | Antes de subir no claude.ai |
+
+Cada comando termina dizendo qual é o próximo passo. Todos aceitam
+`--json`, para quando a saída for lida por programa (é o que o Claude usa)
+em vez de por gente.
+
+### Etapa 1 — a triagem
+
+1. Copie o corpo do e-mail "EMPRESA NOVA" (texto puro do Outlook) para um
+   arquivo `.txt`.
 2. Rode:
 
    ```bash
-   python cli.py --input caminho/para/email_da_thays.txt
+   python moraex.py etapa1 --email caminho/para/email_da_thays.txt
    ```
 
 3. Confira:
-   - no terminal: a lista de empresas processadas, status do certificado e
-     os alertas (certificado ausente, divergência de regime tributário);
+   - no terminal: empresas processadas, status do certificado e os alertas
+     (certificado ausente, divergência de regime, consulta que falhou);
    - em `fichas/<nº cliente>_<NOME>.pdf` (e o `.md` equivalente, mais fácil
-     de conferir rápido sem abrir PDF): a ficha de onboarding de cada
-     empresa;
-   - em `data/empresas_pendentes_distribuicao.csv`: a lista atualizada.
+     de conferir rápido): a Ficha de Abertura de cada empresa;
+   - em `data/empresas_pendentes_distribuicao.csv`: a lista atualizada;
+   - em `data/particularidades-<data>.xlsx`: o formulário da reunião.
 
-Para testar offline (sem consultar a Receita), use `--sem-consulta-cnpj`.
-Os exemplos reais usados para desenvolver e testar o parser estão em
-`fixtures/` — pode rodar contra eles para ver o resultado:
+Para testar offline (sem consultar a Receita), use `--sem-consulta`. Os
+e-mails reais que serviram para desenvolver o parser estão em `fixtures/`:
 
 ```bash
-python cli.py --input fixtures/exemplo_thays_2026-08-25.txt
+python moraex.py etapa1 --email fixtures/exemplo_thays_2026-08-25.txt --sem-consulta
 ```
+
+### Etapa 2 — a implantação
+
+Com a planilha preenchida à mão depois da reunião:
+
+```bash
+python moraex.py etapa2 \
+    --planilha data/particularidades-2026-08-28.xlsx \
+    --carteira data/Carteira_Tributaria_Fiscal.xlsx
+```
+
+Sai o CSV do lote de pastas (com o comando do PowerShell para rodar na
+rede) e a carteira atualizada **em arquivo novo**. As Fichas Cadastrais
+definitivas e o cadastro no G-Click continuam sendo feitos pelo Claude e
+pela pessoa — o script diz isso no fim.
+
+### Conferir a carência sem gerar nada
+
+```bash
+python moraex.py status --carteira data/Carteira_Tributaria_Fiscal.xlsx
+```
+
+Lê a aba "Pendentes Daniela" e separa quem já venceu a carência (com a
+sugestão de analista, quando houver), quem ainda espera — e em que
+competência libera — e as linhas antigas sem competência registrada, que
+não dá para calcular. Não escreve nada.
+
+### Validar as skills antes de subir
+
+```bash
+python moraex.py skills --empacotar
+```
+
+Confere o que o uploader do claude.ai recusa — `description` acima de 1024
+caracteres, `SKILL.md` sem frontmatter, `:` sem aspas no YAML, `name` que
+não bate com a pasta — e gera os zips em `dist/skills/` com o `SKILL.md`
+na **raiz** do arquivo, que é como o uploader espera. As duas recusas que
+aconteceram de verdade viraram teste.
 
 ### Rodando os testes
 
@@ -88,8 +143,13 @@ pytest tests/ -v
 os 5 e-mails reais da Thays em `fixtures/`. `tests/test_ficha.py` valida a
 lógica de geração da ficha (tipo Matriz/Filial, regime/enquadramento,
 detecção de grupo econômico, particularidades) — inclusive reproduzindo os
-casos reais que vieram nas 12 fichas de exemplo (TATY matriz+filial, ERFOLG
-rede, JOAO PEDRO BARROS N° fora da série).
+casos reais das 12 fichas de exemplo (TATY matriz+filial, ERFOLG rede,
+JOAO PEDRO BARROS N° fora da série). `tests/test_implantacao.py` cobre a
+carência e a carteira; `tests/test_moraex.py`, o encadeamento das etapas,
+o relatório de carência e a validação das skills.
+
+O comando antigo (`python cli.py --input ...`) continua funcionando como
+atalho para `moraex.py triagem`.
 
 ## Parte 2 — implantação, depois da reunião com o Paulo
 
@@ -102,22 +162,21 @@ definições da reunião estão prontas, e é coberta pela skill
    suspensas nos campos de decisão.
 
    ```bash
-   python -m onboarding.planilha_particularidades \
-       data/empresas_pendentes_distribuicao.csv data/particularidades.xlsx
+   python moraex.py planilha
    ```
 
 2. **Ficha Cadastral definitiva** — o documento da pasta do cliente, com
    campos que a Ficha de Abertura não tem (nome fantasia, natureza
    jurídica, IE/IM, responsável pela carteira) e as particularidades em
    dois níveis: ▶ da reunião, • herdadas do onboarding.
-3. **Pastas na rede** — `estrutura-pastas/` (convenção + script PowerShell).
+3. **Pastas na rede** — `moraex.py pastas` gera o CSV do lote; quem cria as
+   pastas é o PowerShell de `estrutura-pastas/`, rodando no drive de rede.
 4. **Cadastro no G-Click** — `roteiro-gclick.md`.
 5. **Carteira Tributária Fiscal**:
 
    ```bash
-   python -m onboarding.alimentar_carteira \
-       data/particularidades.xlsx data/carteira.xlsx data/carteira-nova.xlsx \
-       [--competencia=MM/AAAA]
+   python moraex.py carteira --planilha data/particularidades.xlsx \
+       --carteira data/carteira.xlsx [--competencia MM/AAAA]
    ```
 
 ### A carência de três competências
@@ -238,27 +297,39 @@ se precisar bater 100% com o nome que o time usaria.
 ## Estrutura
 
 ```
-.claude/skills/ficha-abertura-fiscal/
-  SKILL.md             # procedimento + regras de negócio (caminho sem Python)
-  modelo-ficha.html    # gabarito visual da ficha, no padrão do Dep. Fiscal
-onboarding/            # ---- CLI Python opcional, para uso em lote ----
-  parser.py          # extrai empresas do texto do e-mail da Thays
-  competencia.py       # aritmética de competências e a carência de distribuição
+moraex.py               # <- ENTRADA ÚNICA: todos os subcomandos da rotina
+cli.py                  # atalho do comando antigo -> moraex.py triagem
+.claude/skills/ficha-abertura-fiscal/       # etapa 1, caminho sem Python
+  SKILL.md              # procedimento + regras de negócio
+  modelo-ficha.html     # gabarito visual da ficha, no padrão do Dep. Fiscal
+.claude/skills/implantacao-cliente-fiscal/  # etapa 2, depois da reunião
+  SKILL.md
+  modelo-ficha-cadastral.html
+onboarding/             # ---- os módulos que o moraex.py chama ----
+  parser.py             # extrai empresas do texto do e-mail da Thays
+  competencia.py        # aritmética de competências e a carência de distribuição
+  cnpj_api.py           # consulta dados cadastrais do CNPJ na BrasilAPI
+  simples_rfb.py        # consulta oficial de opção pelo Simples Nacional (Receita)
+  ficha_template.py     # modelo de dados + renderização da ficha (PDF/Markdown)
+  pipeline.py           # etapa 1: parse -> CNPJ -> certificado -> ficha -> pendentes
   planilha_particularidades.py  # gera o formulário pós-reunião (.xlsx)
-  alimentar_carteira.py         # carência + distribuição na Carteira Fiscal
-  cnpj_api.py         # consulta dados cadastrais do CNPJ na BrasilAPI
-  simples_rfb.py       # consulta oficial de opção pelo Simples Nacional (Receita)
-  ficha_template.py   # modelo de dados + renderização da ficha (PDF/Markdown)
-  pipeline.py          # orquestra: parse -> CNPJ -> certificado -> ficha -> pendentes
-  fonts/               # DejaVu Sans embutida (checkboxes/acentuação no PDF)
-cli.py                 # comando manual (python cli.py --input ...)
+  pastas.py             # etapa 2: CSV do lote + comando do PowerShell
+  alimentar_carteira.py # etapa 2: carência + distribuição na Carteira Fiscal
+  skills_pack.py        # valida e empacota as skills para o uploader do claude.ai
+  fonts/                # DejaVu Sans embutida (checkboxes/acentuação no PDF)
 estrutura-pastas/       # convenção de pastas do cliente + script PowerShell
 roteiro-gclick.md       # checklist de cadastro no G-Click
+projeto-rotinas-escritorio/  # kit para montar o Projeto no claude.ai
 fixtures/               # 5 e-mails reais da Thays usados para validar o parser
 tests/                  # testes automatizados contra os exemplos reais
 fichas/                 # saída: uma ficha .pdf + .md por empresa (gerado, git-ignored)
-data/empresas_pendentes_distribuicao.csv  # saída (gerado, git-ignored)
+data/                   # saídas .csv/.xlsx (gerado, git-ignored)
+dist/skills/            # zips das skills (gerado por `moraex.py skills --empacotar`)
 ```
+
+Os módulos de `onboarding/` continuam importáveis isoladamente — o
+`moraex.py` é a casca que dá a eles uma convenção só de argumento, de
+saída e de "próximo passo".
 
 ## Próximos passos sugeridos
 

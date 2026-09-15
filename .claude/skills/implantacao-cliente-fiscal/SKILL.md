@@ -11,7 +11,9 @@ Esta aqui pega essa lista, recebe as decisões da **reunião com o Paulo** e
 fecha a implantação: ficha definitiva, pastas, G-Click e carteira.
 
 Rode o Python do repositório para as planilhas (é o que preserva as
-fórmulas da carteira). O usuário não instala nada — você executa.
+fórmulas da carteira). O usuário não instala nada — você executa. A
+entrada é sempre o script único `moraex.py`; `python moraex.py --help`
+lista os subcomandos, e cada um termina dizendo qual é o próximo.
 
 ## Qual dos dois momentos é este?
 
@@ -26,9 +28,7 @@ Na dúvida, pergunte qual dos dois.
 ## 1. Gerar a planilha de particularidades
 
 ```bash
-python -m onboarding.planilha_particularidades \
-    data/empresas_pendentes_distribuicao.csv \
-    data/particularidades-<data>.xlsx
+python moraex.py planilha
 ```
 
 Sai uma linha por empresa pendente, com N°/razão social/CNPJ já
@@ -75,13 +75,20 @@ Avise o usuário e pergunte se quer emitir mesmo assim.
 
 ## 3. Estrutura de pastas na rede
 
-Gere o CSV do lote (colunas `Numero,Nome`) e entregue junto com o comando:
+Gere o CSV do lote e entregue junto com o comando que o próprio script
+imprime:
+
+```bash
+python moraex.py pastas --planilha <particularidades.xlsx>
+```
+
+Ele escreve o CSV (`Numero,Nome`) e monta a linha do PowerShell:
 
 ```powershell
 .\criar-pastas-cliente.ps1 -Raiz "<caminho da rede>" -Lote .\clientes-novos.csv
 ```
 
-O script está em `estrutura-pastas/` e cria
+O script PowerShell está em `estrutura-pastas/` e cria
 `<N°> - <NOME>\` com `Apuracao\<ano>\<meses>` e `Certificado\`. Você **não
 executa** este passo — não tem acesso ao drive de rede do escritório;
 entregue o CSV e o comando para a pessoa rodar. Veja
@@ -105,10 +112,16 @@ e fechar o roteiro.
 só depois é distribuída. Entrou em 08/2026 → libera em 11/2026.
 
 ```bash
-python -m onboarding.alimentar_carteira \
-    <particularidades.xlsx> <carteira.xlsx> <carteira-atualizada.xlsx> \
-    [--competencia=MM/AAAA]
+python moraex.py carteira --planilha <particularidades.xlsx> \
+    --carteira <carteira.xlsx> [--competencia MM/AAAA]
 ```
+
+Os passos 3 e 5 juntos são `python moraex.py etapa2 --planilha <p.xlsx>
+--carteira <c.xlsx>`.
+
+Para só **consultar** a carência, sem gerar arquivo nenhum — responder
+"quem libera este mês?" —, use `python moraex.py status --carteira
+<carteira.xlsx>`.
 
 A rotina faz os dois movimentos numa passada só:
 

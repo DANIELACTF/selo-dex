@@ -44,6 +44,11 @@ As skills valem para a conta toda, não por projeto — confira em
 
 - `ficha-abertura-fiscal` ← etapa 1; suba pelo zip se ainda não estiver lá
 - `implantacao-cliente-fiscal` ← etapa 2; idem
+
+Os zips saem prontos de `python moraex.py skills --empacotar`, no
+repositório: o comando confere antes o que o uploader recusa (`description`
+acima de 1024 caracteres, `SKILL.md` sem frontmatter, `:` sem aspas no
+YAML) e grava em `dist/skills/` com o `SKILL.md` na raiz do arquivo.
 - `onboarding-cliente`
 - `analise-tributaria-regime`
 - `apuracao-simples-nacional`

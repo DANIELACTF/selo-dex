@@ -106,6 +106,11 @@ def _ler_particularidades(path: Path) -> list[dict]:
     return empresas
 
 
+def ler_particularidades(path: Path) -> list[dict]:
+    """Leitor público da planilha preenchida — usado também por `onboarding.pastas`."""
+    return _ler_particularidades(path)
+
+
 def _numeros(ws, col: int) -> set[str]:
     return {
         str(r[col - 1].value).strip()
@@ -250,6 +255,66 @@ def alimentar(
     wb.save(saida)
     r["saida"] = saida
     r["referencia"] = referencia
+    return r
+
+
+def situacao_carencia(carteira: Path, referencia: str | None = None) -> dict:
+    """Lê a carteira e devolve como está a carência — sem escrever nada.
+
+    Serve para responder "quem libera este mês?" sem precisar da planilha
+    de particularidades nem gerar arquivo novo.
+    """
+    referencia = referencia or competencia_atual()
+    validar(referencia)
+
+    wb = load_workbook(carteira, data_only=True)
+    if ABA_PENDENTES not in wb.sheetnames:
+        raise SystemExit(f"A carteira {carteira} não tem a aba '{ABA_PENDENTES}'.")
+
+    wsp = wb[ABA_PENDENTES]
+    idx = _indices(wsp)
+    if "N° Cliente" not in idx:
+        raise SystemExit(f"A aba '{ABA_PENDENTES}' não tem a coluna 'N° Cliente'.")
+
+    r: dict[str, list] = {"liberadas": [], "em_carencia": [], "sem_competencia": []}
+
+    for linha in wsp.iter_rows(min_row=2):
+        def val(col: str) -> str:
+            i = idx.get(col)
+            v = linha[i - 1].value if i else None
+            return str(v).strip() if v not in (None, "") else ""
+
+        numero = val("N° Cliente")
+        if not numero:
+            continue
+        item = {
+            "numero": numero,
+            "nome": val("Nome"),
+            "sugestao": val("Sugestão Analista"),
+        }
+
+        entrada = val(COL_COMPETENCIA)
+        if not entrada:
+            # Linha anterior ao controle de carência: sem data de entrada
+            # não há como dizer quando vence.
+            r["sem_competencia"].append(item)
+            continue
+        try:
+            validar(entrada)
+        except ValueError:
+            r["sem_competencia"].append(item)
+            continue
+
+        item["entrada"] = entrada
+        item["libera_em"] = competencia_liberacao(entrada)
+        if liberada(entrada, referencia):
+            r["liberadas"].append(item)
+        else:
+            item["faltam"] = competencias_restantes(entrada, referencia)
+            r["em_carencia"].append(item)
+
+    r["referencia"] = referencia
+    r["total"] = len(r["liberadas"]) + len(r["em_carencia"]) + len(r["sem_competencia"])
     return r
 
 

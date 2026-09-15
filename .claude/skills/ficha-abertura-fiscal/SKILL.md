@@ -17,8 +17,9 @@ usuário pedir as duas coisas, rode esta primeiro e depois chame a outra.
 
 **Execute tudo você mesmo — não rode script Python, não peça para o
 usuário instalar nada.** Você lê o e-mail, faz as consultas e monta o
-documento. (Existe um CLI Python opcional no repositório para uso em lote;
-ignore-o a menos que o usuário peça explicitamente.)
+documento. (Existe um script no repositório — `python moraex.py triagem
+--email <arquivo>` — para uso em lote; ignore-o a menos que o usuário peça
+explicitamente ou mande vários e-mails de uma vez.)
 
 ## 1. Obter o e-mail
 
