@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --navy:#1B3A5C; --linha:#C9CFD6; --apagado:#5A6470; --alerta:#A32020; --ok:#1F6B3A; }
+  body { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#111; margin:0; padding:14px; }
+  h2 { font-size:14px; margin:0 0 4px; color:var(--navy); }
+  p.ajuda { color:var(--apagado); font-size:12px; margin:0 0 12px; line-height:1.45; }
+  textarea { width:100%; box-sizing:border-box; min-height:220px; font-family:Menlo,Consolas,monospace;
+             font-size:11px; border:1px solid var(--linha); border-radius:3px; padding:8px; resize:vertical; }
+  label.linha { display:flex; align-items:center; gap:6px; margin:10px 0; font-size:12px; color:var(--apagado); }
+  button { background:var(--navy); color:#fff; border:0; border-radius:3px; padding:9px 14px;
+           font-size:13px; font-weight:bold; cursor:pointer; width:100%; }
+  button:disabled { background:#8B98A5; cursor:default; }
+  #resultado { margin-top:14px; font-size:12px; line-height:1.5; }
+  .bloco { border:1px solid var(--linha); border-radius:3px; padding:9px 10px; margin-bottom:9px; }
+  .bloco h3 { font-size:12px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.05em; color:var(--apagado); }
+  .bloco ul { margin:0; padding-left:16px; }
+  .bloco li { margin-bottom:3px; }
+  .alerta { border-left:3px solid var(--alerta); }
+  .alerta h3 { color:var(--alerta); }
+  .ok { color:var(--ok); font-weight:bold; }
+  .erro { color:var(--alerta); font-weight:bold; }
+  pre.cobranca { background:#F5F6F8; border:1px solid var(--linha); padding:8px; font-size:11px;
+                 white-space:pre-wrap; word-wrap:break-word; margin:6px 0 0; font-family:inherit; }
+  .carregando { color:var(--apagado); font-style:italic; }
+</style>
+</head>
+<body>
+
+<h2>Processar e-mail "EMPRESA NOVA"</h2>
+<p class="ajuda">
+  Cole o corpo do e-mail da Thays, copiado do Outlook. Inclua a linha
+  <strong>"N anexos (...)"</strong> com os nomes dos <code>.pfx</code> — é dela
+  que sai a checagem de certificado.
+</p>
+
+<textarea id="texto" placeholder="EMPRESA NOVA&#10;&#10;De: Thays Oliveira | Administrativo Moraex&#10;Data: Qui, 20/08/2026 13:07&#10;&#10;4 anexos (45 KB)&#10;EMPRESA LTDA31909608000167.pfx; ...&#10;&#10;EMPRESA LTDA CNPJ: 68.497.893/0001-66 N°1077&#10;Lucro Presumido&#10;E mail : contato@empresa.com.br"></textarea>
+
+<label class="linha">
+  <input type="checkbox" id="consultar" checked>
+  Consultar a Receita (CNPJ e opção pelo Simples)
+</label>
+
+<button id="botao" onclick="enviar()">Processar</button>
+
+<div id="resultado"></div>
+
+<script>
+function enviar() {
+  var texto = document.getElementById('texto').value.trim();
+  var saida = document.getElementById('resultado');
+  if (!texto) {
+    saida.innerHTML = '<p class="erro">Cole o e-mail antes de processar.</p>';
+    return;
+  }
+  document.getElementById('botao').disabled = true;
+  saida.innerHTML = '<p class="carregando">Processando… as consultas à Receita levam alguns segundos por empresa.</p>';
+
+  google.script.run
+    .withSuccessHandler(mostrar)
+    .withFailureHandler(function (e) {
+      document.getElementById('botao').disabled = false;
+      saida.innerHTML = '<p class="erro">' + escapar(e.message || e) + '</p>';
+    })
+    .processarEmailDaBarra(texto, document.getElementById('consultar').checked);
+}
+
+function escapar(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function lista(titulo, itens, classe) {
+  if (!itens || !itens.length) return '';
+  return '<div class="bloco ' + (classe || '') + '"><h3>' + titulo + ' (' + itens.length + ')</h3><ul>' +
+    itens.map(function (i) { return '<li>' + escapar(i) + '</li>'; }).join('') + '</ul></div>';
+}
+
+function mostrar(r) {
+  document.getElementById('botao').disabled = false;
+  var saida = document.getElementById('resultado');
+
+  if (r.erro) {
+    saida.innerHTML = '<p class="erro">' + escapar(r.erro) + '</p>';
+    return;
+  }
+
+  var html = '';
+  if (r.processadas.length) {
+    html += '<div class="bloco"><h3>Empresas processadas (' + r.processadas.length + ')</h3><ul>' +
+      r.processadas.map(function (e) {
+        var marca = e.certificado ? '<span class="ok">✓ cert.</span>' : '<span class="erro">sem cert.</span>';
+        return '<li>N°' + escapar(e.numero) + ' ' + escapar(e.nome) + ' — ' + marca + '</li>';
+      }).join('') + '</ul></div>';
+  }
+
+  html += lista('Já estavam na triagem', r.jaExistiam);
+  html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
+  html += lista('Anexo sem dono identificado', r.certificadosSemDono, 'alerta');
+  html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
+  html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
+
+  if (r.textoCobranca) {
+    html += '<div class="bloco"><h3>Texto pronto para a Thays</h3>' +
+      '<pre class="cobranca">' + escapar(r.textoCobranca) + '</pre>' +
+      '<p class="ajuda" style="margin:8px 0 0">Copie e envie você — o app não manda e-mail por conta própria.</p></div>';
+  }
+
+  if (r.processadas.length) {
+    html += '<div class="bloco"><h3>Próximo passo</h3>' +
+      'Menu <strong>🏢 Onboarding Fiscal → 2 · Gerar planilha de particularidades</strong>, ' +
+      'que é o formulário da reunião com o Paulo.</div>';
+  }
+
+  saida.innerHTML = html;
+}
+</script>
+</body>
+</html>

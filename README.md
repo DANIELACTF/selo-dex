@@ -44,6 +44,35 @@ basta subir essa pasta como skill.
 Exemplo do resultado:
 [Fichas de Onboarding Fiscal — lote de 20/08/2026](https://claude.ai/code/artifact/5e543225-3f21-45de-90db-3bde1a2b0ed5)
 
+## Três jeitos de rodar a mesma rotina
+
+| Onde | Para quem | Instala algo? |
+|---|---|---|
+| **Skills do Claude** | quem já usa o Claude e quer conversar com a rotina | não |
+| **App no Google Sheets** (`gas/`) | quem quer a rotina dentro da planilha, com menu | não |
+| **`moraex.py`** | uso em lote e automação própria | Python 3.10+ |
+
+Os três seguem a mesma regra de negócio — inclusive a carência de três
+competências —, e há teste conferindo que as implementações não divergem.
+
+## App no Google Sheets
+
+A rotina inteira hospedada numa planilha do Google, disparada pelo menu
+**🏢 Onboarding Fiscal**: processa o e-mail da Thays, emite as fichas em
+PDF no Drive, cria as pastas do cliente, alimenta a carteira respeitando a
+carência e mostra o status da carência. Ninguém instala nada.
+
+O código e o passo a passo de instalação estão em
+[`gas/README.md`](gas/README.md). A lógica pura é JavaScript comum e roda
+fora do Apps Script:
+
+```bash
+node --test tests/test_gas.mjs
+```
+
+O teste mais forte é o de paridade: o parser em JS extrai exatamente as
+mesmas empresas que o parser em Python extrai dos 5 e-mails reais da Thays.
+
 ## O script único: `moraex.py`
 
 Toda a rotina passa por **um comando só**, com subcomandos na ordem do
@@ -297,8 +326,25 @@ se precisar bater 100% com o nome que o time usaria.
 ## Estrutura
 
 ```
-moraex.py               # <- ENTRADA ÚNICA: todos os subcomandos da rotina
+moraex.py               # <- ENTRADA ÚNICA do caminho Python: todos os subcomandos
 cli.py                  # atalho do comando antigo -> moraex.py triagem
+gas/                    # <- APP DO GOOGLE SHEETS (mesma rotina, sem Python)
+  appsscript.json       # manifesto: escopos de Drive, rede e UI
+  Config.gs             # equipe, listas, nomes de aba, carência, cores
+  Competencia.gs        # porta de onboarding/competencia.py
+  Parser.gs             # porta de onboarding/parser.py
+  Regras.gs             # porta das regras de onboarding/pipeline.py
+  Consultas.gs          # BrasilAPI + Simples Nacional via UrlFetchApp
+  Planilha.gs           # utilidades de aba, cabeçalho e escrita
+  Triagem.gs            # etapa 1 -> aba Triagem
+  Particularidades.gs   # o formulário da reunião, como aba
+  Fichas.gs             # Ficha de Abertura em PDF, na pasta do cliente
+  Pastas.gs             # pastas no Drive + CSV para o PowerShell da rede
+  Carteira.gs           # carência e distribuição
+  Menu.gs               # o menu e o que cada item faz
+  Instalar.gs           # cria as abas na primeira execução
+  Sidebar.html          # onde o e-mail da Thays é colado
+  README.md             # instalação passo a passo
 .claude/skills/ficha-abertura-fiscal/       # etapa 1, caminho sem Python
   SKILL.md              # procedimento + regras de negócio
   modelo-ficha.html     # gabarito visual da ficha, no padrão do Dep. Fiscal
@@ -322,6 +368,7 @@ roteiro-gclick.md       # checklist de cadastro no G-Click
 projeto-rotinas-escritorio/  # kit para montar o Projeto no claude.ai
 fixtures/               # 5 e-mails reais da Thays usados para validar o parser
 tests/                  # testes automatizados contra os exemplos reais
+  test_gas.mjs          # testa o app do Sheets (node --test)
 fichas/                 # saída: uma ficha .pdf + .md por empresa (gerado, git-ignored)
 data/                   # saídas .csv/.xlsx (gerado, git-ignored)
 dist/skills/            # zips das skills (gerado por `moraex.py skills --empacotar`)
