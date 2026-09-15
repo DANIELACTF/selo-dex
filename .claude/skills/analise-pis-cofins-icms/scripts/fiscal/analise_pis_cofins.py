@@ -567,6 +567,9 @@ def testes_de_consolidacao(esc, apuracao, recomposicao, ctx, linhas=()):
         if c:
             ret_declarada += c["retencoes_nc"] + c["retencoes_cum"]
     if not tem_f600 and ret_declarada <= CENTAVO:
+        # agrupa por estabelecimento E cliente: os comprovantes de retencao ficam
+        # com a filial que faturou, e atribuir tudo a matriz manda o usuario
+        # procurar no lugar errado
         receita_publica = {}
         for l in linhas:
             if not l.eh_saida or not l.cod_part:
@@ -575,15 +578,19 @@ def testes_de_consolidacao(esc, apuracao, recomposicao, ctx, linhas=()):
             nome = participante.txt("NOME") if participante else ""
             if not _parece_ente_publico(nome):
                 continue
-            acc = receita_publica.setdefault(l.cod_part, {"nome": nome, "valor": ZERO})
+            chave = (l.cnpj_estabelecimento, l.cod_part)
+            acc = receita_publica.setdefault(chave, {"nome": nome, "valor": ZERO,
+                                                     "linha": l})
             acc["valor"] += l.vl_item - l.vl_desc
         # estimativa pelas aliquotas de retencao de PIS (0,65%) e COFINS (3%)
         aliquota_retencao = Decimal("0.65") + Decimal("3.0")
-        for cod, dados in sorted(receita_publica.items(), key=lambda x: -x[1]["valor"]):
+        for chave, dados in sorted(receita_publica.items(), key=lambda x: -x[1]["valor"]):
             estimado = _q(dados["valor"] * aliquota_retencao / Decimal("100"))
-            d_ach.adicionar(_Ref(dados["nome"][:60]), estimado,
-                            "receita de R$ %s; retencao estimada a 0,65%% + 3,00%% "
-                            "(a confirmar contra os comprovantes)" % _q(dados["valor"]))
+            referencia = dados["linha"]
+            d_ach.adicionar(referencia, estimado,
+                            "%s - receita de R$ %s; retencao estimada a 0,65%% + 3,00%% "
+                            "(a confirmar contra os comprovantes)"
+                            % (dados["nome"][:52], _q(dados["valor"])))
     achados.append(d_ach)
     return achados
 

@@ -154,12 +154,20 @@ class Escrituracao(object):
 
     @property
     def estabelecimentos(self):
-        """{CNPJ: COD_EST} a partir do registro 0140."""
+        """{CNPJ: {cod_est, uf, nome}} a partir do registro 0140."""
         if not hasattr(self, "_est_cache"):
             self._est_cache = {}
             for r in self.get("0140"):
                 if r.txt("CNPJ"):
-                    self._est_cache[r.txt("CNPJ")] = r.txt("COD_EST")
+                    self._est_cache[r.txt("CNPJ")] = {
+                        "cod_est": r.txt("COD_EST"),
+                        "uf": r.txt("UF"),
+                        "nome": r.txt("NOME"),
+                    }
+            # arquivo de estabelecimento unico nao tem 0140: usa o proprio 0000
+            if not self._est_cache and self.cnpj:
+                self._est_cache[self.cnpj] = {
+                    "cod_est": "", "uf": self.uf, "nome": self.nome}
         return self._est_cache
 
     @property

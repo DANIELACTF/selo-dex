@@ -7,6 +7,7 @@ import os
 from decimal import Decimal
 
 from . import tabelas, xlsx
+from .modelo import formata_cnpj, tipo_estabelecimento
 from .modelo import ordenar_achados, SEV_ALTA, SEV_MEDIA, ZERO
 
 CENTAVO = Decimal("0.01")
@@ -90,7 +91,40 @@ def montar_markdown(resultado):
     a("| Planilha de movimentacao | %s |" % (ident.get("movimentacao") or "nao fornecida"))
     a("")
 
-    a("## 1. Sintese")
+    # --- estabelecimentos alcancados pelos achados ---
+    estabs = {}
+    for item in achados:
+        for d in item.detalhes:
+            linha = d.get("linha") or {}
+            cnpj = linha.get("cnpj_estabelecimento") or item.cnpj
+            if not cnpj:
+                continue
+            e = estabs.setdefault(cnpj, {
+                "cod": linha.get("estabelecimento", ""),
+                "uf": linha.get("uf_estabelecimento", ""),
+                "qtd": 0, "valor": ZERO,
+            })
+            e["qtd"] += 1
+            if item.natureza_valor == NATUREZA_TRIBUTARIA:
+                e["valor"] += d["valor"]
+            if not e["cod"]:
+                e["cod"] = linha.get("estabelecimento", "")
+            if not e["uf"]:
+                e["uf"] = linha.get("uf_estabelecimento", "")
+    if estabs:
+        a("## 1. Estabelecimentos alcancados")
+        a("")
+        a("As amostras dos achados identificam o estabelecimento pelo codigo interno "
+          "(`est. 53/ES`). A correspondencia com o CNPJ esta abaixo, e a planilha traz "
+          "o CNPJ em cada linha da aba de detalhamento.")
+        a("")
+        a(_tabela_md(["CNPJ", "Matriz/Filial", "Cod.", "UF", "Ocorrencias",
+                      "Efeito tributario (R$)"],
+                     [[formata_cnpj(c), tipo_estabelecimento(c) or "-", e["cod"] or "-",
+                       e["uf"] or "-", e["qtd"], brl(e["valor"])]
+                      for c, e in sorted(estabs.items(),
+                                         key=lambda x: -x[1]["valor"])]))
+    a("## 2. Sintese")
     a("")
     a("| Indicador | Valor (R$) |")
     a("|---|---|")
@@ -112,7 +146,7 @@ def montar_markdown(resultado):
 
     # --- Apuracao PIS/COFINS ---
     if resultado.get("pis_cofins"):
-        a("## 2. Apuracao de PIS/COFINS")
+        a("## 3. Apuracao de PIS/COFINS")
         a("")
         for bloco in resultado["pis_cofins"]:
             regime = bloco["regime"]
@@ -172,7 +206,7 @@ def montar_markdown(resultado):
 
     # --- Apuracao ICMS ---
     if resultado.get("icms"):
-        a("## 3. Apuracao de ICMS")
+        a("## 4. Apuracao de ICMS")
         a("")
         for bloco in resultado["icms"]:
             ap = bloco["apuracao_escriturada"]["apuracao"]
@@ -231,7 +265,7 @@ def montar_markdown(resultado):
 
     # --- Cruzamento ---
     if resultado.get("cruzamento"):
-        a("## 4. Cruzamento entre a movimentacao de produtos e o SPED")
+        a("## 5. Cruzamento entre a movimentacao de produtos e o SPED")
         a("")
         cr = resultado["cruzamento"]
         res = cr["resumo"]
@@ -295,7 +329,7 @@ def montar_markdown(resultado):
             a("")
 
     # --- Achados ---
-    a("## 5. Achados e consideracoes tributarias")
+    a("## 6. Achados e consideracoes tributarias")
     a("")
     if not achados:
         a("Nenhuma inconsistencia identificada pelos testes aplicados.")
@@ -332,7 +366,7 @@ def montar_markdown(resultado):
             a("")
 
     # --- Ressalvas ---
-    a("## 6. Ressalvas")
+    a("## 7. Ressalvas")
     a("")
     for ressalva in resultado.get("ressalvas", []):
         a("- %s" % ressalva)
@@ -362,20 +396,34 @@ def montar_xlsx(resultado, caminho):
         ["Total de achados", len(achados)],
     ]))
 
+    def _estabs(achado):
+        vistos = []
+        for d in achado.detalhes:
+            cod = (d.get("linha") or {}).get("estabelecimento", "")
+            if cod and cod not in vistos:
+                vistos.append(cod)
+        return ", ".join(sorted(vistos, key=lambda x: (len(x), x))) or "-"
+
     abas.append(("Achados",
                  ["Codigo", "Titulo", "Severidade", "Tributo", "Competencia",
                   "Ocorrencias", "Valor (R$)", "O que o valor mede", "Sentido",
-                  "Descricao", "Fundamento", "Encaminhamento"],
+                  "Estabelecimentos", "Descricao", "Fundamento", "Encaminhamento"],
                  [[a.codigo, a.titulo, a.severidade, a.tributo, a.competencia,
-                   a.quantidade, a.valor, a.natureza_valor, a.sentido, a.descricao,
-                   a.base_legal, a.recomendacao] for a in achados]))
+                   a.quantidade, a.valor, a.natureza_valor, a.sentido, _estabs(a),
+                   a.descricao, a.base_legal, a.recomendacao] for a in achados]))
 
     detalhes = []
     for a in achados:
         for d in a.detalhes:
             linha = d.get("linha") or {}
+            # achados sem linha fiscal (consolidacao, retencao) pertencem ao
+            # declarante da escrituracao
+            cnpj_est = linha.get("cnpj_estabelecimento") or a.cnpj
             detalhes.append([
-                a.codigo, a.severidade, a.competencia, d["ref"], d["valor"], d["obs"],
+                a.codigo, a.severidade, a.competencia,
+                formata_cnpj(cnpj_est), tipo_estabelecimento(cnpj_est),
+                linha.get("estabelecimento", ""), linha.get("uf_estabelecimento", ""),
+                d["ref"], d["valor"], d["obs"],
                 linha.get("origem", ""), linha.get("doc", ""), linha.get("data", ""),
                 linha.get("cod_item", ""), linha.get("ncm", ""), linha.get("cfop", ""),
                 linha.get("cst_pis", ""), linha.get("cst_cofins", ""),
@@ -384,7 +432,9 @@ def montar_xlsx(resultado, caminho):
                 linha.get("vl_icms", ""), linha.get("arquivo", ""),
             ])
     abas.append(("Detalhe dos achados",
-                 ["Achado", "Severidade", "Competencia", "Referencia", "Valor (R$)",
+                 ["Achado", "Severidade", "Competencia",
+                  "CNPJ do estabelecimento", "Matriz/Filial", "Cod. estab.", "UF",
+                  "Referencia", "Valor (R$)",
                   "Observacao", "Registro", "Documento", "Data", "Cod. item", "NCM",
                   "CFOP", "CST PIS", "CST COFINS", "CST ICMS", "Valor do item",
                   "PIS", "COFINS", "ICMS", "Arquivo"],

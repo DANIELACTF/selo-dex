@@ -26,6 +26,9 @@ Antes de rodar qualquer coisa, liste o que chegou e confirme:
 
 - quantos arquivos SPED, de que tipo (o script detecta pelo registro 0000) e de que competências;
 - se o CNPJ é o mesmo em todos — arquivos de estabelecimentos diferentes **não** devem ser somados sem avisar;
+- quantos estabelecimentos o arquivo cobre (registro 0140) e quais têm documentos
+  (registros C010/A010/D010/F010). Uma filial pode não ter nenhuma nota no bloco C e
+  ainda assim ter serviços no bloco A — não conclua que ela ficou de fora da escrituração;
 - se a planilha de movimentação cobre a mesma competência dos arquivos SPED.
 
 Se faltar a EFD ICMS/IPI, diga que o cruzamento físico ficará limitado às
@@ -109,6 +112,9 @@ A entrega final é obrigatória e contém:
    cruzamento de estoque, achados com fundamento legal e encaminhamento, ressalvas.
 2. **Planilha `.xlsx`** — abas de Resumo, Achados, Detalhe dos achados (todas as
    ocorrências, não só as amostras), apurações, CST, CFOP e cruzamento de estoque.
+   Cada linha do detalhamento traz **CNPJ do estabelecimento, matriz/filial, código
+   e UF** — em arquivo de várias filiais, achado sem endereço não vira trabalho.
+   A aba Achados lista os estabelecimentos alcançados por cada apontamento.
 3. **Síntese em tela** com, nesta ordem: achados de alta severidade, potencial a
    recuperar, exposição a recolher, e o que não pôde ser testado.
 

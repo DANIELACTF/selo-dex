@@ -149,7 +149,12 @@ def executar(args):
         # escrituracao item a item, entao e usado quando reconhecido.
         if movimentacao_analitica.detectar(grade):
             registros, diagnostico = movimentacao_analitica.ler(grade)
-            cruz = movimentacao_analitica.cruzar(registros, todas_as_linhas, ctx)
+            mapa_est = {}
+            for esc in escrituracoes_contrib + escrituracoes_icms:
+                for cnpj, dados in esc.estabelecimentos.items():
+                    if dados.get("cod_est"):
+                        mapa_est[dados["cod_est"]] = {"cnpj": cnpj, "uf": dados.get("uf", "")}
+            cruz = movimentacao_analitica.cruzar(registros, todas_as_linhas, ctx, mapa_est)
             diagnostico.update({"arquivo": os.path.basename(args.movimentacao),
                                 "aba": nome_aba, "formato": "analitica por documento"})
             resultado["cruzamento"] = {"resumo": diagnostico,

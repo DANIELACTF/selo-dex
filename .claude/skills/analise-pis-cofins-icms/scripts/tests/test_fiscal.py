@@ -684,3 +684,57 @@ class TestXlsxValidoParaExcel(unittest.TestCase):
             self.assertEqual(xlsx_validador.validar(os.path.join(destino, "v.xlsx")), [])
         finally:
             shutil.rmtree(destino)
+
+
+class TestIdentificacaoDoEstabelecimento(unittest.TestCase):
+    """Arquivo de varias filiais: todo achado precisa dizer a qual CNPJ pertence."""
+
+    def test_matriz_e_filial_pelo_cnpj(self):
+        from fiscal.modelo import tipo_estabelecimento, formata_cnpj
+        self.assertEqual(tipo_estabelecimento("11205159000169"), "MATRIZ")
+        self.assertEqual(tipo_estabelecimento("11205159000401"), "FILIAL")
+        self.assertEqual(tipo_estabelecimento("123"), "")
+        self.assertEqual(formata_cnpj("11205159000169"), "11.205.159/0001-69")
+
+    def test_toda_linha_extraida_tem_estabelecimento(self):
+        _garantir_amostras()
+        esc = parser.parse(os.path.join(AMOSTRAS, "EFD_CONTRIBUICOES_072026.txt"))
+        linhas = extrair_linhas(esc)
+        self.assertTrue(linhas)
+        for l in linhas:
+            self.assertTrue(l.cnpj_estabelecimento,
+                            "linha %s sem CNPJ de estabelecimento" % l.origem)
+
+    def test_referencia_mostra_o_estabelecimento(self):
+        from fiscal.modelo import LinhaFiscal
+        l = LinhaFiscal(doc="123", cod_item="X", cfop="5102",
+                        estabelecimento="53", uf_estabelecimento="ES",
+                        cnpj_estabelecimento="11205159000835")
+        self.assertIn("est. 53/ES", l.ref())
+
+    def test_planilha_traz_as_colunas_de_cnpj(self):
+        _garantir_amostras()
+        import analisar
+        from fiscal.planilha import ler_xlsx
+        destino = tempfile.mkdtemp()
+        try:
+            args = analisar.main.__globals__["argparse"].Namespace(
+                sped=[AMOSTRAS],
+                movimentacao=os.path.join(AMOSTRAS, "movimentacao_072026.xlsx"),
+                aba=None, saida=destino, prefixo="e", tabela_ncm=None,
+                tabela_ncm_extra=None, json=False)
+            analisar.executar(args)
+            _, linhas = ler_xlsx(os.path.join(destino, "e.xlsx"),
+                                 aba="Detalhe dos achados")
+            cabecalho = linhas[0]
+            for coluna in ("CNPJ do estabelecimento", "Matriz/Filial", "Cod. estab.", "UF"):
+                self.assertIn(coluna, cabecalho)
+            idx = cabecalho.index("CNPJ do estabelecimento")
+            tipo = cabecalho.index("Matriz/Filial")
+            preenchidas = [l for l in linhas[1:] if len(l) > idx and l[idx].strip()]
+            self.assertTrue(preenchidas, "nenhuma linha de detalhe com CNPJ")
+            for l in preenchidas:
+                self.assertRegex(l[idx], r"^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$")
+                self.assertIn(l[tipo], ("MATRIZ", "FILIAL"))
+        finally:
+            shutil.rmtree(destino)

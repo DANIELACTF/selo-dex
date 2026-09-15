@@ -39,6 +39,22 @@ def _doc_cancelado(reg):
     return reg.get("_cod_sit", "") in COD_SIT_DESCONSIDERAR
 
 
+def _estab(esc, reg):
+    """Identificacao do estabelecimento a que o registro pertence.
+
+    Vale para toda origem de linha, nao so para o C170: servico, energia, frete e
+    as demais operacoes tambem pertencem a um estabelecimento, e sem isso um
+    achado em arquivo de varias filiais nao tem endereco.
+    """
+    cnpj = reg.get("_cnpj_est", "") or esc.cnpj
+    dados = esc.estabelecimentos.get(cnpj, {})
+    return {
+        "cnpj_estabelecimento": cnpj,
+        "estabelecimento": dados.get("cod_est", ""),
+        "uf_estabelecimento": dados.get("uf", "") or esc.uf,
+    }
+
+
 def extrair_linhas(esc, incluir_icms=True):
     """Devolve a lista de LinhaFiscal de uma escrituracao (fiscal ou contribuicoes)."""
     linhas = []
@@ -50,8 +66,7 @@ def extrair_linhas(esc, incluir_icms=True):
         cod_item = r.txt("COD_ITEM")
         cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
         linhas.append(LinhaFiscal(
-            origem="C170", arquivo=esc.arquivo, linha=r.get("_linha"),
-            estabelecimento=esc.estabelecimentos.get(r.get("_cnpj_est", ""), r.get("_cnpj_est", "")),
+            origem="C170", arquivo=esc.arquivo, linha=r.get("_linha"), **_estab(esc, r),
             tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
             doc=r.get("_num_doc", ""), serie=r.get("_ser", ""),
             chave=r.get("_chv_nfe", ""), data=r.get("_dt_doc", ""),
@@ -76,7 +91,7 @@ def extrair_linhas(esc, incluir_icms=True):
             continue
         cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
         linhas.append(LinhaFiscal(
-            origem="C175", arquivo=esc.arquivo, linha=r.get("_linha"),
+            origem="C175", arquivo=esc.arquivo, linha=r.get("_linha"), **_estab(esc, r),
             tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
             doc=r.get("_num_doc", ""), chave=r.get("_chv_nfe", ""),
             data=r.get("_dt_doc", ""), cod_part=r.get("_cod_part", ""), cfop=cfop,
@@ -99,7 +114,7 @@ def extrair_linhas(esc, incluir_icms=True):
         if _doc_cancelado(r):
             continue
         linhas.append(LinhaFiscal(
-            origem="A170", arquivo=esc.arquivo, linha=r.get("_linha"),
+            origem="A170", arquivo=esc.arquivo, linha=r.get("_linha"), **_estab(esc, r),
             tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), ""),
             doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
             cod_part=r.get("_cod_part", ""), cod_item=r.txt("COD_ITEM"),
@@ -117,7 +132,7 @@ def extrair_linhas(esc, incluir_icms=True):
         ind = r.txt("IND_OPER")   # 0=operacao de aquisicao com credito, 1=receita, 2=outras
         tipo = "ENTRADA" if ind == "0" else "SAIDA" if ind == "1" else "INDEFINIDO"
         linhas.append(LinhaFiscal(
-            origem="F100", arquivo=esc.arquivo, linha=r.get("_linha"), tipo=tipo,
+            origem="F100", arquivo=esc.arquivo, linha=r.get("_linha"), tipo=tipo, **_estab(esc, r),
             data=r.txt("DT_OPER"), cod_part=r.txt("COD_PART"),
             cod_item=r.txt("COD_ITEM"), descricao=r.txt("DESC_DOC_OPER"),
             vl_item=r.dec("VL_OPER"), nat_bc_cred=r.txt("NAT_BC_CRED"),
@@ -146,6 +161,7 @@ def _pareia_creditos(esc, linhas, reg_pis, reg_cofins, rotulo):
         linhas.append(LinhaFiscal(
             origem="%s/%s" % (reg_pis, reg_cofins), arquivo=esc.arquivo,
             linha=r.get("_linha"), tipo="ENTRADA", doc=r.get("_num_doc", ""),
+            **_estab(esc, r),
             data=r.get("_dt_doc", ""), cod_part=r.get("_cod_part", ""),
             descricao=rotulo, vl_item=r.dec("VL_ITEM"),
             nat_bc_cred=r.txt("NAT_BC_CRED"),
@@ -183,7 +199,7 @@ def _pareia_consolidados(esc, linhas, reg_pis, reg_cofins):
         cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
         linhas.append(LinhaFiscal(
             origem=reg_pis + "/" + reg_cofins, arquivo=esc.arquivo,
-            linha=r.get("_linha"),
+            linha=r.get("_linha"), **_estab(esc, r),
             tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
             doc=r.get("_num_doc", ""), chave=r.get("_chv_nfe", ""),
             data=r.get("_dt_doc", ""), cfop=cfop,
@@ -202,6 +218,7 @@ def _pareia_consolidados(esc, linhas, reg_pis, reg_cofins):
             cfop = tabelas.normaliza_cfop(c.txt("CFOP"))
             linhas.append(LinhaFiscal(
                 origem=reg_cofins, arquivo=esc.arquivo, linha=c.get("_linha"),
+                **_estab(esc, c),
                 tipo=_tipo_por_cfop_ou_oper(c.get("_ind_oper", ""), cfop),
                 doc=c.get("_num_doc", ""), chave=c.get("_chv_nfe", ""),
                 data=c.get("_dt_doc", ""), cfop=cfop,
@@ -221,6 +238,7 @@ def _pareia_fretes(esc, linhas):
         c = par.pop(0) if par else None
         linhas.append(LinhaFiscal(
             origem="D101/D105", arquivo=esc.arquivo, linha=r.get("_linha"),
+            **_estab(esc, r),
             tipo="ENTRADA", doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
             cod_part=r.get("_cod_part", ""), descricao="Frete - CT-e",
             vl_item=r.dec("VL_ITEM"), nat_bc_cred=r.txt("NAT_BC_CRED"),

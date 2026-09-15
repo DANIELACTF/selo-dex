@@ -6,6 +6,21 @@ from decimal import Decimal
 
 ZERO = Decimal("0")
 
+
+def tipo_estabelecimento(cnpj):
+    """MATRIZ quando a ordem do CNPJ e 0001; FILIAL nos demais casos."""
+    digitos = "".join(ch for ch in str(cnpj or "") if ch.isdigit())
+    if len(digitos) != 14:
+        return ""
+    return "MATRIZ" if digitos[8:12] == "0001" else "FILIAL"
+
+
+def formata_cnpj(cnpj):
+    d = "".join(ch for ch in str(cnpj or "") if ch.isdigit())
+    if len(d) != 14:
+        return str(cnpj or "")
+    return "%s.%s.%s/%s-%s" % (d[:2], d[2:5], d[5:8], d[8:12], d[12:])
+
 SEV_ALTA = "ALTA"
 SEV_MEDIA = "MEDIA"
 SEV_BAIXA = "BAIXA"
@@ -27,6 +42,7 @@ class LinhaFiscal(object):
         "cst_cofins", "bc_cofins", "aliq_cofins", "vl_cofins",
         "cst_icms", "bc_icms", "aliq_icms", "vl_icms", "bc_icms_st", "vl_icms_st",
         "nat_bc_cred", "linha", "arquivo", "estabelecimento",
+        "cnpj_estabelecimento", "uf_estabelecimento",
     )
 
     def __init__(self, **kw):
@@ -40,7 +56,7 @@ class LinhaFiscal(object):
         for campo in ("origem", "tipo", "doc", "serie", "chave", "data", "cod_part",
                       "cfop", "cod_item", "ncm", "descricao", "unid", "cst_pis",
                       "cst_cofins", "cst_icms", "nat_bc_cred", "arquivo",
-                      "estabelecimento"):
+                      "estabelecimento", "cnpj_estabelecimento", "uf_estabelecimento"):
             if getattr(self, campo) is None:
                 setattr(self, campo, "")
 
@@ -52,9 +68,18 @@ class LinhaFiscal(object):
     def eh_entrada(self):
         return self.tipo == "ENTRADA"
 
+    @property
+    def tipo_estabelecimento(self):
+        return tipo_estabelecimento(self.cnpj_estabelecimento)
+
     def ref(self):
         """Identificacao curta do item para amostragem em relatorio."""
         partes = []
+        if self.estabelecimento or self.cnpj_estabelecimento:
+            rotulo = self.estabelecimento or self.cnpj_estabelecimento
+            if self.uf_estabelecimento:
+                rotulo = "%s/%s" % (rotulo, self.uf_estabelecimento)
+            partes.append("est. %s" % rotulo)
         if self.doc:
             partes.append("NF %s" % self.doc)
         if self.data:

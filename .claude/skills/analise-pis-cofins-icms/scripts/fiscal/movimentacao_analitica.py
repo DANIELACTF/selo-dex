@@ -115,6 +115,7 @@ def _mapear(grade, linha_cab, linha_grupos):
 class Registro(object):
     __slots__ = ("secao", "filial", "documento", "data", "codigo", "descricao",
                  "cfop", "ncm", "quantidade", "valor", "linha",
+                 "cnpj_estabelecimento", "uf_estabelecimento",
                  "pis_cst", "pis_base", "pis_valor",
                  "cofins_cst", "cofins_base", "cofins_valor",
                  "icms_cst", "icms_base", "icms_valor", "icms_st_valor")
@@ -127,7 +128,8 @@ class Registro(object):
             if getattr(self, c) is None:
                 setattr(self, c, ZERO)
         for c in ("secao", "filial", "documento", "data", "codigo", "descricao",
-                  "cfop", "ncm", "pis_cst", "cofins_cst", "icms_cst"):
+                  "cfop", "ncm", "pis_cst", "cofins_cst", "icms_cst",
+                  "cnpj_estabelecimento", "uf_estabelecimento"):
             if getattr(self, c) is None:
                 setattr(self, c, "")
 
@@ -135,9 +137,20 @@ class Registro(object):
     def chave(self):
         return (self.documento, _norm_num(self.codigo))
 
+    @property
+    def estabelecimento(self):
+        return self.filial
+
+    def como_dict(self):
+        dados = {c: getattr(self, c) for c in self.__slots__}
+        # "estabelecimento" e propriedade, nao slot: sem isso o relatorio perde
+        # o codigo da filial nas linhas vindas da planilha
+        dados["estabelecimento"] = self.filial
+        return dados
+
     def ref(self):
-        return "filial %s | doc %s | %s" % (self.filial, self.documento,
-                                            (self.descricao or self.codigo)[:40])
+        return "est. %s | doc %s | %s" % (self.filial, self.documento,
+                                          (self.descricao or self.codigo)[:40])
 
 
 def detectar(grade):
@@ -199,9 +212,18 @@ def ler(grade):
     return registros, diagnostico
 
 
-def cruzar(registros, linhas_sped, ctx=None):
+def cruzar(registros, linhas_sped, ctx=None, estabelecimentos=None):
     """Confronta a planilha analitica com as linhas extraidas do SPED."""
     ctx = ctx or {}
+    # {cod_est: {cnpj, uf}} - permite dizer a qual CNPJ pertence cada achado,
+    # aproveitando a coluna Filial que a planilha analitica ja traz
+    estabelecimentos = estabelecimentos or {}
+
+    def _identificar(registro):
+        dados = estabelecimentos.get(str(registro.filial).strip(), {})
+        registro.cnpj_estabelecimento = dados.get("cnpj", "")
+        registro.uf_estabelecimento = dados.get("uf", "")
+        return registro
 
     def novo(codigo, titulo, sev, descricao, base_legal, recomendacao, sentido,
              natureza="Efeito tributario estimado"):
@@ -308,12 +330,12 @@ def cruzar(registros, linhas_sped, ctx=None):
         if doc in docs_sped.get(secao, set()) or doc in docs_sped_qualquer:
             continue
         if tributo > CENTAVO:
-            ma01.adicionar(exemplo, tributo,
+            ma01.adicionar(_identificar(exemplo), tributo,
                            "%d item(ns), R$ %s, CFOP %s - a planilha destaca credito "
                            "que nao foi localizado no SPED" %
                            (n, valor.quantize(CENTAVO), ", ".join(sorted(cfops)[:3])))
         else:
-            ma02.adicionar(exemplo, valor,
+            ma02.adicionar(_identificar(exemplo), valor,
                            "%d item(ns), CFOP %s, sem tributo destacado na planilha" %
                            (n, ", ".join(sorted(cfops)[:3])))
 
@@ -328,7 +350,7 @@ def cruzar(registros, linhas_sped, ctx=None):
         dif = max(abs(p["valor"] - s["valor"]), abs(p["pis"] - s["pis"]),
                   abs(p["cofins"] - s["cofins"]))
         if dif > TOL:
-            ma03.adicionar(ref, abs(p["pis"] + p["cofins"] - s["pis"] - s["cofins"]),
+            ma03.adicionar(_identificar(ref), abs(p["pis"] + p["cofins"] - s["pis"] - s["cofins"]),
                            "planilha R$ %s (PIS %s / COFINS %s) x SPED R$ %s "
                            "(PIS %s / COFINS %s)" %
                            (p["valor"].quantize(CENTAVO), p["pis"].quantize(CENTAVO),
@@ -337,7 +359,7 @@ def cruzar(registros, linhas_sped, ctx=None):
         cst_p = str(p["cst"] or "").strip().zfill(2)
         cst_s = str(s["cst_pis"] or "").strip().zfill(2)
         if cst_p and cst_s and cst_p != cst_s:
-            ma04.adicionar(ref, abs(p["pis"] + p["cofins"] - s["pis"] - s["cofins"]),
+            ma04.adicionar(_identificar(ref), abs(p["pis"] + p["cofins"] - s["pis"] - s["cofins"]),
                            "planilha CST %s x SPED CST %s" % (cst_p, cst_s))
 
     # sentido oposto: o que esta escriturado e nao aparece no sistema do cliente
