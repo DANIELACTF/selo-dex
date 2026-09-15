@@ -55,6 +55,25 @@ def _escapar(texto):
             .replace('"', "&quot;"))
 
 
+def _numero(valor):
+    """Serializa numero em notacao decimal simples (nunca cientifica)."""
+    if isinstance(valor, Decimal):
+        if not valor.is_finite():
+            return "0"
+        texto = format(valor, "f")
+    elif isinstance(valor, float):
+        if valor != valor or valor in (float("inf"), float("-inf")):
+            return "0"
+        texto = repr(valor)
+        if "e" in texto or "E" in texto:
+            texto = format(Decimal(str(valor)), "f")
+    else:
+        texto = str(valor)
+    if "." in texto:
+        texto = texto.rstrip("0").rstrip(".") or "0"
+    return texto or "0"
+
+
 def _letra_coluna(indice):
     letras = ""
     indice += 1
@@ -86,7 +105,7 @@ def _celula(valor, linha, coluna, estilo_cabecalho=False):
     if isinstance(valor, bool):
         valor = "Sim" if valor else "Nao"
     elif isinstance(valor, (Decimal, int, float)):
-        return '<c r="%s" s="2"><v>%s</v></c>' % (ref, valor)
+        return '<c r="%s" s="2"><v>%s</v></c>' % (ref, _numero(valor))
     elif isinstance(valor, datetime):
         valor = valor.strftime("%d/%m/%Y")
     return '<c r="%s" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % (
@@ -94,17 +113,41 @@ def _celula(valor, linha, coluna, estilo_cabecalho=False):
 
 
 def _sheet_xml(cabecalho, linhas):
+    """Monta o XML da planilha.
+
+    A ordem dos elementos dentro de <worksheet> e IMPOSTA pelo schema OOXML:
+    sheetPr, dimension, sheetViews, sheetFormatPr, cols, sheetData, ...
+    Fora dessa ordem o Excel recusa o arquivo inteiro como corrompido, mesmo que
+    todo o conteudo esteja correto - e leitores tolerantes abrem assim mesmo, o que
+    faz o defeito passar despercebido. Por isso a montagem e sequencial e fixa.
+    """
+    total_linhas = len(linhas) + (1 if cabecalho else 0)
+    total_colunas = max([len(cabecalho)] + [len(l) for l in linhas]) if (cabecalho or linhas) else 1
+    total_colunas = max(total_colunas, 1)
+    total_linhas = max(total_linhas, 1)
+
     partes = [
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
         '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        '<dimension ref="A1:%s%d"/>' % (_letra_coluna(total_colunas - 1), total_linhas),
     ]
     if cabecalho:
-        largura = []
+        partes.append('<sheetViews><sheetView workbookViewId="0">'
+                      '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" '
+                      'state="frozen"/></sheetView></sheetViews>')
+    else:
+        partes.append('<sheetViews><sheetView workbookViewId="0"/></sheetViews>')
+    partes.append('<sheetFormatPr defaultRowHeight="15"/>')
+    if cabecalho:
+        colunas = []
         for i, titulo in enumerate(cabecalho):
-            tamanho = min(max(len(str(titulo)) + 4, 12), 55)
-            largura.append('<col min="%d" max="%d" width="%d" customWidth="1"/>' % (i + 1, i + 1, tamanho))
-        partes.append("<cols>" + "".join(largura) + "</cols>")
-    partes.append('<sheetData>')
+            largura = min(max(len(str(titulo)) + 4, 12), 55)
+            colunas.append('<col min="%d" max="%d" width="%d" customWidth="1"/>'
+                           % (i + 1, i + 1, largura))
+        if colunas:
+            partes.append("<cols>" + "".join(colunas) + "</cols>")
+
+    partes.append("<sheetData>")
     numero = 1
     if cabecalho:
         celulas = "".join(_celula(t, numero, i, True) for i, t in enumerate(cabecalho))
@@ -115,19 +158,18 @@ def _sheet_xml(cabecalho, linhas):
         partes.append('<row r="%d">%s</row>' % (numero, celulas))
         numero += 1
     partes.append("</sheetData>")
-    if cabecalho:
-        partes.insert(3, '<sheetViews><sheetView workbookViewId="0">'
-                         '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
-                         '</sheetView></sheetViews>')
     partes.append("</worksheet>")
     return "".join(partes)
 
 
-def escrever(caminho, abas):
+def escrever(caminho, abas, validar=True):
     """Grava um .xlsx.
 
     abas: lista de (nome, cabecalho, linhas) - cabecalho e lista de titulos,
           linhas e lista de listas de valores (str, Decimal, int, float, bool).
+    validar: confere o pacote contra o schema OOXML antes de devolver. Fica ligado
+          por padrao porque leitores tolerantes abrem arquivos que o Excel recusa,
+          e sem essa conferencia o defeito so aparece na mao do usuario.
     """
     usados = set()
     normalizadas = []
@@ -181,4 +223,7 @@ def escrever(caminho, abas):
         z.writestr("xl/styles.xml", STYLES)
         for i, (_, cabecalho, linhas) in enumerate(normalizadas, start=1):
             z.writestr("xl/worksheets/sheet%d.xml" % i, _sheet_xml(cabecalho, linhas))
+    if validar:
+        from .xlsx_validador import exigir_valido
+        exigir_valido(caminho)
     return caminho

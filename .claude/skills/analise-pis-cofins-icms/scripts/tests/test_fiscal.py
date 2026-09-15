@@ -194,7 +194,11 @@ class TestPlanilha(unittest.TestCase):
             nome, linhas = ler_xlsx(caminho)
             self.assertEqual(nome, "Aba 1")
             self.assertEqual(linhas[0], ["A", "B"])
-            self.assertEqual(linhas[1], ["x & y", "10.50"])
+            # o numero e gravado como valor (10.5) e exibido pelo formato
+            # "#,##0.00" da planilha; comparar o texto cru seria comparar a
+            # serializacao, nao o dado
+            self.assertEqual(linhas[1][0], "x & y")
+            self.assertEqual(Decimal(linhas[1][1]), Decimal("10.50"))
             nome2, linhas2 = ler_xlsx(caminho, aba="Aba 2")
             self.assertEqual(nome2, "Aba 2")
             self.assertEqual(linhas2[1], ["only"])
@@ -582,3 +586,101 @@ class TestDestinoDaCompra(unittest.TestCase):
         self.assertEqual(totais["RECUPERAR"], Decimal("0"))
         self.assertEqual(totais["RECOLHER"], Decimal("0"))
         self.assertEqual(totais["AVALIAR"], Decimal("92.50"))
+
+
+class TestXlsxValidoParaExcel(unittest.TestCase):
+    """O Excel recusa arquivos que leitores tolerantes abrem sem reclamar.
+
+    Estes testes existem porque um .xlsx com <cols> antes de <sheetViews> passou
+    pelo leitor deste pacote e pelo openpyxl, e chegou quebrado ao usuario.
+    """
+
+    def _gerar(self, destino, **kw):
+        return xlsx.escrever(destino, [
+            ("Resumo", ["Campo", "Valor"],
+             [["Texto com & e <tags>", Decimal("1234.56")],
+              ["Zero", Decimal("0.00")], ["Inteiro", 42], ["Booleano", True],
+              ["Vazio", ""], ["Negativo", Decimal("-45.50")]]),
+            ("Segunda aba", ["A"], [["x"]]),
+        ], **kw)
+
+    def test_arquivo_gerado_passa_no_schema(self):
+        from fiscal import xlsx_validador
+        destino = tempfile.mkdtemp()
+        try:
+            caminho = self._gerar(os.path.join(destino, "t.xlsx"))
+            self.assertEqual(xlsx_validador.validar(caminho), [])
+        finally:
+            shutil.rmtree(destino)
+
+    def test_ordem_dos_elementos_da_planilha(self):
+        import zipfile as _zip
+        from xml.etree import ElementTree
+        from fiscal.xlsx_validador import NS_MAIN, ORDEM_WORKSHEET
+        destino = tempfile.mkdtemp()
+        try:
+            caminho = self._gerar(os.path.join(destino, "t.xlsx"))
+            with _zip.ZipFile(caminho) as z:
+                ws = ElementTree.fromstring(z.read("xl/worksheets/sheet1.xml"))
+            nomes = [f.tag.replace(NS_MAIN, "") for f in ws]
+            posicoes = [ORDEM_WORKSHEET.index(n) for n in nomes]
+            self.assertEqual(posicoes, sorted(posicoes),
+                             "elementos fora da ordem do schema: %s" % nomes)
+            self.assertIn("sheetData", nomes)
+            self.assertLess(nomes.index("sheetViews"), nomes.index("cols"))
+        finally:
+            shutil.rmtree(destino)
+
+    def test_validador_reprova_ordem_errada(self):
+        # o guarda tambem precisa ser guardado: se ele nao pegar o defeito
+        # que motivou sua criacao, nao serve para nada
+        import zipfile as _zip
+        from fiscal import xlsx_validador
+        destino = tempfile.mkdtemp()
+        try:
+            bom = self._gerar(os.path.join(destino, "bom.xlsx"))
+            with _zip.ZipFile(bom) as z:
+                partes = {n: z.read(n) for n in z.namelist()}
+            xml = partes["xl/worksheets/sheet1.xml"].decode()
+            i_sv, f_sv = xml.index("<sheetViews>"), xml.index("</sheetViews>") + 13
+            i_c, f_c = xml.index("<cols>"), xml.index("</cols>") + 7
+            sv, cols = xml[i_sv:f_sv], xml[i_c:f_c]
+            ruim = xml[:i_sv] + cols + xml[f_sv:i_c] + sv + xml[f_c:]
+            partes["xl/worksheets/sheet1.xml"] = ruim.encode()
+            caminho = os.path.join(destino, "ruim.xlsx")
+            with _zip.ZipFile(caminho, "w") as z:
+                for n, d in partes.items():
+                    z.writestr(n, d)
+            problemas = xlsx_validador.validar(caminho)
+            self.assertTrue(problemas, "o validador deixou passar a ordem errada")
+            self.assertTrue(any("ordem" in p for p in problemas), problemas)
+        finally:
+            shutil.rmtree(destino)
+
+    def test_numero_nunca_sai_em_notacao_cientifica(self):
+        from fiscal.xlsx import _numero
+        self.assertEqual(_numero(Decimal("1E+3")), "1000")
+        self.assertEqual(_numero(Decimal("0E-8")), "0")
+        self.assertEqual(_numero(Decimal("1234.5600")), "1234.56")
+        self.assertNotIn("e", _numero(0.00000001).lower())
+
+    def test_gravacao_recusa_pacote_invalido(self):
+        from fiscal import xlsx_validador
+        with self.assertRaises(xlsx_validador.ErroValidacao):
+            xlsx_validador.exigir_valido(os.devnull)
+
+    def test_relatorio_completo_gera_xlsx_valido(self):
+        from fiscal import xlsx_validador
+        _garantir_amostras()
+        import analisar
+        destino = tempfile.mkdtemp()
+        try:
+            args = analisar.main.__globals__["argparse"].Namespace(
+                sped=[AMOSTRAS],
+                movimentacao=os.path.join(AMOSTRAS, "movimentacao_072026.xlsx"),
+                aba=None, saida=destino, prefixo="v", tabela_ncm=None,
+                tabela_ncm_extra=None, json=False)
+            analisar.executar(args)
+            self.assertEqual(xlsx_validador.validar(os.path.join(destino, "v.xlsx")), [])
+        finally:
+            shutil.rmtree(destino)
