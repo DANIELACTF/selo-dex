@@ -1,0 +1,199 @@
+# -*- coding: utf-8 -*-
+"""Normaliza registros SPED em LinhaFiscal, independente do registro de origem."""
+from __future__ import annotations
+
+from decimal import Decimal
+
+from .modelo import LinhaFiscal, COD_SIT_DESCONSIDERAR, ZERO
+from . import tabelas
+
+IND_OPER_ENTRADA = "0"
+IND_OPER_SAIDA = "1"
+
+
+def _tipo_por_cfop_ou_oper(ind_oper, cfop):
+    if ind_oper == IND_OPER_SAIDA:
+        return "SAIDA"
+    if ind_oper == IND_OPER_ENTRADA:
+        return "ENTRADA"
+    if tabelas.eh_saida(cfop):
+        return "SAIDA"
+    if tabelas.eh_entrada(cfop):
+        return "ENTRADA"
+    return "INDEFINIDO"
+
+
+def _ncm_do_item(esc, cod_item):
+    item = esc.itens.get(cod_item)
+    return item.txt("COD_NCM") if item else ""
+
+
+def _descr_do_item(esc, cod_item, fallback=""):
+    item = esc.itens.get(cod_item)
+    if item and item.txt("DESCR_ITEM"):
+        return item.txt("DESCR_ITEM")
+    return fallback
+
+
+def _doc_cancelado(reg):
+    return reg.get("_cod_sit", "") in COD_SIT_DESCONSIDERAR
+
+
+def extrair_linhas(esc, incluir_icms=True):
+    """Devolve a lista de LinhaFiscal de uma escrituracao (fiscal ou contribuicoes)."""
+    linhas = []
+
+    # --- C170: itens de documentos fiscais (mais rico: tem quantidade e NCM) ---
+    for r in esc.get("C170"):
+        if _doc_cancelado(r):
+            continue
+        cod_item = r.txt("COD_ITEM")
+        cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
+        linhas.append(LinhaFiscal(
+            origem="C170", arquivo=esc.arquivo, linha=r.get("_linha"),
+            tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
+            doc=r.get("_num_doc", ""), serie=r.get("_ser", ""),
+            chave=r.get("_chv_nfe", ""), data=r.get("_dt_doc", ""),
+            cod_part=r.get("_cod_part", ""), cfop=cfop,
+            cod_item=cod_item, ncm=_ncm_do_item(esc, cod_item),
+            descricao=_descr_do_item(esc, cod_item, r.txt("DESCR_COMPL")),
+            qtd=r.dec("QTD"), unid=r.txt("UNID"),
+            vl_item=r.dec("VL_ITEM"), vl_desc=r.dec("VL_DESC"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=r.txt("CST_COFINS"), bc_cofins=r.dec("VL_BC_COFINS"),
+            aliq_cofins=r.dec("ALIQ_COFINS"), vl_cofins=r.dec("VL_COFINS"),
+            cst_icms=r.txt("CST_ICMS") if incluir_icms else "",
+            bc_icms=r.dec("VL_BC_ICMS"), aliq_icms=r.dec("ALIQ_ICMS"),
+            vl_icms=r.dec("VL_ICMS"), bc_icms_st=r.dec("VL_BC_ICMS_ST"),
+            vl_icms_st=r.dec("VL_ICMS_ST"),
+        ))
+
+    # --- C175: analitico de saida da EFD-Contribuicoes (quando nao ha C170) ---
+    for r in esc.get("C175"):
+        if _doc_cancelado(r):
+            continue
+        cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
+        linhas.append(LinhaFiscal(
+            origem="C175", arquivo=esc.arquivo, linha=r.get("_linha"),
+            tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
+            doc=r.get("_num_doc", ""), chave=r.get("_chv_nfe", ""),
+            data=r.get("_dt_doc", ""), cod_part=r.get("_cod_part", ""), cfop=cfop,
+            vl_item=r.dec("VL_OPR"), vl_desc=r.dec("VL_DESC"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=r.txt("CST_COFINS"), bc_cofins=r.dec("VL_BC_COFINS"),
+            aliq_cofins=r.dec("ALIQ_COFINS"), vl_cofins=r.dec("VL_COFINS"),
+        ))
+
+    # --- C181/C185 e C191/C195: consolidacao de saidas (PIS e COFINS separados) ---
+    _pareia_consolidados(esc, linhas, "C181", "C185")
+    _pareia_consolidados(esc, linhas, "C191", "C195")
+
+    # --- A170: itens de NFS-e (servicos) ---
+    for r in esc.get("A170"):
+        linhas.append(LinhaFiscal(
+            origem="A170", arquivo=esc.arquivo, linha=r.get("_linha"),
+            tipo="SAIDA", doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
+            cod_part=r.get("_cod_part", ""), cod_item=r.txt("COD_ITEM"),
+            descricao=r.txt("DESCR_COMPL"),
+            vl_item=r.dec("VL_ITEM"), vl_desc=r.dec("VL_DESC"),
+            nat_bc_cred=r.txt("NAT_BC_CRED"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=r.txt("CST_COFINS"), bc_cofins=r.dec("VL_BC_COFINS"),
+            aliq_cofins=r.dec("ALIQ_COFINS"), vl_cofins=r.dec("VL_COFINS"),
+        ))
+
+    # --- F100: demais operacoes (creditos e receitas fora de documento fiscal) ---
+    for r in esc.get("F100"):
+        ind = r.txt("IND_OPER")   # 0=operacao de aquisicao com credito, 1=receita, 2=outras
+        tipo = "ENTRADA" if ind == "0" else "SAIDA" if ind == "1" else "INDEFINIDO"
+        linhas.append(LinhaFiscal(
+            origem="F100", arquivo=esc.arquivo, linha=r.get("_linha"), tipo=tipo,
+            data=r.txt("DT_OPER"), cod_part=r.txt("COD_PART"),
+            cod_item=r.txt("COD_ITEM"), descricao=r.txt("DESC_DOC_OPER"),
+            vl_item=r.dec("VL_OPER"), nat_bc_cred=r.txt("NAT_BC_CRED"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=r.txt("CST_COFINS"), bc_cofins=r.dec("VL_BC_COFINS"),
+            aliq_cofins=r.dec("ALIQ_COFINS"), vl_cofins=r.dec("VL_COFINS"),
+        ))
+
+    # --- D101/D105: fretes (creditos sobre transporte) ---
+    _pareia_fretes(esc, linhas)
+    return linhas
+
+
+def _pareia_consolidados(esc, linhas, reg_pis, reg_cofins):
+    """C181/C185 (e C191/C195) trazem PIS e COFINS em registros separados.
+
+    Pareia pela chave (documento, CFOP, valor do item) para reconstruir a linha.
+    O que nao parear entra assim mesmo, com o tributo faltante zerado.
+    """
+    def chave(r, campo_cst):
+        return (r.get("_chv_nfe", ""), r.get("_num_doc", ""),
+                tabelas.normaliza_cfop(r.txt("CFOP")), r.txt("VL_ITEM"),
+                r.get("CNPJ_CPF_PART", ""))
+
+    cofins_por_chave = {}
+    for r in esc.get(reg_cofins):
+        cofins_por_chave.setdefault(chave(r, "CST_COFINS"), []).append(r)
+
+    for r in esc.get(reg_pis):
+        if _doc_cancelado(r):
+            continue
+        k = chave(r, "CST_PIS")
+        par = cofins_por_chave.get(k)
+        c = par.pop(0) if par else None
+        cfop = tabelas.normaliza_cfop(r.txt("CFOP"))
+        linhas.append(LinhaFiscal(
+            origem=reg_pis + "/" + reg_cofins, arquivo=esc.arquivo,
+            linha=r.get("_linha"),
+            tipo=_tipo_por_cfop_ou_oper(r.get("_ind_oper", ""), cfop),
+            doc=r.get("_num_doc", ""), chave=r.get("_chv_nfe", ""),
+            data=r.get("_dt_doc", ""), cfop=cfop,
+            vl_item=r.dec("VL_ITEM"), vl_desc=r.dec("VL_DESC"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=c.txt("CST_COFINS") if c else "",
+            bc_cofins=c.dec("VL_BC_COFINS") if c else ZERO,
+            aliq_cofins=c.dec("ALIQ_COFINS") if c else ZERO,
+            vl_cofins=c.dec("VL_COFINS") if c else ZERO,
+        ))
+
+    # registros de COFINS que sobraram sem par de PIS
+    for restantes in cofins_por_chave.values():
+        for c in restantes:
+            cfop = tabelas.normaliza_cfop(c.txt("CFOP"))
+            linhas.append(LinhaFiscal(
+                origem=reg_cofins, arquivo=esc.arquivo, linha=c.get("_linha"),
+                tipo=_tipo_por_cfop_ou_oper(c.get("_ind_oper", ""), cfop),
+                doc=c.get("_num_doc", ""), chave=c.get("_chv_nfe", ""),
+                data=c.get("_dt_doc", ""), cfop=cfop,
+                vl_item=c.dec("VL_ITEM"), vl_desc=c.dec("VL_DESC"),
+                cst_cofins=c.txt("CST_COFINS"), bc_cofins=c.dec("VL_BC_COFINS"),
+                aliq_cofins=c.dec("ALIQ_COFINS"), vl_cofins=c.dec("VL_COFINS"),
+            ))
+
+
+def _pareia_fretes(esc, linhas):
+    d105_por_doc = {}
+    for r in esc.get("D105"):
+        d105_por_doc.setdefault((r.get("_num_doc", ""), r.txt("IND_NAT_FRT")), []).append(r)
+    for r in esc.get("D101"):
+        k = (r.get("_num_doc", ""), r.txt("IND_NAT_FRT"))
+        par = d105_por_doc.get(k)
+        c = par.pop(0) if par else None
+        linhas.append(LinhaFiscal(
+            origem="D101/D105", arquivo=esc.arquivo, linha=r.get("_linha"),
+            tipo="ENTRADA", doc=r.get("_num_doc", ""), data=r.get("_dt_doc", ""),
+            cod_part=r.get("_cod_part", ""), descricao="Frete - CT-e",
+            vl_item=r.dec("VL_ITEM"), nat_bc_cred=r.txt("NAT_BC_CRED"),
+            cst_pis=r.txt("CST_PIS"), bc_pis=r.dec("VL_BC_PIS"),
+            aliq_pis=r.dec("ALIQ_PIS"), vl_pis=r.dec("VL_PIS"),
+            cst_cofins=c.txt("CST_COFINS") if c else "",
+            bc_cofins=c.dec("VL_BC_COFINS") if c else ZERO,
+            aliq_cofins=c.dec("ALIQ_COFINS") if c else ZERO,
+            vl_cofins=c.dec("VL_COFINS") if c else ZERO,
+        ))

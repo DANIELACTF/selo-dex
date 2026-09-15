@@ -63,3 +63,13 @@ fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Amostras e saidas geradas pela skill fiscal (regeneraveis)
+.claude/skills/analise-pis-cofins-icms/scripts/tests/amostras/
+resultado/

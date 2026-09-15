@@ -1,0 +1,5 @@
+MOVIMENTACAO DE PRODUTOS - <EMPRESA> - <MES/ANO>
+Preencha uma linha por produto. Use a mesma unidade de medida do cadastro fiscal.
+As colunas podem ter outros nomes: o leitor reconhece sinonimos comuns em portugues.
+Codigo;Descricao do Produto;NCM;Un.;Estoque Inicial;Entradas;Saidas;Estoque Final;Custo Medio
+EXEMPLO01;PRODUTO DE EXEMPLO;12345678;UN;100;50;30;120;25,90

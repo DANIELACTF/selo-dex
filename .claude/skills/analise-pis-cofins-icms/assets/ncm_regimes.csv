@@ -1,0 +1,54 @@
+ncm_prefixo;regime;grupo;descricao;base_legal;aliq_pis_ind;aliq_cofins_ind;cst_saida_revendedor;confianca;observacao
+3001;MONOFASICO;FARMACEUTICO;Produtos farmaceuticos (glandulas e outros orgaos);Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;Revenda por atacadista/varejista tem aliquota zero (CST 04). Industrial/importador recolhe majorado (CST 02).
+3003;MONOFASICO;FARMACEUTICO;Medicamentos nao dosificados (exceto 3003.90.56);Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;Excecao: 3003.90.56 fora do monofasico.
+3004;MONOFASICO;FARMACEUTICO;Medicamentos dosificados (exceto 3004.90.46);Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;Excecao: 3004.90.46 fora do monofasico.
+3002.10.1;MONOFASICO;FARMACEUTICO;Soros e vacinas - antissoros;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3002.10.2;MONOFASICO;FARMACEUTICO;Soros e vacinas;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3002.10.3;MONOFASICO;FARMACEUTICO;Soros e vacinas;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3002.20.1;MONOFASICO;FARMACEUTICO;Vacinas para medicina humana;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3002.20.2;MONOFASICO;FARMACEUTICO;Vacinas para medicina humana;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3006.30.1;MONOFASICO;FARMACEUTICO;Preparacoes opacificantes para exames radiograficos;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3006.30.2;MONOFASICO;FARMACEUTICO;Reagentes de diagnostico;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3006.60.00;MONOFASICO;FARMACEUTICO;Preparacoes quimicas contraceptivas;Lei 10.147/2000 art. 1 I a;2.10;9.90;04;alta;
+3303.00;MONOFASICO;HIGIENE_PERFUMARIA;Perfumes e aguas de colonia;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+3304;MONOFASICO;HIGIENE_PERFUMARIA;Produtos de beleza e maquiagem;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+3305;MONOFASICO;HIGIENE_PERFUMARIA;Preparacoes capilares;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+3306;MONOFASICO;HIGIENE_PERFUMARIA;Higiene bucal ou dentaria;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+3307;MONOFASICO;HIGIENE_PERFUMARIA;Preparacoes para barbear desodorantes e depilatorios;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+3401.11.90;MONOFASICO;HIGIENE_PERFUMARIA;Sabao de toucador (outros);Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;Somente o item 3401.11.90 e nao toda a posicao 3401.
+3401.20.10;MONOFASICO;HIGIENE_PERFUMARIA;Sabao em outras formas - flocos palhetas;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+9603.21.00;MONOFASICO;HIGIENE_PERFUMARIA;Escovas de dentes;Lei 10.147/2000 art. 1 I b;2.20;10.30;04;alta;
+8702;MONOFASICO;VEICULOS;Veiculos de transporte de 10 pessoas ou mais;Lei 10.485/2002 art. 1;2.00;9.60;04;alta;Fabricante/importador recolhe majorado. Conferir excecoes por item.
+8703;MONOFASICO;VEICULOS;Automoveis de passageiros;Lei 10.485/2002 art. 1;2.00;9.60;04;alta;
+8704;MONOFASICO;VEICULOS;Veiculos para transporte de mercadorias;Lei 10.485/2002 art. 1;2.00;9.60;04;alta;
+8705;MONOFASICO;VEICULOS;Veiculos automoveis para usos especiais;Lei 10.485/2002 art. 1;2.00;9.60;04;alta;
+8706;MONOFASICO;VEICULOS;Chassis com motor;Lei 10.485/2002 art. 1;2.00;9.60;04;alta;
+8701;MONOFASICO;VEICULOS;Tratores;Lei 10.485/2002 art. 1;2.00;9.60;04;media;Conferir itens contemplados.
+4011;MONOFASICO;PNEUS;Pneumaticos novos de borracha;Lei 10.485/2002 art. 5;2.00;9.50;04;alta;
+4013;MONOFASICO;PNEUS;Camaras de ar de borracha;Lei 10.485/2002 art. 5;2.00;9.50;04;alta;
+8708;MONOFASICO;AUTOPECAS;Partes e acessorios de veiculos (Anexos I e II);Lei 10.485/2002 art. 3 e Anexos;2.30;10.80;04;alta;Somente os itens listados nos Anexos I e II. Conferir NCM item a item antes de aplicar.
+8714;MONOFASICO;AUTOPECAS;Partes e acessorios de motocicletas e bicicletas (Anexos);Lei 10.485/2002 art. 3 e Anexos;2.30;10.80;04;media;Somente itens dos Anexos.
+2201;MONOFASICO;BEBIDAS_FRIAS;Aguas minerais e gaseificadas;Lei 13.097/2015 art. 14 e ss.;;;04;media;Regime especifico de bebidas frias. Confirmar aliquotas vigentes (Lei 13.097/2015 art. 25 e Decreto 8.442/2015) antes de quantificar.
+2202;MONOFASICO;BEBIDAS_FRIAS;Refrigerantes energeticos e isotonicos;Lei 13.097/2015 art. 14 e ss.;;;04;media;Confirmar aliquotas vigentes.
+2203;MONOFASICO;BEBIDAS_FRIAS;Cervejas de malte;Lei 13.097/2015 art. 14 e ss.;;;04;media;Confirmar aliquotas vigentes.
+2106.90.10;MONOFASICO;BEBIDAS_FRIAS;Preparacoes compostas para elaboracao de bebidas;Lei 13.097/2015 art. 14;;;04;media;Confirmar enquadramento do item.
+2710.12.59;MONOFASICO;COMBUSTIVEIS;Gasolina (exceto de aviacao);Lei 9.718/1998 art. 4 e Lei 14.592/2023;;;04;media;Regime com aliquotas ad rem (R$/m3). Confirmar valores vigentes na competencia.
+2710.19.21;MONOFASICO;COMBUSTIVEIS;Oleo diesel;Lei 9.718/1998 art. 4 e Lei 14.592/2023;;;04;media;Aliquotas ad rem. Confirmar valores vigentes.
+2711;MONOFASICO;COMBUSTIVEIS;GLP gas liquefeito de petroleo;Lei 9.718/1998 art. 4;;;04;media;Aliquotas ad rem. Confirmar valores vigentes.
+2207.10;MONOFASICO;COMBUSTIVEIS;Alcool etilico inclusive para fins carburantes;Lei 9.718/1998 art. 5;;;04;media;Regime proprio do alcool. Confirmar cadeia (produtor/distribuidor/revendedor).
+2402.20.00;ST_PIS_COFINS;CIGARROS;Cigarros contendo tabaco;MP 2.158-35/2001 art. 62 e Lei 12.402/2011;;;05;alta;Substituicao tributaria: fabricante recolhe por conta do varejista. Revenda com CST 05.
+8711;ST_PIS_COFINS;MOTOCICLETAS;Motocicletas;MP 2.158-35/2001 art. 43;;;05;media;Substituicao tributaria do fabricante/importador. Confirmar vigencia e itens.
+0713;ALIQUOTA_ZERO;CESTA_BASICA;Legumes de vagem secos (feijao ervilha lentilha);Lei 10.925/2004 art. 1;;;06;alta;Aliquota zero - nao gera credito na aquisicao para revenda.
+1006;ALIQUOTA_ZERO;CESTA_BASICA;Arroz;Lei 10.925/2004 art. 1;;;06;alta;
+1101.00.10;ALIQUOTA_ZERO;CESTA_BASICA;Farinha de trigo;Lei 10.925/2004 art. 1;;;06;media;Confirmar vigencia da desoneracao na competencia analisada.
+0401;ALIQUOTA_ZERO;CESTA_BASICA;Leite fluido pasteurizado ou industrializado;Lei 10.925/2004 art. 1 XI;;;06;alta;
+0402;ALIQUOTA_ZERO;CESTA_BASICA;Leite em po;Lei 10.925/2004 art. 1 XI;;;06;alta;
+07;ALIQUOTA_ZERO;HORTIFRUTI;Produtos horticolas (capitulo 7);Lei 10.925/2004 art. 1 III;;;06;alta;In natura. Confirmar se o item e in natura ou industrializado.
+08;ALIQUOTA_ZERO;HORTIFRUTI;Frutas (capitulo 8);Lei 10.925/2004 art. 1 III;;;06;alta;In natura.
+0407;ALIQUOTA_ZERO;HORTIFRUTI;Ovos;Lei 10.925/2004 art. 1 III;;;06;alta;
+3101;ALIQUOTA_ZERO;AGRO;Adubos e fertilizantes;Lei 10.925/2004 art. 1 I;;;06;alta;
+3808;ALIQUOTA_ZERO;AGRO;Defensivos agropecuarios;Lei 10.925/2004 art. 1 II;;;06;media;Somente os classificados como defensivos agropecuarios.
+4901;ALIQUOTA_ZERO;LIVROS;Livros tecnicos e didaticos;Lei 10.865/2004 art. 28 VI;;;06;alta;Conceito de livro do art. 2 da Lei 10.753/2003.
+4902;ALIQUOTA_ZERO;LIVROS;Jornais e publicacoes periodicas;Lei 10.865/2004 art. 28;;;06;media;Confirmar enquadramento.
+3003.90.56;TRIBUTADO;FARMACEUTICO;EXCECAO - fora do monofasico farmaceutico;Lei 10.147/2000 art. 1 I a (ressalva expressa);;;01;alta;Tributacao normal pelo regime da empresa. Linha existe para vencer o prefixo 3003 na busca.
+3004.90.46;TRIBUTADO;FARMACEUTICO;EXCECAO - fora do monofasico farmaceutico;Lei 10.147/2000 art. 1 I a (ressalva expressa);;;01;alta;Tributacao normal pelo regime da empresa. Linha existe para vencer o prefixo 3004 na busca.
