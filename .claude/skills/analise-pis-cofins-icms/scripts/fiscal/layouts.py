@@ -208,6 +208,10 @@ EFD_CONTRIBUICOES = {
         "ALIQ_COFINS", "VL_COFINS", "NAT_BC_CRED", "IND_ORIG_CRED", "COD_CTA",
         "COD_CCUS", "DESC_DOC_OPER",
     ],
+    "F600": [
+        "IND_NAT_RET", "DT_RET", "VL_BC_RET", "VL_RET", "COD_REC", "IND_NAT_REC",
+        "CNPJ", "VL_RET_PIS", "VL_RET_COFINS", "IND_DEC",
+    ],
     "F120": [
         "NAT_BC_CRED", "IDENT_BEM_IMOB", "IND_ORIG_CRED", "IND_UTIL_BEM_IMOB",
         "VL_OPER_DEP", "PARC_OPER_NAO_BC_CRED", "CST_PIS", "VL_BC_PIS", "ALIQ_PIS",

@@ -207,15 +207,53 @@ def testes_por_item(linhas, tabela, ctx):
                "afetadas e habilitar o credito via PER/DCOMP (prazo de 5 anos, art. 168 do CTN).",
                "RECUPERAR", ctx)
 
-    a2 = _novo("PC-02", "Credito apropriado em aquisicao de produto monofasico/desonerado",
+    a2 = _novo("PC-02", "Credito em aquisicao de produto desonerado destinado a REVENDA",
                SEV_ALTA,
                "Aquisicoes de produtos para revenda em regime monofasico, aliquota zero ou ST "
-               "foram escrituradas com CST de credito (50 a 66). O revendedor nao tem direito a "
-               "credito nessas aquisicoes.",
-               "Lei 10.637/2002 art. 3 §2 II; Lei 10.833/2003 art. 3 §2 II",
+               "escrituradas com CST de credito (50 a 66). Na revenda a fase de tributacao ja "
+               "se encerrou: nao ha contribuicao paga na etapa anterior para ser recuperada, e "
+               "a saida tambem sai sem debito. E o caso menos controvertido de credito indevido.",
+               "Lei 10.637/2002 art. 3 §2 II; Lei 10.833/2003 art. 3 §2 II; "
+               "IN RFB 2.121/2022 art. 171",
                "Estornar o credito, retificar a EFD-Contribuicoes e recolher a diferenca com "
-               "denuncia espontanea (art. 138 do CTN) antes de qualquer procedimento fiscal.",
+               "denuncia espontanea (art. 138 do CTN) antes de qualquer procedimento fiscal. "
+               "Conferir em conjunto com o PC-01: o mesmo produto costuma estar sendo "
+               "tributado na saida, e as duas correcoes se compensam em parte.",
                "RECOLHER", ctx)
+
+    a14 = _novo("PC-14", "Credito sobre INSUMO desonerado empregado em produto tributado",
+                SEV_MEDIA,
+                "Aquisicoes de produtos desonerados (aliquota zero, monofasico ou ST) com CFOP "
+                "de industrializacao, escrituradas com credito. Diferente da revenda, aqui o "
+                "insumo e transformado em um produto cuja saida e tributada.",
+                "Lei 10.637/2002 art. 3 §2 II e Lei 10.833/2003 art. 3 §2 II vedam o credito na "
+                "aquisicao de bens 'nao sujeitos ao pagamento da contribuicao', o que a RFB "
+                "aplica tambem quando o insumo e desonerado e a saida e tributada "
+                "(IN RFB 2.121/2022 art. 171). O contribuinte sustenta leitura diversa, de que "
+                "a vedacao so alcanca o insumo empregado em saida tambem desonerada. "
+                "Credito presumido da Lei 10.925/2004 art. 8 e caminho distinto e exige que a "
+                "empresa produza mercadoria dos capitulos 2, 3, 4, 8 a 12, 15, 16 ou 23 E que a "
+                "aquisicao venha de pessoa fisica ou cooperado.",
+                "Decidir a posicao com o cliente e documenta-la. Mantido o credito, dimensionar "
+                "a exposicao e avaliar medida judicial preventiva; estornado, retificar as "
+                "competencias alcancadas. Verificar antes se o art. 8 da Lei 10.925/2004 se "
+                "aplica - se aplicar, o caminho e o credito presumido, com base e aliquota "
+                "proprias, e nao o credito basico.",
+                "AVALIAR", ctx)
+
+    a15 = _novo("PC-15", "Credito sobre combustivel monofasico consumido como insumo",
+                SEV_MEDIA,
+                "Aquisicoes de combustivel em regime monofasico (GLP, diesel, gasolina) "
+                "escrituradas com credito. Quando o combustivel e consumido na atividade, e "
+                "nao revendido, ha fundamento especifico para o credito.",
+                "Lei 10.637/2002 art. 3 II e Lei 10.833/2003 art. 3 II mencionam expressamente "
+                "combustiveis e lubrificantes entre os insumos que geram credito; o art. 3 §2 II "
+                "veda o credito na aquisicao nao sujeita ao pagamento da contribuicao, e a "
+                "revenda pelo distribuidor se da a aliquota zero. STJ REsp 1.221.170 "
+                "(essencialidade e relevancia) apoia o enquadramento como insumo.",
+                "Confirmar que o combustivel e de fato consumido na atividade, e nao revendido, "
+                "e que o CFOP usado reflete isso. Documentar a posicao adotada.",
+                "AVALIAR", ctx)
 
     a3 = _novo("PC-03", "Saida desonerada sem enquadramento identificado",
                SEV_MEDIA,
@@ -370,12 +408,22 @@ def testes_por_item(linhas, tabela, ctx):
             com_credito = cst_p in tabelas.CST_COM_CREDITO or cst_c in tabelas.CST_COM_CREDITO
             sem_credito = cst_p in tabelas.CST_SEM_CREDITO or cst_c in tabelas.CST_SEM_CREDITO
 
-            # PC-02 credito indevido em monofasico
+            # PC-02 / PC-14 / PC-15 - credito em aquisicao desonerada.
+            # O destino da compra decide o tratamento: revenda e credito indevido
+            # sem controversia; insumo e combustivel tem discussao propria.
             if com_credito and classif and regime_item in (
                     mod_ncm.REGIME_MONOFASICO, mod_ncm.REGIME_ALIQUOTA_ZERO,
                     mod_ncm.REGIME_ST):
-                a2.adicionar(l, l.vl_pis + l.vl_cofins,
-                             "NCM %s - %s (%s)" % (l.ncm, regime_item, classif["grupo"]))
+                destino = tabelas.destino_da_compra(l.cfop)
+                detalhe = "NCM %s - %s (%s), CFOP %s" % (
+                    l.ncm, regime_item, classif["grupo"], l.cfop)
+                if destino == "COMBUSTIVEL" or classif["grupo"] == "COMBUSTIVEIS":
+                    a15.adicionar(l, l.vl_pis + l.vl_cofins, detalhe)
+                elif destino == "INSUMO":
+                    a14.adicionar(l, l.vl_pis + l.vl_cofins, detalhe)
+                else:
+                    a2.adicionar(l, l.vl_pis + l.vl_cofins,
+                                 detalhe + " - destino %s" % destino)
 
             # PC-08 ICMS-ST fora da base do credito
             if com_credito and l.vl_icms_st > TOL_ITEM and l.bc_pis > 0:
@@ -401,7 +449,7 @@ def testes_por_item(linhas, tabela, ctx):
                 a11.adicionar(l, _q(valor_liquido * soma_aliq),
                               "CFOP %s sem credito" % l.cfop)
 
-    return [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13]
+    return [a1, a2, a14, a15, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13]
 
 
 def testes_de_base_x_aliquota(linhas, ctx, achado):
@@ -420,7 +468,7 @@ def testes_de_base_x_aliquota(linhas, ctx, achado):
     return achado
 
 
-def testes_de_consolidacao(esc, apuracao, recomposicao, ctx):
+def testes_de_consolidacao(esc, apuracao, recomposicao, ctx, linhas=()):
     """Confronta bloco M x documentos e verifica a coerencia interna do M200/M600."""
     achados = []
 
@@ -494,7 +542,68 @@ def testes_de_consolidacao(esc, apuracao, recomposicao, ctx):
                                 "disponivel %s, descontado %s" %
                                 (_q(cred["credito_disponivel"]), _q(cred["credito_descontado"])))
     achados.append(c_ach)
+
+    # PC-16 - receita de ente publico sem retencao na fonte aproveitada
+    d_ach = _novo("PC-16", "Receita de ente publico sem retencao na fonte aproveitada",
+                  SEV_ALTA,
+                  "Ha receita faturada contra orgaos, autarquias, fundacoes ou fundos "
+                  "publicos, e a escrituracao nao registra nenhuma retencao de PIS/COFINS "
+                  "na fonte (VL_RET_NC zerado no M200/M600 e nenhum registro F600). "
+                  "Se a retencao ocorreu no pagamento e nao foi deduzida, a contribuicao "
+                  "foi recolhida em duplicidade.",
+                  "Lei 9.430/1996 art. 64 e IN RFB 1.234/2012 para orgaos federais; "
+                  "Lei 10.833/2003 art. 33 para Estados, Distrito Federal e Municipios, "
+                  "que depende de convenio com a Uniao. A retencao aproveitada e "
+                  "declarada no registro F600 e deduzida no M200/M600.",
+                  "Levantar os comprovantes de retencao dos pagamentos recebidos no "
+                  "periodo. Confirmar, para cada ente, se ele retem (orgao federal retem "
+                  "sempre; Estado e Municipio so com convenio). Havendo retencao nao "
+                  "aproveitada, escriturar o F600, deduzir no M200/M600 e retificar.",
+                  "RECUPERAR", ctx)
+    tem_f600 = bool(esc.get("F600"))
+    ret_declarada = ZERO
+    for tributo in ("pis", "cofins"):
+        c = apuracao[tributo]["consolidacao"]
+        if c:
+            ret_declarada += c["retencoes_nc"] + c["retencoes_cum"]
+    if not tem_f600 and ret_declarada <= CENTAVO:
+        receita_publica = {}
+        for l in linhas:
+            if not l.eh_saida or not l.cod_part:
+                continue
+            participante = esc.participantes.get(l.cod_part)
+            nome = participante.txt("NOME") if participante else ""
+            if not _parece_ente_publico(nome):
+                continue
+            acc = receita_publica.setdefault(l.cod_part, {"nome": nome, "valor": ZERO})
+            acc["valor"] += l.vl_item - l.vl_desc
+        # estimativa pelas aliquotas de retencao de PIS (0,65%) e COFINS (3%)
+        aliquota_retencao = Decimal("0.65") + Decimal("3.0")
+        for cod, dados in sorted(receita_publica.items(), key=lambda x: -x[1]["valor"]):
+            estimado = _q(dados["valor"] * aliquota_retencao / Decimal("100"))
+            d_ach.adicionar(_Ref(dados["nome"][:60]), estimado,
+                            "receita de R$ %s; retencao estimada a 0,65%% + 3,00%% "
+                            "(a confirmar contra os comprovantes)" % _q(dados["valor"]))
+    achados.append(d_ach)
     return achados
+
+
+# Marcadores de ente publico no nome do participante. E heuristica: serve para
+# levantar a pergunta sobre retencao na fonte, nunca para afirmar o enquadramento.
+MARCADORES_ENTE_PUBLICO = (
+    "municipio", "prefeitura", "estado de", "secretaria", "fundo municipal",
+    "fundo estadual", "fundo nacional", "autarquia", "fundacao publica",
+    "camara municipal", "assembleia", "tribunal", "ministerio publico",
+    "ministerio da", "universidade federal", "instituto federal", "hospital municipal",
+    "hospital estadual", "departamento nacional", "agencia nacional", "poder judiciario",
+    "defensoria", "procuradoria", "governo do", "uniao federal", "exercito",
+    "marinha", "aeronautica", "policia militar", "corpo de bombeiros",
+)
+
+
+def _parece_ente_publico(nome):
+    n = (nome or "").lower()
+    return any(marca in n for marca in MARCADORES_ENTE_PUBLICO)
 
 
 class _Ref(object):
@@ -528,7 +637,7 @@ def analisar(esc, tabela=None, linhas=None):
     achados = testes_por_item(linhas, tabela, ctx)
     pc05 = next(a for a in achados if a.codigo == "PC-05")
     testes_de_base_x_aliquota(linhas, ctx, pc05)
-    achados.extend(testes_de_consolidacao(esc, apuracao, recomposicao, ctx))
+    achados.extend(testes_de_consolidacao(esc, apuracao, recomposicao, ctx, linhas))
 
     # PC-07 se resolve quando a exclusao do ICMS foi feita via ajuste de base no M210/M610
     ajuste_reducao_bc = ZERO

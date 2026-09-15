@@ -61,7 +61,7 @@ def totais_por_sentido(achados):
     Achados que medem valor de mercadoria ou de estoque ficam de fora para nao
     inflar o total - eles aparecem individualmente no relatorio.
     """
-    totais = {"RECUPERAR": ZERO, "RECOLHER": ZERO, "AJUSTAR": ZERO}
+    totais = {"RECUPERAR": ZERO, "RECOLHER": ZERO, "AJUSTAR": ZERO, "AVALIAR": ZERO}
     for a in achados:
         if a.relevante and a.sentido in totais and a.natureza_valor == NATUREZA_TRIBUTARIA:
             totais[a.sentido] += a.valor
@@ -96,6 +96,8 @@ def montar_markdown(resultado):
     a("|---|---|")
     a("| Potencial a **recuperar** | %s |" % brl(totais["RECUPERAR"]))
     a("| Potencial a **recolher** (exposicao) | %s |" % brl(totais["RECOLHER"]))
+    if totais["AVALIAR"]:
+        a("| Em **avaliacao** (posicao a definir com o cliente) | %s |" % brl(totais["AVALIAR"]))
     outros = [x for x in achados if x.natureza_valor != NATUREZA_TRIBUTARIA and x.valor]
     if outros:
         a("| Valores nao tributarios apontados (estoque/mercadoria) | %s |"

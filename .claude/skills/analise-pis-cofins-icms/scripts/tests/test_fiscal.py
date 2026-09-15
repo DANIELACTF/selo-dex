@@ -519,3 +519,66 @@ class TestXlsLegacy(unittest.TestCase):
         from fiscal.xls_legacy import _texto_curto
         dados = b"\x00" * 6 + bytes([4, 0x01]) + "Aba1".encode("utf-16-le")
         self.assertEqual(_texto_curto(dados, 6, True)[0], "Aba1")
+
+
+class TestDestinoDaCompra(unittest.TestCase):
+    """O credito sobre produto desonerado muda de tratamento conforme o destino."""
+
+    def test_classificacao_por_cfop(self):
+        self.assertEqual(tabelas.destino_da_compra("1101"), "INSUMO")
+        self.assertEqual(tabelas.destino_da_compra("1401"), "INSUMO")
+        self.assertEqual(tabelas.destino_da_compra("1102"), "REVENDA")
+        self.assertEqual(tabelas.destino_da_compra("1403"), "REVENDA")
+        self.assertEqual(tabelas.destino_da_compra("1653"), "COMBUSTIVEL")
+        self.assertEqual(tabelas.destino_da_compra("1556"), "USO_CONSUMO")
+        self.assertEqual(tabelas.destino_da_compra("1551"), "ATIVO")
+        self.assertEqual(tabelas.destino_da_compra("1949"), "OUTROS")
+
+    def _rodar(self, cfop):
+        from fiscal.analise_pis_cofins import testes_por_item
+        from fiscal.modelo import LinhaFiscal
+        linha = LinhaFiscal(origem="C170", tipo="ENTRADA", doc="1", cod_item="X",
+                            ncm="02013000", cfop=cfop, vl_item=Decimal("1000"),
+                            cst_pis="50", cst_cofins="50", bc_pis=Decimal("1000"),
+                            aliq_pis=Decimal("1.65"), vl_pis=Decimal("16.50"),
+                            bc_cofins=Decimal("1000"), aliq_cofins=Decimal("7.6"),
+                            vl_cofins=Decimal("76.00"))
+        ctx = {"competencia": "2026-07", "cnpj": "", "cod_inc_trib": "1",
+               "aliq_pis": Decimal("1.65"), "aliq_cofins": Decimal("7.6")}
+        return {a.codigo: a for a in testes_por_item([linha], ncm.carregar(), ctx)}
+
+    def test_revenda_cai_no_pc02(self):
+        por = self._rodar("1102")
+        self.assertTrue(por["PC-02"].relevante)
+        self.assertFalse(por["PC-14"].relevante)
+        self.assertEqual(por["PC-02"].sentido, "RECOLHER")
+
+    def test_insumo_cai_no_pc14(self):
+        por = self._rodar("1101")
+        self.assertFalse(por["PC-02"].relevante)
+        self.assertTrue(por["PC-14"].relevante)
+        self.assertEqual(por["PC-14"].sentido, "AVALIAR")
+        self.assertEqual(por["PC-14"].valor, Decimal("92.50"))
+
+    def test_combustivel_cai_no_pc15(self):
+        from fiscal.analise_pis_cofins import testes_por_item
+        from fiscal.modelo import LinhaFiscal
+        linha = LinhaFiscal(origem="C170", tipo="ENTRADA", doc="1", cod_item="G",
+                            ncm="27111910", cfop="1653", vl_item=Decimal("1000"),
+                            cst_pis="50", cst_cofins="50", bc_pis=Decimal("1000"),
+                            aliq_pis=Decimal("1.65"), vl_pis=Decimal("16.50"),
+                            bc_cofins=Decimal("1000"), aliq_cofins=Decimal("7.6"),
+                            vl_cofins=Decimal("76.00"))
+        ctx = {"competencia": "2026-07", "cnpj": "", "cod_inc_trib": "1",
+               "aliq_pis": Decimal("1.65"), "aliq_cofins": Decimal("7.6")}
+        por = {a.codigo: a for a in testes_por_item([linha], ncm.carregar(), ctx)}
+        self.assertTrue(por["PC-15"].relevante)
+        self.assertFalse(por["PC-02"].relevante)
+        self.assertFalse(por["PC-14"].relevante)
+
+    def test_avaliar_fica_fora_dos_totais_de_recuperar_e_recolher(self):
+        por = self._rodar("1101")
+        totais = relatorio.totais_por_sentido(list(por.values()))
+        self.assertEqual(totais["RECUPERAR"], Decimal("0"))
+        self.assertEqual(totais["RECOLHER"], Decimal("0"))
+        self.assertEqual(totais["AVALIAR"], Decimal("92.50"))

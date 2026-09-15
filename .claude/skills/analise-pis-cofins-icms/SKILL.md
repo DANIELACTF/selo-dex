@@ -90,6 +90,13 @@ mede**. Antes de apresentar:
 - **Verifique se PC-07 já foi resolvido** por ajuste de redução de base no
   M210/M610: muita empresa exclui o ICMS de forma consolidada, e não item a item.
   O script rebaixa a severidade quando detecta o ajuste, mas a conferência é sua.
+- **Antes de sugerir crédito presumido de agroindústria (Lei 10.925/2004 art. 8º),
+  confira as duas condições nos dados**: a empresa tem de *produzir* mercadoria dos
+  capítulos 2, 3, 4, 8 a 12, 15, 16 ou 23 (veja o NCM das saídas com CFOP 5101/6101)
+  **e** adquirir de pessoa física ou cooperado (veja quais participantes do 0150 têm
+  CPF). Quem transforma alimento e vende refeição pronta costuma produzir no capítulo
+  21, que está fora da lista — nesse caso o caminho não existe, e dizer o contrário
+  custa caro ao cliente.
 - **Trate tese como tese.** PC-08 (crédito sobre ICMS-ST) depende de status
   processual e de posição da RFB na data do trabalho. Nunca apresente como crédito
   líquido e certo.
@@ -111,14 +118,22 @@ totais tributários; o script já separa, mantenha a separação no texto.
 
 ## Catálogo de testes aplicados
 
-**PIS/COFINS** — PC-01 monofásico tributado indevidamente · PC-02 crédito indevido
-em monofásico · PC-03 saída desonerada sem enquadramento · PC-04 alíquota fora do
-regime · PC-05 valor ≠ base × alíquota · PC-06 CST de PIS ≠ CST de COFINS ·
-PC-07 ICMS na base · PC-08 ICMS-ST fora da base do crédito · PC-09 aquisição sem
-crédito no não cumulativo · PC-10 frete sem crédito · PC-11 devolução de venda sem
-crédito · PC-12 CST desonerado com valor destacado · PC-13 CST ausente/inválido ·
+**PIS/COFINS** — PC-01 monofásico/desonerado tributado na saída · PC-02 crédito em
+aquisição desonerada **para revenda** · PC-03 saída desonerada sem enquadramento ·
+PC-04 alíquota fora do regime · PC-05 valor ≠ base × alíquota · PC-06 CST de PIS ≠
+CST de COFINS · PC-07 ICMS na base · PC-08 ICMS-ST fora da base do crédito ·
+PC-09 aquisição sem crédito no não cumulativo · PC-10 frete sem crédito ·
+PC-11 devolução de venda sem crédito · PC-12 CST desonerado com valor destacado ·
+PC-13 CST ausente/inválido · **PC-14 crédito sobre insumo desonerado empregado em
+produto tributado** · **PC-15 crédito sobre combustível monofásico consumido como
+insumo** · **PC-16 receita de ente público sem retenção na fonte aproveitada** ·
 PC-20 bloco M ≠ documentos · PC-21 inconsistência aritmética no M200/M600 ·
 PC-22 crédito apurado não descontado.
+
+PC-14 e PC-15 saem com sentido **AVALIAR**: são posições a decidir com o cliente, e
+por isso ficam fora dos totais de recuperar e recolher. O destino da compra (CFOP de
+industrialização × de comercialização) é o que separa PC-02 de PC-14 — não confunda
+os dois, porque o de revenda é pacífico e o de insumo é discussão.
 
 **ICMS** — IC-01 E110 ≠ analíticos · IC-02 inconsistência aritmética no E110 ·
 IC-03 crédito em operação que não gera crédito · IC-04 alíquota interestadual de

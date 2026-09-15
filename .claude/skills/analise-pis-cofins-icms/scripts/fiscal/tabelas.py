@@ -249,6 +249,46 @@ def classifica_cfop(cfop):
 
 
 # ---------------------------------------------------------------------------
+# Destino da compra - decide o tratamento do credito quando o produto e desonerado
+# ---------------------------------------------------------------------------
+CFOP_COMPRA_INSUMO = {
+    "1101", "1111", "1116", "1120", "1121", "1122", "1126", "1128", "1401",
+    "2101", "2111", "2116", "2120", "2121", "2122", "2126", "2128", "2401",
+    "3101", "3126", "3127",
+}
+CFOP_COMPRA_REVENDA = {
+    "1102", "1113", "1117", "1118", "1123", "1403",
+    "2102", "2113", "2117", "2118", "2123", "2403",
+    "3102",
+}
+CFOP_COMPRA_USO_CONSUMO = {"1556", "2556", "3556", "1407", "2407"}
+CFOP_COMPRA_ATIVO = {"1551", "2551", "3551", "1406", "2406"}
+CFOP_COMPRA_COMBUSTIVEL = {"1651", "1652", "1653", "2651", "2652", "2653",
+                           "3651", "3652", "3653"}
+
+
+def destino_da_compra(cfop):
+    """Para que a mercadoria foi adquirida, conforme o CFOP.
+
+    Importa porque o credito de um produto desonerado tem tratamento diferente
+    conforme ele seja revendido (a fase de tributacao ja se encerrou) ou consumido
+    como insumo de um produto tributado (onde ha discussao).
+    """
+    c = normaliza_cfop(cfop)
+    if c in CFOP_COMPRA_INSUMO:
+        return "INSUMO"
+    if c in CFOP_COMPRA_REVENDA:
+        return "REVENDA"
+    if c in CFOP_COMPRA_COMBUSTIVEL:
+        return "COMBUSTIVEL"
+    if c in CFOP_COMPRA_USO_CONSUMO:
+        return "USO_CONSUMO"
+    if c in CFOP_COMPRA_ATIVO:
+        return "ATIVO"
+    return "OUTROS"
+
+
+# ---------------------------------------------------------------------------
 # NAT_BC_CRED - Tabela 4.3.7 da EFD-Contribuicoes
 # ---------------------------------------------------------------------------
 NAT_BC_CRED = {
