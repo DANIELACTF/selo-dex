@@ -22,7 +22,8 @@ function onOpen() {
     .addItem('📊 Status da carência', 'menuStatusCarencia')
     .addItem('📄 Exportar CSV das pastas da rede', 'menuExportarCsv')
     .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('Configurar')
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Configurar · v' + VERSAO_APP)
+      .addItem('Conferir instalação', 'menuConferirInstalacao')
       .addItem('Criar/conferir abas', 'menuInstalar')
       .addItem('Sobre este app', 'menuSobre'))
     .addToUi();
@@ -246,7 +247,8 @@ function baixarDoPainel(numero, motivo, observacao) {
 
 function menuSobre() {
   alerta_('Onboarding Fiscal — Moraex',
-    'App do Departamento Fiscal para o onboarding de cliente novo.\n\n' +
+    'App do Departamento Fiscal para o onboarding de cliente novo.\n' +
+    'Versão ' + VERSAO_APP + '\n\n' +
     'ETAPA 1 (chega o e-mail da Thays)\n' +
     '  1 · Processar e-mail → preenche a aba Triagem\n' +
     '  2 · Gerar planilha de particularidades → o formulário da reunião\n\n' +
@@ -265,6 +267,83 @@ function menuSobre() {
     '", e só depois é distribuída. Entrou em 08/2026 → libera em 11/2026.\n\n' +
     'Nada roda sozinho — só pelo menu. Tudo que o app faz fica registrado ' +
     'na aba "' + ABAS.log + '".');
+}
+
+/**
+ * Diz o que está instalado e o que ficou para trás.
+ *
+ * O app é copiado arquivo a arquivo para o Apps Script, então a falha mais
+ * comum é um arquivo velho convivendo com os novos — e o sintoma disso é um
+ * item de menu que não aparece ou um erro na hora do clique. Este item
+ * confere, arquivo por arquivo, o que o projeto carregou.
+ */
+function menuConferirInstalacao() {
+  // Uma função conhecida de cada arquivo. Se ela não existe, o arquivo não
+  // foi colado — ou foi colado com outro nome.
+  var ESPERADO = [
+    ['Config', 'ABAS'], ['Competencia', 'competenciaLiberacao'], ['Parser', 'parseEmail'],
+    ['Regras', 'certificadoPresente'], ['Consultas', 'consultarCnpj'], ['Planilha', 'lerObjetos_'],
+    ['Triagem', 'processarEmail'], ['Particularidades', 'gerarParticularidades'],
+    ['Fichas', 'gerarFichasPdf'], ['Pastas', 'criarPastasDrive'], ['Carteira', 'alimentarCarteira'],
+    ['Gestao', 'distribuirCliente'], ['Menu', 'onOpen'], ['Instalar', 'instalarAbas']
+  ];
+
+  var faltando = [];
+  ESPERADO.forEach(function (par) {
+    var existe;
+    try {
+      existe = typeof globalThis[par[1]] !== 'undefined';
+    } catch (e) {
+      existe = false;
+    }
+    if (!existe) faltando.push(par[0]);
+  });
+
+  var abasFaltando = [];
+  Object.keys(ABAS).forEach(function (chave) {
+    if (!aba_(ABAS[chave], false)) abasFaltando.push(ABAS[chave]);
+  });
+
+  var painelGestao = true;
+  try {
+    HtmlService.createHtmlOutputFromFile('Gestao');
+  } catch (e) {
+    painelGestao = false;
+  }
+  var painelTriagem = true;
+  try {
+    HtmlService.createHtmlOutputFromFile('Sidebar');
+  } catch (e) {
+    painelTriagem = false;
+  }
+
+  var partes = ['Versão instalada: ' + VERSAO_APP, NOVIDADES_DA_VERSAO, ''];
+
+  if (!faltando.length && painelGestao && painelTriagem) {
+    partes.push('Todos os 14 arquivos de código e os 2 painéis estão no lugar.');
+  } else {
+    partes.push('FALTA COLAR NO APPS SCRIPT:');
+    faltando.forEach(function (n) { partes.push('  • ' + n + '.gs'); });
+    if (!painelTriagem) partes.push('  • Sidebar.html');
+    if (!painelGestao) partes.push('  • Gestao.html');
+    partes.push('');
+    partes.push('Cole o que falta, salve, e RECARREGUE a planilha (F5) — o menu ' +
+      'só é reconstruído quando a planilha abre.');
+  }
+
+  partes.push('');
+  if (abasFaltando.length) {
+    partes.push('Abas que ainda não existem: ' + abasFaltando.join(', '));
+    partes.push('Use "Criar/conferir abas" para criá-las.');
+  } else {
+    partes.push('Todas as abas do app existem.');
+  }
+
+  partes.push('');
+  partes.push('O menu não mudou depois de colar código novo? Recarregue a ' +
+    'planilha. Colar no editor não atualiza o menu da aba já aberta.');
+
+  alerta_('Conferir instalação', partes.join('\n'));
 }
 
 function menuInstalar() {

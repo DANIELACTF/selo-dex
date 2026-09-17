@@ -538,3 +538,48 @@ test('o certificado marca a caixa certa', () => {
   }));
   assert.ok(recebido.includes('☑'));
 });
+
+// ------------------------------------------------ instalação por cópia
+
+test('o app declara uma versão, para dar para conferir o que está instalado', () => {
+  assert.match(gas.VERSAO_APP, /^\d+\.\d+$/);
+  assert.ok(gas.NOVIDADES_DA_VERSAO.length > 10);
+});
+
+test('a versão aparece no menu, sem precisar clicar em nada', () => {
+  const rotulos = [];
+  const menuFalso = {
+    addItem: () => menuFalso, addSeparator: () => menuFalso,
+    addSubMenu: () => menuFalso, addToUi: () => menuFalso
+  };
+  const ctx = {
+    console,
+    SpreadsheetApp: {
+      getUi: () => ({
+        createMenu: (rotulo) => { rotulos.push(rotulo); return menuFalso; },
+        alert: () => {}, prompt: () => {}, ButtonSet: {}, Button: {}
+      }),
+      getActiveSpreadsheet: () => ({}), newDataValidation: () => ({}),
+      newConditionalFormatRule: () => ({}), BorderStyle: {}
+    },
+    DriveApp: {}, UrlFetchApp: {}, Utilities: {}, HtmlService: {}, Session: {}
+  };
+  vm.createContext(ctx);
+  for (const arquivo of fs.readdirSync('gas').filter((f) => f.endsWith('.gs')).sort()) {
+    vm.runInContext(fs.readFileSync(`gas/${arquivo}`, 'utf8'), ctx, { filename: arquivo });
+  }
+  ctx.onOpen();
+  assert.ok(rotulos.some((r) => r.includes('v' + ctx.VERSAO_APP)),
+    `nenhum menu mostra a versão; rótulos: ${rotulos.join(' | ')}`);
+});
+
+test('o conferidor de instalação cobre todo arquivo .gs do projeto', () => {
+  const codigo = fs.readFileSync('gas/Menu.gs', 'utf8');
+  const bloco = codigo.slice(codigo.indexOf('var ESPERADO = ['), codigo.indexOf('];', codigo.indexOf('var ESPERADO = [')));
+  const conferidos = [...bloco.matchAll(/\['(\w+)',/g)].map((m) => m[1]);
+  const noDisco = fs.readdirSync('gas').filter((f) => f.endsWith('.gs')).map((f) => f.replace('.gs', ''));
+  for (const arquivo of noDisco) {
+    assert.ok(conferidos.includes(arquivo),
+      `"Conferir instalação" não checa ${arquivo}.gs — um arquivo velho passaria batido`);
+  }
+});

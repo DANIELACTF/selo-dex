@@ -6,6 +6,19 @@
  * Apps Script da planilha e é disparado pelo menu.
  */
 
+/**
+ * Versão do código instalado no Apps Script.
+ *
+ * O app é distribuído por copiar-e-colar, então é fácil ficar com um
+ * arquivo atualizado e outro velho. A versão aparece no menu: se ela não
+ * bater com a do guia, algum arquivo ficou para trás. Suba este número
+ * sempre que mudar qualquer .gs ou .html.
+ */
+var VERSAO_APP = '1.3';
+
+/** O que esta versão trouxe — mostrado em "Conferir instalação". */
+var NOVIDADES_DA_VERSAO = 'Gestão de carteira: distribuir, trocar responsável e dar baixa.';
+
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
 

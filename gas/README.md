@@ -120,6 +120,24 @@ Na barra lateral, desmarque **"Consultar a Receita"**. O app faz todo o
 resto — parsing, certificado, grupo econômico, fichas — e marca os campos
 da Receita como `(não consultado)`, sem inventar dado.
 
+## Atualizando o app
+
+O app é instalado por copiar-e-colar, então a falha mais comum é um arquivo
+velho convivendo com os novos. Duas regras evitam quase tudo:
+
+1. **Item novo no menu significa que o `Menu.gs` mudou junto.** Ele é quem
+   monta o menu; as funções ficam nos outros arquivos. É o arquivo mais
+   esquecido nas atualizações — o sintoma é o item simplesmente não aparecer.
+2. **Recarregue a planilha (F5) depois de colar.** `onOpen()` só roda quando
+   a planilha abre; colar código no editor não mexe no menu da aba aberta.
+
+Para conferir: **Configurar · v&lt;versão&gt; → Conferir instalação**. Ele
+percorre arquivo por arquivo e diz qual não foi colado, além de listar as
+abas que ainda faltam. A versão aparece no próprio rótulo do submenu, então
+dá para comparar com a do guia sem clicar em nada.
+
+Ao mudar qualquer `.gs` ou `.html`, suba `VERSAO_APP` em `Config.gs`.
+
 ## Manutenção
 
 Quem muda o quê, sem precisar mexer em lógica — tudo em `Config.gs`:
