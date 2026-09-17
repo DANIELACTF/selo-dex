@@ -23,6 +23,10 @@ faz fica registrado na aba `Log`, com data e usuário.
 
 ## Instalar (uns 10 minutos, uma vez só)
 
+> Guia com os arquivos prontos para copiar, um a um, e marcação de
+> progresso: [Onboarding Fiscal no Sheets](https://claude.ai/artifact/6C8XjRMp8hJJgCKTHN4ngo).
+> O passo a passo abaixo é o mesmo, em texto.
+
 ### 1. A planilha
 
 Comece pela carteira que já existe, para não refazer nada:

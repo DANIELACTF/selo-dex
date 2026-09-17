@@ -62,8 +62,10 @@ A rotina inteira hospedada numa planilha do Google, disparada pelo menu
 PDF no Drive, cria as pastas do cliente, alimenta a carteira respeitando a
 carência e mostra o status da carência. Ninguém instala nada.
 
-O código e o passo a passo de instalação estão em
-[`gas/README.md`](gas/README.md). A lógica pura é JavaScript comum e roda
+O código está em `gas/` e o passo a passo de instalação, em
+[`gas/README.md`](gas/README.md) — ou no guia interativo
+[Onboarding Fiscal no Sheets](https://claude.ai/artifact/6C8XjRMp8hJJgCKTHN4ngo), que traz cada arquivo com botão de
+copiar e marca o que já foi feito. A lógica pura é JavaScript comum e roda
 fora do Apps Script:
 
 ```bash
