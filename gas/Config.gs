@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '1.4';
+var VERSAO_APP = '1.5';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'Painel de gestão diz o que encontrou nas abas; cabeçalho é localizado mesmo abaixo de um título.';
+var NOVIDADES_DA_VERSAO = 'Lê o comprovante de inscrição (colado no e-mail ou anexado em PDF): só o Simples continua sendo consulta.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;

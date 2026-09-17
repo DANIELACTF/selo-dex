@@ -39,9 +39,9 @@ function abrirBarraTriagem() {
 }
 
 /** Chamado pela barra lateral. */
-function processarEmailDaBarra(texto, consultar) {
+function processarEmailDaBarra(texto, consultar, textoComprovantes) {
   try {
-    return processarEmail(texto, consultar !== false);
+    return processarEmail(texto, consultar !== false, textoComprovantes);
   } catch (e) {
     return { erro: String(e && e.message ? e.message : e) };
   }
@@ -282,7 +282,9 @@ function menuConferirInstalacao() {
   // foi colado — ou foi colado com outro nome.
   var ESPERADO = [
     ['Config', 'ABAS'], ['Competencia', 'competenciaLiberacao'], ['Parser', 'parseEmail'],
-    ['Regras', 'certificadoPresente'], ['Consultas', 'consultarCnpj'], ['Planilha', 'lerObjetos_'],
+    ['Regras', 'certificadoPresente'], ['Consultas', 'consultarCnpj'],
+    ['Comprovante', 'lerComprovante'], ['PdfTexto', 'pdfsParaTexto'],
+    ['Planilha', 'lerObjetos_'],
     ['Triagem', 'processarEmail'], ['Particularidades', 'gerarParticularidades'],
     ['Fichas', 'gerarFichasPdf'], ['Pastas', 'criarPastasDrive'], ['Carteira', 'alimentarCarteira'],
     ['Gestao', 'distribuirCliente'], ['Menu', 'onOpen'], ['Instalar', 'instalarAbas']
@@ -320,7 +322,7 @@ function menuConferirInstalacao() {
   var partes = ['Versão instalada: ' + VERSAO_APP, NOVIDADES_DA_VERSAO, ''];
 
   if (!faltando.length && painelGestao && painelTriagem) {
-    partes.push('Todos os 14 arquivos de código e os 2 painéis estão no lugar.');
+    partes.push('Todos os ' + ESPERADO.length + ' arquivos de código e os 2 painéis estão no lugar.');
   } else {
     partes.push('FALTA COLAR NO APPS SCRIPT:');
     faltando.forEach(function (n) { partes.push('  • ' + n + '.gs'); });

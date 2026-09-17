@@ -114,6 +114,34 @@ Comece pela carteira que já existe, para não refazer nada:
 3. Pronto. Teste com **1 · Processar e-mail** colando um dos exemplos de
    `fixtures/` do repositório.
 
+## O comprovante de inscrição dispensa a consulta de CNPJ
+
+O "COMPROVANTE DE INSCRIÇÃO E DE SITUAÇÃO CADASTRAL" (Cartão CNPJ) traz razão
+social, nome fantasia, data de abertura, porte, CNAE principal e secundários,
+natureza jurídica, endereço e situação cadastral — tudo que o app buscaria na
+BrasilAPI, e **para a empresa recém-aberta que a base pública ainda não tem**.
+
+Por isso a ordem de preferência dos dados cadastrais é: **comprovante →
+consulta → nada**. Quando o comprovante é lido, a coluna "Fonte dos dados" da
+aba Triagem marca `Comprovante RFB` e nenhuma consulta de cadastro é feita.
+
+**A opção pelo Simples Nacional o comprovante não informa** — essa continua
+sendo consulta, e é a única que resta.
+
+Dois caminhos, nesta ordem de preferência:
+
+1. **Colado no corpo do e-mail.** Não precisa de nada: o app varre o texto
+   colado, acha um comprovante por empresa e casa pelo CNPJ. É o caminho
+   barato e o que funciona sem configuração nenhuma.
+2. **Anexado em PDF.** A barra lateral tem um campo de arquivo. Requer o
+   **serviço avançado do Drive** ligado no projeto (Editor do Apps Script →
+   Serviços → + → Drive API), que é quem converte o PDF em texto, com OCR
+   quando o PDF é imagem escaneada. Sem o serviço, o app avisa e segue com o
+   resto.
+
+Comprovante cujo CNPJ não bate com nenhuma empresa do e-mail é listado à
+parte — ou a Thays mandou a mais, ou o CNPJ do texto está diferente.
+
 ## Testar sem gastar consulta
 
 Na barra lateral, desmarque **"Consultar a Receita"**. O app faz todo o
@@ -174,7 +202,7 @@ A lógica pura (competência, parser, regras da ficha) é JavaScript comum e
 roda fora do Apps Script:
 
 ```bash
-node --test tests/test_gas.mjs tests/test_gestao.mjs
+node --test tests/test_gas.mjs tests/test_gestao.mjs tests/test_comprovante.mjs
 ```
 
 `tests/test_gestao.mjs` exercita distribuir, dar baixa e trocar responsável
@@ -216,6 +244,15 @@ exercitadas na primeira execução real.
   resposta errada. Confira o resultado das primeiras consultas reais.
 - **A BrasilAPI também não pôde ser testada ao vivo** pelo mesmo motivo. O
   código segue o formato documentado e estável da API.
+- **As amostras de comprovante são reconstruídas.** As de
+  `fixtures/comprovantes/` seguem o layout padrão da Receita e usam os dados
+  reais da ficha `1099_THAIS_REIS`, mas nenhuma saiu de um comprovante de
+  verdade. Ao receber o primeiro real, salve-o lá e rode
+  `node --test tests/test_comprovante.mjs`: se algum rótulo tiver mudado, o
+  teste diz qual campo parou de sair.
+- **A conversão de PDF não pôde ser testada ao vivo**, porque depende do
+  Drive. A leitura do texto convertido, sim — é a mesma função que lê o
+  comprovante colado no e-mail, e essa tem 18 testes.
 - **CNPJ recém-aberto costuma dar 404 na BrasilAPI.** Ela serve o dump de
   dados abertos da RFB, republicado periodicamente e com semanas de atraso —
   a empresa que a Thays acabou de mandar ainda não está lá. Não é falha de

@@ -266,6 +266,7 @@ test('a carteira reflete o estado depois das operações', () => {
 
 // ------------------------- planilha do escritório, com suas irregularidades
 
+import fs from 'node:fs';
 import { carregarPainel } from './painel-falso.mjs';
 
 const CAB_CARTEIRA_REAL = CAB_CARTEIRA;
@@ -372,4 +373,84 @@ test('demora excessiva vira aviso com o que fazer, não espera infinita', () => 
   const p = carregarPainel('Gestao.html', ctx);
   assert.ok(p.agendados.length > 0, 'o painel não arma prazo nenhum para o carregamento');
   assert.ok(p.agendados[0].ms >= 10000, 'o prazo é curto demais para uma carteira grande');
+});
+
+// ------------------------- triagem usando o comprovante em vez de consulta
+
+test('com comprovante no e-mail, a triagem não consulta o cadastro', () => {
+  const comprovante = fs.readFileSync('fixtures/comprovantes/1099-THAIS-REIS-linhas.txt', 'utf8');
+  const email = [
+    'EMPRESA NOVA', '', 'Data: Qui, 27/08/2026 13:07', '', '1 anexos (10 KB)',
+    'THAIS REIS DESIGN LTDA.pfx;', '',
+    'THAIS REIS DESIGN LTDA CNPJ: 60.772.067/0001-76 N°1099',
+    'Lucro Presumido', 'E mail : enfesta.adm@gmail.com', '', comprovante
+  ].join('\n');
+
+  const { ctx, aba } = planilhaFalsa({
+    'Triagem': [['N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Abertura', 'Porte',
+      'Município / UF', 'Grupo econômico', 'E-mail do cliente', 'CNAE principal',
+      'CNAEs secundários', 'Regime informado', 'Regime / enquadramento', 'Simples (RFB)',
+      'Situação cadastral', 'Certificado', 'Senha (cofre)', 'Particularidades',
+      'Divergência', 'Fonte dos dados', 'Ficha (PDF)', 'Processado em']]
+  });
+
+  // Se o app tentar consultar, o teste avisa — o comprovante deveria bastar.
+  let consultouCadastro = false;
+  ctx.consultarCnpj = function () { consultouCadastro = true; return ctx.dadosCadastraisVazios_('x', 'não deveria'); };
+  ctx.consultarOptanteSimples = function (cnpj) {
+    return { cnpj: cnpj, optante: false, mensagem: 'Não optante (confirmado).', erro: null };
+  };
+
+  const r = ctx.processarEmail(email, true);
+  assert.equal(consultouCadastro, false, 'consultou o cadastro tendo o comprovante em mãos');
+  assert.deepEqual(planos(r.viaComprovante), ['THAIS REIS DESIGN LTDA (N°1099)']);
+  assert.deepEqual(planos(r.consultasFalhas), []);
+
+  const linha = comoObjetos(aba('Triagem'))[0];
+  assert.equal(linha['Razão social'], 'THAIS REIS DESIGN LTDA');
+  assert.equal(linha['Abertura'], '12/05/2025');
+  assert.equal(linha['Porte'], 'EPP');
+  assert.equal(linha['Município / UF'], 'DUQUE DE CAXIAS/RJ');
+  assert.equal(linha['Situação cadastral'], 'ATIVA');
+  assert.equal(linha['CNAE principal'],
+    '82.30-0-01 — Serviços de organização de feiras, congressos, exposições e festas');
+  assert.equal(linha['CNAEs secundários'], '78.20-5-00; 82.30-0-02');
+  assert.equal(linha['Fonte dos dados'], 'Comprovante RFB');
+  // o Simples continua vindo da consulta, que é a única coisa que falta
+  assert.equal(linha['Simples (RFB)'], 'Não');
+});
+
+test('sem comprovante, a consulta de cadastro continua acontecendo', () => {
+  const email = ['EMPRESA NOVA', '', 'Data: Qui, 27/08/2026 13:07', '',
+    'OUTRA EMPRESA LTDA CNPJ: 11.222.333/0001-44 N°1100', 'Simples Nacional'].join('\n');
+
+  const { ctx } = planilhaFalsa({ 'Triagem': [['N° Cliente', 'Razão social', 'CNPJ', 'Fonte dos dados']] });
+  let consultou = 0;
+  ctx.consultarCnpj = function (cnpj) {
+    consultou++;
+    const d = ctx.dadosCadastraisVazios_(cnpj, null);
+    d.razaoSocial = 'OUTRA EMPRESA LTDA';
+    d.fonte = 'BrasilAPI';
+    return d;
+  };
+  ctx.consultarOptanteSimples = function (cnpj) {
+    return { cnpj: cnpj, optante: true, mensagem: null, erro: null };
+  };
+
+  ctx.processarEmail(email, true);
+  assert.equal(consultou, 1);
+});
+
+test('comprovante de empresa que não está no e-mail é apontado', () => {
+  const comprovante = fs.readFileSync('fixtures/comprovantes/1099-THAIS-REIS-linhas.txt', 'utf8');
+  const email = ['EMPRESA NOVA', '', 'Data: Qui, 27/08/2026 13:07', '',
+    'OUTRA EMPRESA LTDA CNPJ: 11.222.333/0001-44 N°1100', 'Simples Nacional', '',
+    comprovante].join('\n');
+
+  const { ctx } = planilhaFalsa({ 'Triagem': [['N° Cliente', 'Razão social', 'CNPJ', 'Fonte dos dados']] });
+  ctx.consultarCnpj = (cnpj) => ctx.dadosCadastraisVazios_(cnpj, 'sem rede');
+  ctx.consultarOptanteSimples = (cnpj) => ({ cnpj, optante: null, mensagem: null, erro: 'sem rede' });
+
+  const r = ctx.processarEmail(email, true);
+  assert.deepEqual(planos(r.comprovantesSemEmpresa), ['THAIS REIS DESIGN LTDA (60.772.067/0001-76)']);
 });

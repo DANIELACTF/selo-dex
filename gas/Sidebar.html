@@ -41,8 +41,19 @@
 
 <label class="linha">
   <input type="checkbox" id="consultar" checked>
-  Consultar a Receita (CNPJ e opção pelo Simples)
+  Consultar a Receita (opção pelo Simples, e CNPJ quando não houver comprovante)
 </label>
+
+<label for="pdfs" style="display:block;margin:14px 0 4px;font-size:12px;color:var(--apagado)">
+  Comprovantes de inscrição em PDF (opcional)
+</label>
+<input type="file" id="pdfs" accept="application/pdf" multiple
+       style="width:100%;font-size:12px;border:1px solid var(--linha);border-radius:3px;padding:7px;background:#F5F7F9">
+<p class="ajuda" style="margin:6px 0 0">
+  Os dados cadastrais saem do comprovante — razão social, abertura, porte, CNAE,
+  natureza jurídica e endereço —, sem depender de consulta. Se a Thays já colou o
+  comprovante no corpo do e-mail, não precisa anexar nada: o app lê de lá.
+</p>
 
 <button id="botao" onclick="enviar()">Processar</button>
 
@@ -57,15 +68,42 @@ function enviar() {
     return;
   }
   document.getElementById('botao').disabled = true;
-  saida.innerHTML = '<p class="carregando">Processando… as consultas à Receita levam alguns segundos por empresa.</p>';
 
-  google.script.run
-    .withSuccessHandler(mostrar)
-    .withFailureHandler(function (e) {
-      document.getElementById('botao').disabled = false;
-      saida.innerHTML = '<p class="erro">' + escapar(e.message || e) + '</p>';
-    })
-    .processarEmailDaBarra(texto, document.getElementById('consultar').checked);
+  lerPdfs(function (arquivos) {
+    saida.innerHTML = '<p class="carregando">Processando' +
+      (arquivos.length ? ' — convertendo ' + arquivos.length + ' PDF(s) e consultando' : '') +
+      '… leva alguns segundos por empresa.</p>';
+
+    google.script.run
+      .withSuccessHandler(mostrar)
+      .withFailureHandler(function (e) {
+        document.getElementById('botao').disabled = false;
+        saida.innerHTML = '<p class="erro">' + escapar(e.message || e) + '</p>';
+      })
+      .processarComAnexos(texto, document.getElementById('consultar').checked, arquivos);
+  });
+}
+
+/** Lê os PDFs escolhidos como base64 e devolve a lista pronta ao servidor. */
+function lerPdfs(pronto) {
+  var campo = document.getElementById('pdfs');
+  var escolhidos = campo && campo.files ? Array.prototype.slice.call(campo.files) : [];
+  if (!escolhidos.length) { pronto([]); return; }
+
+  var arquivos = [];
+  var restantes = escolhidos.length;
+  escolhidos.forEach(function (arquivo) {
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      // dataURL vem como "data:application/pdf;base64,XXXX"
+      arquivos.push({ nome: arquivo.name, base64: String(leitor.result).split(',')[1] });
+      if (--restantes === 0) pronto(arquivos);
+    };
+    leitor.onerror = function () {
+      if (--restantes === 0) pronto(arquivos);
+    };
+    leitor.readAsDataURL(arquivo);
+  });
 }
 
 function escapar(t) {
@@ -101,6 +139,10 @@ function mostrar(r) {
   html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
   html += lista('Anexo sem dono identificado', r.certificadosSemDono, 'alerta');
   html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
+  html += lista('Dados lidos do comprovante de inscrição', r.viaComprovante);
+  html += lista('PDFs lidos', r.pdfsLidos);
+  html += lista('PDF que não deu para ler', r.pdfsComFalha, 'alerta');
+  html += lista('Comprovante sem empresa correspondente no e-mail', r.comprovantesSemEmpresa, 'alerta');
   html += lista('Dados vindos da segunda fonte (ReceitaWS)', r.viaSegundaFonte);
   html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
 
