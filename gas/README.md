@@ -126,6 +126,11 @@ para uma função existente, que a barra lateral chama uma função que existe,
 e que a carência, a equipe e as colunas do formulário batem com as do
 Python — as duas implementações não podem divergir em silêncio.
 
+A Ficha de Abertura tem teste de fidelidade próprio: `FICHA_1099` reproduz
+a linha da aba Triagem da ficha real `fixtures/fichas-reais/1099_THAIS_REIS.pdf`
+e confere as seis seções, os rótulos e os valores. Perder um campo do padrão
+— como a linha Abertura/Porte ou os CNAEs secundários — quebra o teste.
+
 O que **não** dá para testar aqui: as chamadas a `SpreadsheetApp`,
 `DriveApp` e `UrlFetchApp`, que só existem dentro do Google. Essas são
 exercitadas na primeira execução real.

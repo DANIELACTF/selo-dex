@@ -38,12 +38,16 @@ var PROCURACAO = ['obtida', 'pendente'];
 var MEI_EXIGE_CERTIFICADO = false;
 
 /** Colunas da aba Triagem (saída da etapa 1). */
+// Na ordem em que aparecem na Ficha de Abertura — conferido contra a ficha
+// real 1099_THAIS_REIS. Toda coluna daqui é impressa na ficha; quem não é
+// impresso (Divergência, Fonte dos dados) vem depois, para conferência.
 var COLS_TRIAGEM = [
-  'N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Regime informado',
-  'Simples (RFB)', 'Divergência', 'Situação cadastral', 'CNAE principal',
-  'Município / UF', 'Grupo econômico', 'Certificado', 'Senha (cofre)',
-  'E-mail do cliente', 'Particularidades', 'Fonte dos dados', 'Ficha (PDF)',
-  'Processado em'
+  'N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Abertura', 'Porte',
+  'Município / UF', 'Grupo econômico', 'E-mail do cliente',
+  'CNAE principal', 'CNAEs secundários', 'Regime informado',
+  'Regime / enquadramento', 'Simples (RFB)', 'Situação cadastral',
+  'Certificado', 'Senha (cofre)', 'Particularidades',
+  'Divergência', 'Fonte dos dados', 'Ficha (PDF)', 'Processado em'
 ];
 
 /** Colunas da aba Particularidades (formulário da reunião com o Paulo). */

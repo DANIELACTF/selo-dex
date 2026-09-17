@@ -58,6 +58,34 @@ function marca_(condicao) {
   return condicao ? '☑' : '☐';
 }
 
+/**
+ * A ficha imprime o enquadramento completo ("Lucro Presumido — PIS/COFINS
+ * cumulativo; IRPJ/CSLL trimestral"), não o regime cru que veio no e-mail.
+ * Linha antiga da aba, gravada antes desta coluna existir, cai no regime
+ * informado para não imprimir vazio.
+ */
+function enquadramentoDaFicha_(e) {
+  return e['Regime / enquadramento'] || e['Regime informado'] || 'A definir';
+}
+
+/**
+ * "ATIVA desde 12/05/2025 (base pública RFB)" — situação, data de abertura
+ * e de onde veio, como na ficha real. Sem situação consultada, fica vazio:
+ * a coluna é do analista.
+ */
+function situacaoRfbDaFicha_(e) {
+  var situacao = String(e['Situação cadastral'] || '').trim();
+  if (!situacao) return '';
+
+  var texto = situacao;
+  var abertura = String(e['Abertura'] || '').trim();
+  if (abertura && abertura !== '-') texto += ' desde ' + abertura;
+
+  var fonte = String(e['Fonte dos dados'] || '').trim();
+  if (fonte === 'BrasilAPI' || fonte === 'ReceitaWS') texto += ' (base pública RFB)';
+  return texto;
+}
+
 function montarFichaHtml_(e) {
   var certificadoOk = String(e['Certificado']).trim() === 'recebido';
   var senhaOk = String(e['Senha (cofre)']).trim() === 'arquivada';
@@ -65,7 +93,8 @@ function montarFichaHtml_(e) {
     ? 'ATENÇÃO: ' + e['Divergência']
     : (e['Simples (RFB)'] === 'Sim' ? 'Optante pelo Simples Nacional (confirmado na Receita).'
       : e['Simples (RFB)'] === 'Não' ? 'Não optante pelo Simples Nacional (confirmado na Receita).'
-        : '(não consultado)');
+        : '(não consultado) — a base pública não informa a opção e a consulta ' +
+          'oficial não respondeu; conferir no PGDAS-D.');
   var simplesOk = e['Simples (RFB)'] === 'Sim' || e['Simples (RFB)'] === 'Não';
 
   var bullets = String(e['Particularidades'] || '').split('\n').filter(String);
@@ -112,6 +141,8 @@ function montarFichaHtml_(e) {
     '<tr><th>Razão social</th><td colspan="3">', escapar_(e['Razão social']), '</td></tr>',
     '<tr><th>CNPJ</th><td class="par">', escapar_(e['CNPJ']),
     '</td><th>Tipo</th><td class="par">', escapar_(e['Tipo']), '</td></tr>',
+    '<tr><th>Abertura</th><td class="par">', escapar_(e['Abertura'] || '-'),
+    '</td><th>Porte</th><td class="par">', escapar_(e['Porte'] || '-'), '</td></tr>',
     '<tr><th>Município / UF</th><td class="par">', escapar_(e['Município / UF'] || '-'),
     '</td><th>Grupo econômico</th><td class="par">', escapar_(e['Grupo econômico'] || '—'), '</td></tr>',
     '<tr><th>E-mail do cliente</th><td colspan="3">',
@@ -119,8 +150,10 @@ function montarFichaHtml_(e) {
 
     '<div class="secao">2 · ATIVIDADE E REGIME</div><table class="grade">',
     '<tr><th>CNAE principal</th><td colspan="3">', escapar_(e['CNAE principal'] || '-'), '</td></tr>',
+    '<tr><th>CNAEs secundários</th><td colspan="3">',
+    escapar_(e['CNAEs secundários'] || 'Não informada'), '</td></tr>',
     '<tr><th>Regime / enquadramento</th><td colspan="3">',
-    escapar_(e['Regime informado'] || 'A definir'), '</td></tr></table>',
+    escapar_(enquadramentoDaFicha_(e)), '</td></tr></table>',
 
     '<div class="secao">3 · DOCUMENTOS, CERTIFICADO E PROCURAÇÃO</div><table class="grade">',
     '<tr><th>Certificado A1 (.pfx)</th><td class="par">', marca_(certificadoOk), ' ',
@@ -134,7 +167,7 @@ function montarFichaHtml_(e) {
     '<table class="orgaos"><thead><tr><th>Órgão / Sistema</th><th>O que consultar</th>',
     '<th>Situação encontrada</th><th class="ok">OK</th></tr></thead><tbody>',
     '<tr><td>RFB / e-CAC</td><td class="oque">Situação cadastral, pendências, DTE (caixa postal), parcelamentos</td>',
-    '<td>', escapar_(e['Situação cadastral'] || ''), '</td><td class="ok">☐</td></tr>',
+    '<td>', escapar_(situacaoRfbDaFicha_(e)), '</td><td class="ok">☐</td></tr>',
     '<tr><td>Simples Nacional</td><td class="oque">Opção/optante (PGDAS/DAS), débitos, exclusão, sublimite</td>',
     '<td>', escapar_(simplesTexto), '</td><td class="ok">', marca_(simplesOk), '</td></tr>',
     '<tr><td>SEFAZ-RJ</td><td class="oque">Inscrição estadual, situação, DeC-RJ, débitos de ICMS</td>',

@@ -17,7 +17,8 @@ import { execFileSync } from 'node:child_process';
 
 // Consultas.gs entra aqui porque só toca UrlFetchApp dentro das funções: as
 // partes puras (montagem da mensagem de erro, objeto vazio) são testáveis.
-const ARQUIVOS = ['Config.gs', 'Competencia.gs', 'Parser.gs', 'Regras.gs', 'Consultas.gs'];
+const ARQUIVOS = ['Config.gs', 'Competencia.gs', 'Parser.gs', 'Regras.gs', 'Consultas.gs',
+  'Fichas.gs'];
 const gas = { console };
 vm.createContext(gas);
 for (const arquivo of ARQUIVOS) {
@@ -394,4 +395,144 @@ test('resposta sem JSON não quebra a montagem do erro', () => {
 
 test('a aba Triagem registra de onde veio o dado', () => {
   assert.ok(gas.COLS_TRIAGEM.includes('Fonte dos dados'));
+});
+
+// ------------------------------------ fidelidade ao padrão do Dep. Fiscal
+
+/**
+ * Linha da aba Triagem reproduzindo a ficha real 1099_THAIS_REIS, emitida
+ * pelo Departamento Fiscal. É o gabarito: se a ficha gerada deixar de trazer
+ * algum destes campos, o padrão do escritório foi quebrado.
+ */
+const FICHA_1099 = {
+  'N° Cliente': '1099',
+  'Razão social': 'THAIS REIS DESIGN LTDA',
+  'CNPJ': '60.772.067/0001-76',
+  'Tipo': 'Matriz',
+  'Abertura': '12/05/2025',
+  'Porte': 'EPP',
+  'Município / UF': 'Duque de Caxias/RJ',
+  'Grupo econômico': 'Vínculo a confirmar — R. Almirante Barroso, 31',
+  'E-mail do cliente': 'enfesta.adm@gmail.com',
+  'CNAE principal': '82.30-0-01 — Serviços de organização de feiras, congressos, exposições e festas',
+  'CNAEs secundários': '78.20-5-00 — Locação de mão de obra temporária; 82.30-0-02 — Casas de festas e eventos',
+  'Regime informado': 'Lucro Presumido',
+  'Regime / enquadramento': 'Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral',
+  'Simples (RFB)': '?',
+  'Situação cadastral': 'ATIVA',
+  'Certificado': 'pendente',
+  'Senha (cofre)': 'pendente',
+  'Particularidades': 'ATENÇÃO: Município de DUQUE DE CAXIAS/RJ — fora do Rio de Janeiro\n'
+    + 'CNAE 78.20-5-00 — atenção à retenção previdenciária de 11%',
+  'Divergência': '',
+  'Fonte dos dados': 'BrasilAPI',
+  'Processado em': '27/08/2026'
+};
+
+function textoDaFicha(linha) {
+  return gas.montarFichaHtml_(linha).replace(/<[^>]+>/g, '\n');
+}
+
+test('a ficha traz as seis seções, na ordem do padrão', () => {
+  const html = gas.montarFichaHtml_(FICHA_1099);
+  const secoes = [...html.matchAll(/<div class="secao">(\d) · ([^<]+)<\/div>/g)];
+  assert.deepEqual(secoes.map((m) => m[1]), ['1', '2', '3', '4', '5', '6']);
+  assert.deepEqual(planos(secoes.map((m) => m[2])), [
+    'IDENTIFICAÇÃO',
+    'ATIVIDADE E REGIME',
+    'DOCUMENTOS, CERTIFICADO E PROCURAÇÃO',
+    'CONSULTAS PRELIMINARES DE SITUAÇÃO FISCAL (ÓRGÃOS)',
+    'PARTICULARIDADES ANOTADAS NO E-MAIL / IDENTIFICADAS',
+    'PARTICULARIDADES A LEVANTAR — REUNIÃO COM O PAULO'
+  ]);
+});
+
+test('seção 1 traz todos os rótulos da ficha real, inclusive Abertura e Porte', () => {
+  const texto = textoDaFicha(FICHA_1099);
+  for (const rotulo of ['N° Cliente', 'Recebido em', 'Razão social', 'CNPJ', 'Tipo',
+    'Abertura', 'Porte', 'Município / UF', 'Grupo econômico', 'E-mail do cliente']) {
+    assert.ok(texto.includes(rotulo), `seção 1 sem o rótulo "${rotulo}"`);
+  }
+  for (const valor of ['1099', '27/08/2026', 'THAIS REIS DESIGN LTDA', '60.772.067/0001-76',
+    'Matriz', '12/05/2025', 'EPP', 'Duque de Caxias/RJ', 'enfesta.adm@gmail.com']) {
+    assert.ok(texto.includes(valor), `seção 1 sem o valor "${valor}"`);
+  }
+});
+
+test('seção 2 traz CNAEs secundários e o enquadramento completo', () => {
+  const texto = textoDaFicha(FICHA_1099);
+  assert.ok(texto.includes('CNAEs secundários'));
+  assert.ok(texto.includes('78.20-5-00 — Locação de mão de obra temporária'));
+  assert.ok(texto.includes('82.30-0-02 — Casas de festas e eventos'));
+  // o enquadramento, não o regime cru
+  assert.ok(texto.includes('Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral'));
+});
+
+test('seção 4 mantém os quatro órgãos e o que se consulta em cada', () => {
+  const texto = textoDaFicha(FICHA_1099);
+  for (const linha of [
+    ['RFB / e-CAC', 'Situação cadastral, pendências, DTE (caixa postal), parcelamentos'],
+    ['Simples Nacional', 'Opção/optante (PGDAS/DAS), débitos, exclusão, sublimite'],
+    ['SEFAZ-RJ', 'Inscrição estadual, situação, DeC-RJ, débitos de ICMS'],
+    ['Prefeitura / Município', 'Inscrição municipal, ISS, situação cadastral, débitos']
+  ]) {
+    assert.ok(texto.includes(linha[0]), `seção 4 sem o órgão "${linha[0]}"`);
+    assert.ok(texto.includes(linha[1]), `seção 4 sem "o que consultar" de ${linha[0]}`);
+  }
+});
+
+test('a situação na RFB sai com a data de abertura e a fonte', () => {
+  assert.equal(gas.situacaoRfbDaFicha_(FICHA_1099), 'ATIVA desde 12/05/2025 (base pública RFB)');
+});
+
+test('sem situação consultada, a coluna fica do analista', () => {
+  const linha = Object.assign({}, FICHA_1099, { 'Situação cadastral': '' });
+  assert.equal(gas.situacaoRfbDaFicha_(linha), '');
+});
+
+test('Simples não consultado diz onde conferir, em vez de só "(não consultado)"', () => {
+  const texto = textoDaFicha(FICHA_1099);
+  assert.match(texto, /\(não consultado\) — a base pública não informa a opção/);
+  assert.match(texto, /PGDAS-D/);
+});
+
+test('particularidade de atenção ganha a classe que a marca com ▲', () => {
+  const html = gas.montarFichaHtml_(FICHA_1099);
+  assert.match(html, /<li class="atencao">ATENÇÃO: Município de DUQUE DE CAXIAS/);
+  assert.match(html, /<li>CNAE 78\.20-5-00/);
+});
+
+test('seção 6 fica em branco — é a pauta da reunião com o Paulo', () => {
+  const html = gas.montarFichaHtml_(FICHA_1099);
+  const depois = html.slice(html.indexOf('REUNIÃO COM O PAULO'));
+  assert.match(depois, /<div class="linhas-livres">(<div><\/div>){5}<\/div>/);
+});
+
+test('linha antiga, sem as colunas novas, não imprime campo vazio sem aviso', () => {
+  const antiga = {
+    'N° Cliente': '1048', 'Razão social': 'INJECT PHARMA LTDA', 'CNPJ': '11.111.111/0001-11',
+    'Tipo': 'Matriz', 'Regime informado': 'Lucro Presumido', 'Simples (RFB)': '?',
+    'Certificado': 'recebido', 'Senha (cofre)': 'arquivada', 'Processado em': '01/08/2026'
+  };
+  const texto = textoDaFicha(antiga);
+  assert.ok(texto.includes('Abertura'));
+  assert.ok(texto.includes('Porte'));
+  assert.ok(texto.includes('Não informada'));       // CNAEs secundários ausentes
+  assert.ok(texto.includes('Lucro Presumido'));      // cai no regime informado
+});
+
+test('toda coluna que a ficha imprime existe na aba Triagem', () => {
+  for (const coluna of ['Abertura', 'Porte', 'CNAEs secundários', 'Regime / enquadramento',
+    'Situação cadastral', 'Grupo econômico', 'Fonte dos dados']) {
+    assert.ok(gas.COLS_TRIAGEM.includes(coluna), `a aba Triagem não guarda "${coluna}"`);
+  }
+});
+
+test('o certificado marca a caixa certa', () => {
+  const texto = textoDaFicha(FICHA_1099);
+  assert.ok(texto.includes('☐') && texto.includes('pendente'));
+  const recebido = textoDaFicha(Object.assign({}, FICHA_1099, {
+    'Certificado': 'recebido', 'Senha (cofre)': 'arquivada'
+  }));
+  assert.ok(recebido.includes('☑'));
 });

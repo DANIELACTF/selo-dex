@@ -35,7 +35,9 @@ function processarEmail(texto, consultar) {
   var tipos = lista.map(function (x) { return x.tipo; });
 
   var aba = abaObrigatoria_(ABAS.triagem);
-  var idx = indices_(aba);
+  // Aditivo: planilha instalada antes destas colunas ganha as que faltam sem
+  // perder o que já tem.
+  var idx = garantirColunas_(aba, COLS_TRIAGEM);
   var jaNaAba = valoresColuna_(aba, idx['N° Cliente']);
 
   var registros = [];
@@ -66,12 +68,16 @@ function processarEmail(texto, consultar) {
     registro['Razão social'] = x.dados.razaoSocial || raw.nome;
     registro['CNPJ'] = raw.cnpj;
     registro['Tipo'] = x.tipo;
+    registro['Abertura'] = x.dados.dataInicioAtividade || '-';
+    registro['Porte'] = x.dados.porte || '-';
     registro['Regime informado'] = raw.regimeInformado || '(não informado)';
+    registro['Regime / enquadramento'] = regimeEnquadramento(raw.regimeInformado, x.dados);
     registro['Simples (RFB)'] = optante === true ? 'Sim' : optante === false ? 'Não' : '?';
     registro['Divergência'] = divergencia || '';
     registro['Situação cadastral'] = x.dados.situacaoCadastral || '';
     registro['Fonte dos dados'] = x.dados.fonte || '(não consultado)';
     registro['CNAE principal'] = formatarCnaePrincipal(x.dados);
+    registro['CNAEs secundários'] = formatarCnaesSecundarios(x.dados);
     registro['Município / UF'] = (x.dados.municipio && x.dados.uf)
       ? x.dados.municipio + '/' + x.dados.uf : '-';
     registro['Grupo econômico'] = grupo;

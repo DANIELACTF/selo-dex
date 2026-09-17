@@ -145,9 +145,18 @@ Marque com a classe `atencao` os que forem risco/divergência:
 - Certificado anexado → "validar titularidade e validade"
 - Alguma consulta que falhou → dizer qual campo ficou por conferir
 
-Seções **4** (linhas RFB, SEFAZ, Prefeitura) e **6** ficam em branco: são
-o checklist manual do analista. Só a linha **Simples Nacional** da seção 4
-você preenche, com o resultado da consulta oficial.
+Seções **4** (linhas SEFAZ e Prefeitura) e **6** ficam em branco: são o
+checklist manual do analista. Na seção 4 você preenche duas linhas:
+
+- **RFB / e-CAC** — situação cadastral com a data e a fonte, no formato da
+  ficha real: `ATIVA desde 12/05/2025 (base pública RFB)`. Sem consulta
+  bem-sucedida, deixe vazio.
+- **Simples Nacional** — o resultado da consulta oficial. Não deu para
+  consultar: `(não consultado) — <motivo>`, dizendo onde conferir
+  (PGDAS-D), em vez de só `(não consultado)`.
+
+A coluna **OK** é sempre `☐`, menos na linha do Simples quando a consulta
+respondeu: quem marca as outras é o analista.
 
 ## 5. Montar o documento
 
