@@ -17,6 +17,32 @@ computador).
 | 5 · Alimentar a Carteira (carência) | Entrada em carência e distribuição de quem venceu | abas `Pendentes Daniela` e `Carteira Completa` |
 | 📊 Status da carência | Quem já liberou, quem ainda espera | nada — só lê |
 | 📄 Exportar CSV das pastas da rede | CSV `Numero,Nome` + comando do PowerShell | Drive |
+| 👤 Distribuir cliente para um analista | Diz para qual carteira o pendente vai | `Pendentes Daniela` → `Carteira Completa` |
+| 🔁 Trocar responsável | Passa o cliente de um analista para outro | a aba em que ele estiver |
+| 📕 Dar baixa no cliente | Tira o cliente da carteira, guardando o motivo | aba `Baixados` |
+
+### Gestão da carteira, cliente a cliente
+
+O item 5 roda o lote inteiro pela regra da carência. As três operações
+abaixo são pontuais, tomadas por uma pessoa, e abrem o mesmo painel lateral
+com os três modos.
+
+**👤 Distribuir.** Escolhe o cliente pendente e o analista que vai assumir.
+Com a carência já vencida, move na hora. Com a carência correndo, o padrão é
+**anotar o destino** em "Sugestão Analista" e deixar a empresa onde está —
+há uma caixa para **antecipar**, e a antecipação fica registrada como tal.
+
+**🔁 Trocar responsável.** Para quem está na carteira, troca o "Analista
+Responsável". Para quem ainda está em carência, troca a **sugestão** — nesse
+período quem responde pela empresa é a Gestão Fiscal, não o analista.
+
+**📕 Dar baixa.** Tira o cliente da carteira (ou dos pendentes). A linha não
+é apagada: vai para a aba **`Baixados`** com o último responsável, de onde
+saiu, motivo, observação, competência, data e quem deu baixa.
+
+As três escrevem uma linha na aba **`Movimentações`** — quem fez, quando,
+de quem para quem e por quê. É essa aba que responde "o que aconteceu com o
+N°1091?".
 
 Nada roda sozinho — só pelo menu, como o escritório pediu. Tudo que o app
 faz fica registrado na aba `Log`, com data e usuário.
@@ -102,6 +128,7 @@ Quem muda o quê, sem precisar mexer em lógica — tudo em `Config.gs`:
 |---|---|
 | Equipe do Dep. Fiscal | `ANALISTAS` |
 | Níveis, situações, segmentos, regimes | as listas correspondentes |
+| Motivos de baixa e de troca de responsável | `MOTIVOS_BAIXA`, `MOTIVOS_TROCA` |
 | Nome de alguma aba | `ABAS` |
 | Pasta raiz no Drive | `PASTA_RAIZ_NOME` |
 | **A carência de três competências** | `MESES_CARENCIA` — e avise, porque no repositório ela também vive em `onboarding/competencia.py` |
@@ -116,8 +143,13 @@ A lógica pura (competência, parser, regras da ficha) é JavaScript comum e
 roda fora do Apps Script:
 
 ```bash
-node --test tests/test_gas.mjs
+node --test tests/test_gas.mjs tests/test_gestao.mjs
 ```
+
+`tests/test_gestao.mjs` exercita distribuir, dar baixa e trocar responsável
+contra um dublê da API do Sheets (`tests/planilha-falsa.mjs`): verifica para
+onde a linha foi, o que ficou registrado e quando a operação é recusada.
+Desligar a guarda da carência quebra dois testes.
 
 O teste mais forte é o de **paridade**: o parser em JS tem que extrair
 exatamente as mesmas empresas que o parser em Python extrai dos 5 e-mails

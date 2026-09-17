@@ -18,6 +18,8 @@ var ABAS = {
   carteira: 'Carteira Completa',
   resumo: 'Resumo Equipe',
   listas: 'Listas',
+  baixados: 'Baixados',
+  movimentacoes: 'Movimentações',
   log: 'Log'
 };
 
@@ -33,6 +35,41 @@ var REGIMES = ['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI', '⚠ 
 var SIM_PENDENTE = ['recebido', 'pendente'];
 var SENHA_STATUS = ['arquivada', 'pendente'];
 var PROCURACAO = ['obtida', 'pendente'];
+
+/** Por que um cliente sai da carteira. */
+var MOTIVOS_BAIXA = [
+  'Encerramento de contrato (cliente pediu)',
+  'Encerramento de contrato (escritório pediu)',
+  'Baixa do CNPJ na Receita',
+  'Transferência para outro escritório',
+  'Inadimplência',
+  'Empresa inativa / sem movimento',
+  'Outro (descrever na observação)'
+];
+
+/** Por que um cliente troca de analista. */
+var MOTIVOS_TROCA = [
+  'Redistribuição de carga',
+  'Saída do analista',
+  'Entrada de analista novo',
+  'Especialização (regime ou segmento)',
+  'Pedido do cliente',
+  'Férias / afastamento',
+  'Outro (descrever na observação)'
+];
+
+/** Registro de quem saiu da carteira — estado, não histórico. */
+var COLS_BAIXADOS = [
+  'N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Segmento',
+  'Último responsável', 'Saiu de', 'Motivo', 'Observação',
+  'Competência da baixa', 'Baixado em', 'Baixado por'
+];
+
+/** Histórico de todas as movimentações de carteira — eventos, não estado. */
+var COLS_MOVIMENTACOES = [
+  'Quando', 'Quem', 'Operação', 'N° Cliente', 'Nome', 'De', 'Para',
+  'Motivo / observação', 'Competência'
+];
 
 /** MEI normalmente não usa e-CNPJ na rotina; mude para true se mudar. */
 var MEI_EXIGE_CERTIFICADO = false;

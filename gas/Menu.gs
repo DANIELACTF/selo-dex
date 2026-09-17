@@ -15,6 +15,10 @@ function onOpen() {
     .addItem('4 · Criar pastas do cliente no Drive', 'menuCriarPastas')
     .addItem('5 · Alimentar a Carteira (carência)', 'menuAlimentarCarteira')
     .addSeparator()
+    .addItem('👤 Distribuir cliente para um analista…', 'abrirDistribuir')
+    .addItem('🔁 Trocar responsável…', 'abrirTrocar')
+    .addItem('📕 Dar baixa no cliente…', 'abrirBaixar')
+    .addSeparator()
     .addItem('📊 Status da carência', 'menuStatusCarencia')
     .addItem('📄 Exportar CSV das pastas da rede', 'menuExportarCsv')
     .addSeparator()
@@ -202,6 +206,44 @@ function menuExportarCsv() {
   }
 }
 
+// --------------------------------------------------- gestão de carteira
+
+function abrirPainelGestao_(titulo) {
+  var html = HtmlService.createHtmlOutputFromFile('Gestao')
+    .setTitle(titulo)
+    .setWidth(400);
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function abrirDistribuir() { abrirPainelGestao_('Distribuir cliente'); }
+function abrirTrocar() { abrirPainelGestao_('Trocar responsável'); }
+function abrirBaixar() { abrirPainelGestao_('Dar baixa no cliente'); }
+
+/** Chamados pelo painel. Erro vira mensagem, não exceção na cara da pessoa. */
+function distribuirDoPainel(numero, analista, nivel, antecipar) {
+  try {
+    return distribuirCliente(numero, analista, nivel, antecipar);
+  } catch (e) {
+    return { erro: String(e && e.message ? e.message : e) };
+  }
+}
+
+function trocarDoPainel(numero, analista, nivel, motivo, observacao) {
+  try {
+    return trocarResponsavel(numero, analista, nivel, motivo, observacao);
+  } catch (e) {
+    return { erro: String(e && e.message ? e.message : e) };
+  }
+}
+
+function baixarDoPainel(numero, motivo, observacao) {
+  try {
+    return baixarCliente(numero, motivo, observacao);
+  } catch (e) {
+    return { erro: String(e && e.message ? e.message : e) };
+  }
+}
+
 function menuSobre() {
   alerta_('Onboarding Fiscal — Moraex',
     'App do Departamento Fiscal para o onboarding de cliente novo.\n\n' +
@@ -213,6 +255,10 @@ function menuSobre() {
     '  3 · Emitir Fichas de Abertura em PDF no Drive\n' +
     '  4 · Criar as pastas do cliente no Drive\n' +
     '  5 · Alimentar a Carteira respeitando a carência\n\n' +
+    'GESTÃO DA CARTEIRA, a qualquer momento\n' +
+    '  👤 Distribuir — diz para qual analista o pendente vai\n' +
+    '  🔁 Trocar responsável — passa o cliente de um analista para outro\n' +
+    '  📕 Dar baixa — tira o cliente da carteira, guardando o motivo\n\n' +
     'A CARÊNCIA\n' +
     'Empresa nova não vai direto para a carteira do analista: cumpre ' +
     MESES_CARENCIA + ' competências sob a Gestão Fiscal, em "' + ABAS.pendentes +

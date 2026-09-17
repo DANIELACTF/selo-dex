@@ -40,6 +40,8 @@ function instalarAbas() {
       'Segmento', 'Sugestão Analista', 'Origem', 'Observação',
       COL_COMPETENCIA, COL_LIBERA]);
   });
+  garantir(ABAS.baixados, montarBaixados_);
+  garantir(ABAS.movimentacoes, montarMovimentacoes_);
   garantir(ABAS.listas, montarListas_);
   garantir(ABAS.log, function (aba) {
     escreverCabecalho_(aba, ['Quando', 'Quem', 'Ação', 'Detalhe']);

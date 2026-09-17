@@ -290,9 +290,10 @@ test('todo item de menu aponta para uma função que existe', () => {
   }
 });
 
-test('a barra lateral chama uma função que existe', () => {
+for (const painel of fs.readdirSync('gas').filter((f) => f.endsWith('.html')).sort()) {
+test(`${painel} chama funções que existem no servidor`, () => {
   const { ctx } = carregarProjetoCompleto();
-  const html = fs.readFileSync('gas/Sidebar.html', 'utf8');
+  const html = fs.readFileSync(`gas/${painel}`, 'utf8');
   // Percorre a cadeia iniciada em google.script.run contando parênteses e
   // chaves: só conta como elo o ".nome(" que aparece com profundidade zero.
   // Assim o corpo multilinha de um handler (com .replace(), getElementById()
@@ -314,11 +315,12 @@ test('a barra lateral chama uma função que existe', () => {
     }
     inicio = html.indexOf('google.script.run', inicio + 1);
   }
-  assert.ok(chamadas.length > 0, 'a barra lateral não chama nada no servidor');
+  assert.ok(chamadas.length > 0, `${painel} não chama nada no servidor`);
   for (const nome of chamadas) {
-    assert.equal(typeof ctx[nome], 'function', `Sidebar.html chama ${nome}(), que não existe`);
+    assert.equal(typeof ctx[nome], 'function', `${painel} chama ${nome}(), que não existe`);
   }
 });
+}
 
 test('o appsscript.json declara os escopos que o app usa', () => {
   const manifesto = JSON.parse(fs.readFileSync('gas/appsscript.json', 'utf8'));

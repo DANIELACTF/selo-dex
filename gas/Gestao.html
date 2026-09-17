@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --navy:#1B3A5C; --linha:#C9CFD6; --apagado:#5A6470; --alerta:#A32020;
+          --alerta-fundo:#FBEEEC; --ok:#1C6340; --ok-fundo:#EAF4EE;
+          --atencao:#7A5510; --atencao-fundo:#FBF4E4; --campo:#F5F7F9; }
+  * { box-sizing:border-box; }
+  body { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#111; margin:0; padding:16px; }
+
+  .modos { display:flex; border:1px solid var(--linha); border-radius:4px; overflow:hidden; margin-bottom:16px; }
+  .modos button { flex:1; background:#fff; border:0; border-right:1px solid var(--linha);
+                  padding:9px 4px; font-size:12px; cursor:pointer; color:var(--apagado); font-family:inherit; }
+  .modos button:last-child { border-right:0; }
+  .modos button.ativo { background:var(--navy); color:#fff; font-weight:bold; }
+
+  h2 { font-size:14px; margin:0 0 4px; color:var(--navy); }
+  p.ajuda { color:var(--apagado); font-size:12px; margin:0 0 14px; line-height:1.5; }
+  label { display:block; font-size:12px; color:var(--apagado); margin:12px 0 4px; }
+  select, textarea, input[type=text] {
+    width:100%; font-family:inherit; font-size:13px; padding:7px 8px;
+    border:1px solid var(--linha); border-radius:3px; background:var(--campo); }
+  textarea { min-height:60px; resize:vertical; }
+  label.inline { display:flex; align-items:flex-start; gap:7px; margin:12px 0 0; color:#111; }
+  label.inline input { margin-top:2px; }
+
+  button.acao { width:100%; margin-top:16px; background:var(--navy); color:#fff; border:0;
+                border-radius:3px; padding:10px; font-size:13px; font-weight:bold;
+                cursor:pointer; font-family:inherit; }
+  button.acao:disabled { background:#8B98A5; cursor:default; }
+  button.acao.perigo { background:var(--alerta); }
+
+  .cartao { border:1px solid var(--linha); border-radius:3px; padding:10px 11px; margin-top:12px;
+            font-size:12px; line-height:1.5; background:var(--campo); }
+  .cartao dt { color:var(--apagado); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+  .cartao dd { margin:1px 0 8px; }
+  .cartao dd:last-child { margin-bottom:0; }
+  .selo { display:inline-block; border-radius:2px; padding:2px 7px; font-size:11px; font-weight:bold; }
+  .selo.livre { background:var(--ok-fundo); color:var(--ok); }
+  .selo.preso { background:var(--atencao-fundo); color:var(--atencao); }
+  .selo.sem { background:var(--alerta-fundo); color:var(--alerta); }
+
+  #saida { margin-top:14px; font-size:12px; line-height:1.55; }
+  #saida .caixa { border-left:3px solid var(--linha); padding:9px 11px; }
+  #saida .caixa.bom { border-left-color:var(--ok); background:var(--ok-fundo); }
+  #saida .caixa.ruim { border-left-color:var(--alerta); background:var(--alerta-fundo); }
+  #saida .caixa.aviso { border-left-color:var(--atencao); background:var(--atencao-fundo); }
+  .carregando { color:var(--apagado); font-style:italic; }
+</style>
+</head>
+<body>
+
+<div class="modos">
+  <button type="button" id="btn-distribuir" onclick="abrir('distribuir')">Distribuir</button>
+  <button type="button" id="btn-trocar" onclick="abrir('trocar')">Trocar</button>
+  <button type="button" id="btn-baixar" onclick="abrir('baixar')">Dar baixa</button>
+</div>
+
+<div id="corpo"><p class="carregando">Carregando clientes…</p></div>
+<div id="saida"></div>
+
+<script>
+var DADOS = null;
+var MODO = 'distribuir';
+
+function esc(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function opcoes(lista, vazio) {
+  return '<option value="">' + esc(vazio) + '</option>' +
+    lista.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+}
+
+function clientesPendentes() {
+  return DADOS.pendentes.map(function (c) {
+    return '<option value="' + esc(c.numero) + '">N°' + esc(c.numero) + ' — ' + esc(c.nome) + '</option>';
+  }).join('');
+}
+
+function clientesTodos() {
+  var p = DADOS.pendentes.map(function (c) {
+    return '<option value="' + esc(c.numero) + '">N°' + esc(c.numero) + ' — ' + esc(c.nome) + ' (em carência)</option>';
+  }).join('');
+  var k = DADOS.carteira.map(function (c) {
+    return '<option value="' + esc(c.numero) + '">N°' + esc(c.numero) + ' — ' + esc(c.nome) + ' (' + esc(c.analista) + ')</option>';
+  }).join('');
+  return k + p;
+}
+
+function abrir(modo) {
+  MODO = modo;
+  document.getElementById('saida').innerHTML = '';
+  ['distribuir', 'trocar', 'baixar'].forEach(function (m) {
+    document.getElementById('btn-' + m).className = (m === modo ? 'ativo' : '');
+  });
+  if (!DADOS) return;
+  document.getElementById('corpo').innerHTML =
+    modo === 'distribuir' ? telaDistribuir() : modo === 'trocar' ? telaTrocar() : telaBaixar();
+  mostrarCliente();
+}
+
+function telaDistribuir() {
+  if (!DADOS.pendentes.length) {
+    return '<h2>Distribuir cliente</h2><p class="ajuda">Não há ninguém em "Pendentes Daniela".</p>';
+  }
+  return '<h2>Distribuir cliente</h2>' +
+    '<p class="ajuda">Escolha para qual analista o cliente pendente vai. Se a carência ' +
+    'de ' + DADOS.mesesCarencia + ' competências ainda não venceu, o destino fica anotado como ' +
+    'sugestão e a empresa continua sob a Gestão Fiscal.</p>' +
+    '<label for="cliente">Cliente pendente</label>' +
+    '<select id="cliente" onchange="mostrarCliente()"><option value="">Escolha…</option>' + clientesPendentes() + '</select>' +
+    '<div id="ficha"></div>' +
+    '<label for="analista">Vai para a carteira de</label>' +
+    '<select id="analista">' + opcoes(DADOS.analistas, 'Escolha o analista…') + '</select>' +
+    '<label for="nivel">Nível / equipe</label>' +
+    '<select id="nivel">' + opcoes(DADOS.niveis, '(não informar)') + '</select>' +
+    '<label class="inline" id="rotulo-antecipar" hidden>' +
+    '<input type="checkbox" id="antecipar">' +
+    '<span>Distribuir <strong>agora</strong>, antes de vencer a carência. Fica registrado como antecipação.</span></label>' +
+    '<button class="acao" type="button" onclick="enviar()">Distribuir</button>';
+}
+
+function telaTrocar() {
+  return '<h2>Trocar responsável</h2>' +
+    '<p class="ajuda">Passa o cliente de um analista para outro. Para quem ainda está em ' +
+    'carência, o que muda é a sugestão — quem responde nesse período é a Gestão Fiscal.</p>' +
+    '<label for="cliente">Cliente</label>' +
+    '<select id="cliente" onchange="mostrarCliente()"><option value="">Escolha…</option>' + clientesTodos() + '</select>' +
+    '<div id="ficha"></div>' +
+    '<label for="analista">Novo responsável</label>' +
+    '<select id="analista">' + opcoes(DADOS.analistas, 'Escolha o analista…') + '</select>' +
+    '<label for="nivel">Nível / equipe</label>' +
+    '<select id="nivel">' + opcoes(DADOS.niveis, '(manter)') + '</select>' +
+    '<label for="motivo">Motivo</label>' +
+    '<select id="motivo">' + opcoes(DADOS.motivosTroca, 'Escolha o motivo…') + '</select>' +
+    '<label for="observacao">Observação (opcional)</label>' +
+    '<textarea id="observacao" placeholder="O que mais precisa ficar registrado nesta troca."></textarea>' +
+    '<button class="acao" type="button" onclick="enviar()">Trocar responsável</button>';
+}
+
+function telaBaixar() {
+  return '<h2>Dar baixa no cliente</h2>' +
+    '<p class="ajuda">Tira o cliente da carteira. A linha não some: vai para a aba ' +
+    '<strong>Baixados</strong> com motivo, data e quem deu baixa.</p>' +
+    '<label for="cliente">Cliente</label>' +
+    '<select id="cliente" onchange="mostrarCliente()"><option value="">Escolha…</option>' + clientesTodos() + '</select>' +
+    '<div id="ficha"></div>' +
+    '<label for="motivo">Motivo da baixa</label>' +
+    '<select id="motivo">' + opcoes(DADOS.motivosBaixa, 'Escolha o motivo…') + '</select>' +
+    '<label for="observacao">Observação (opcional)</label>' +
+    '<textarea id="observacao" placeholder="Data do distrato, protocolo, para onde foi o cliente…"></textarea>' +
+    '<button class="acao perigo" type="button" onclick="enviar()">Dar baixa</button>';
+}
+
+function achar(numero) {
+  var t = DADOS.pendentes.filter(function (c) { return c.numero === numero; });
+  if (t.length) { t[0].ondeEsta = 'pendente'; return t[0]; }
+  t = DADOS.carteira.filter(function (c) { return c.numero === numero; });
+  if (t.length) { t[0].ondeEsta = 'carteira'; return t[0]; }
+  return null;
+}
+
+function mostrarCliente() {
+  var campo = document.getElementById('cliente');
+  var ficha = document.getElementById('ficha');
+  if (!campo || !ficha) return;
+  var c = achar(campo.value);
+  var antecipar = document.getElementById('rotulo-antecipar');
+
+  if (!c) {
+    ficha.innerHTML = '';
+    if (antecipar) antecipar.hidden = true;
+    return;
+  }
+
+  var html = '<dl class="cartao"><dt>CNPJ</dt><dd>' + esc(c.cnpj || '—') + '</dd>' +
+    '<dt>Regime</dt><dd>' + esc(c.regime || '—') + '</dd>';
+
+  if (c.ondeEsta === 'carteira') {
+    html += '<dt>Responsável hoje</dt><dd>' + esc(c.analista) +
+      (c.nivel ? ' — ' + esc(c.nivel) : '') + '</dd>';
+  } else {
+    html += '<dt>Sugestão anotada</dt><dd>' + esc(c.sugestao || '—') + '</dd><dt>Carência</dt><dd>';
+    if (c.semCompetencia) {
+      html += '<span class="selo sem">sem competência de entrada</span> — preencha na aba Pendentes';
+    } else if (c.liberada) {
+      html += '<span class="selo livre">vencida</span> entrou em ' + esc(c.entrada) +
+        ', liberou em ' + esc(c.liberaEm);
+    } else {
+      html += '<span class="selo preso">correndo</span> libera em ' + esc(c.liberaEm) +
+        ' (' + c.faltam + ' competência' + (c.faltam > 1 ? 's' : '') + ')';
+    }
+    html += '</dd>';
+  }
+  ficha.innerHTML = html + '</dl>';
+
+  if (antecipar) {
+    var precisa = c.ondeEsta === 'pendente' && !c.liberada && !c.semCompetencia;
+    antecipar.hidden = !precisa;
+    if (!precisa) document.getElementById('antecipar').checked = false;
+  }
+}
+
+function valor(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function enviar() {
+  var botao = document.querySelector('button.acao');
+  var saida = document.getElementById('saida');
+  botao.disabled = true;
+  saida.innerHTML = '<p class="carregando">Aplicando…</p>';
+
+  var chamada = google.script.run.withSuccessHandler(mostrar).withFailureHandler(function (e) {
+    botao.disabled = false;
+    saida.innerHTML = '<div class="caixa ruim">' + esc(e.message || e) + '</div>';
+  });
+
+  if (MODO === 'distribuir') {
+    chamada.distribuirDoPainel(valor('cliente'), valor('analista'), valor('nivel'),
+      document.getElementById('antecipar').checked);
+  } else if (MODO === 'trocar') {
+    chamada.trocarDoPainel(valor('cliente'), valor('analista'), valor('nivel'),
+      valor('motivo'), valor('observacao'));
+  } else {
+    chamada.baixarDoPainel(valor('cliente'), valor('motivo'), valor('observacao'));
+  }
+}
+
+function mostrar(r) {
+  var saida = document.getElementById('saida');
+  var botao = document.querySelector('button.acao');
+  if (botao) botao.disabled = false;
+
+  if (r.erro) {
+    saida.innerHTML = '<div class="caixa ruim">' + esc(r.erro) + '</div>';
+    return;
+  }
+
+  var texto;
+  if (r.agendado) {
+    texto = '<strong>Destino anotado.</strong> N°' + esc(r.numero) + ' ' + esc(r.nome) +
+      ' vai para ' + esc(r.analista) + ' quando a carência vencer, em ' + esc(r.liberaEm) +
+      ' (falta' + (r.faltam > 1 ? 'm ' : ' ') + r.faltam + ' competência' + (r.faltam > 1 ? 's' : '') +
+      '). Até lá segue com a Gestão Fiscal.';
+    saida.innerHTML = '<div class="caixa aviso">' + texto + '</div>';
+  } else if (r.distribuido) {
+    texto = '<strong>Distribuído.</strong> N°' + esc(r.numero) + ' ' + esc(r.nome) +
+      ' está na carteira de ' + esc(r.analista) + '.';
+    if (r.antecipado) {
+      texto += ' <strong>Antecipado</strong> — a carência só venceria em ' + esc(r.liberaEm) +
+        '. Registrado assim na aba Movimentações.';
+    }
+    saida.innerHTML = '<div class="caixa ' + (r.antecipado ? 'aviso' : 'bom') + '">' + texto + '</div>';
+  } else if (r.trocado) {
+    texto = '<strong>' + (r.emCarencia ? 'Sugestão trocada.' : 'Responsável trocado.') + '</strong> N°' +
+      esc(r.numero) + ' ' + esc(r.nome) + ': de ' + esc(r.anterior) + ' para ' + esc(r.novo) + '.';
+    if (r.emCarencia) texto += ' Ela continua em carência, sob a Gestão Fiscal.';
+    saida.innerHTML = '<div class="caixa bom">' + texto + '</div>';
+  } else if (r.baixado) {
+    texto = '<strong>Baixado.</strong> N°' + esc(r.numero) + ' ' + esc(r.nome) +
+      ' saiu de "' + esc(r.de) + '" na competência ' + esc(r.competencia) +
+      '. Motivo: ' + esc(r.motivo) + '. A linha está na aba Baixados.';
+    saida.innerHTML = '<div class="caixa bom">' + texto + '</div>';
+  }
+
+  recarregar();
+}
+
+function recarregar() {
+  google.script.run.withSuccessHandler(function (d) {
+    DADOS = d;
+    var guardado = document.getElementById('saida').innerHTML;
+    abrir(MODO);
+    document.getElementById('saida').innerHTML = guardado;
+  }).carregarGestao();
+}
+
+google.script.run.withSuccessHandler(function (d) {
+  DADOS = d;
+  abrir('distribuir');
+}).withFailureHandler(function (e) {
+  document.getElementById('corpo').innerHTML =
+    '<div class="caixa ruim">' + esc(e.message || e) + '</div>';
+}).carregarGestao();
+</script>
+</body>
+</html>
