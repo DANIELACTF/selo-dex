@@ -51,6 +51,11 @@ class DadosCnpj:
     optante_simples: bool | None = None
     optante_mei: bool | None = None
     erro: str | None = None
+    # 404 da BrasilAPI: a empresa não está no dump de dados abertos da RFB,
+    # que atrasa semanas. É o caso esperado para cliente recém-aberto — não
+    # é falha de consulta, e o dado costuma estar no comprovante de inscrição
+    # que a Thays cola no e-mail.
+    nao_encontrado: bool = False
 
 
 def _somente_digitos(cnpj: str) -> str:
@@ -74,6 +79,16 @@ def consultar_cnpj(cnpj: str, timeout: int = 15) -> DadosCnpj:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return _erro(
+                cnpj,
+                f"CNPJ {cnpj_limpo} não encontrado na base da BrasilAPI — ela serve o "
+                "dump de dados abertos da RFB, que atrasa semanas, e empresa "
+                "recém-aberta ainda não consta",
+                nao_encontrado=True,
+            )
+        if exc.code == 429:
+            return _erro(cnpj, "BrasilAPI recusou por excesso de consultas (429) — tente daqui a pouco")
         return _erro(cnpj, f"HTTP {exc.code} ao consultar CNPJ {cnpj_limpo}")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return _erro(cnpj, f"Falha de rede ao consultar CNPJ {cnpj_limpo}: {exc}")
@@ -123,13 +138,14 @@ def consultar_cnpj(cnpj: str, timeout: int = 15) -> DadosCnpj:
     )
 
 
-def _erro(cnpj: str, mensagem: str) -> DadosCnpj:
+def _erro(cnpj: str, mensagem: str, nao_encontrado: bool = False) -> DadosCnpj:
     return DadosCnpj(
         cnpj=cnpj, razao_social=None, nome_fantasia=None, situacao_cadastral=None,
         data_situacao_cadastral=None, data_inicio_atividade=None,
         cnae_fiscal_codigo=None, cnae_fiscal_descricao=None, cnaes_secundarios=[],
         natureza_juridica=None, porte=None, municipio=None, uf=None, bairro=None,
         endereco=None, optante_simples=None, optante_mei=None, erro=mensagem,
+        nao_encontrado=nao_encontrado,
     )
 
 

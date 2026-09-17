@@ -160,7 +160,14 @@ function regimeEnquadramento(regimeInformado, dados) {
 function particularidades(empresa, dados, grupo, divergencia, certificadoOk, todosNumeros) {
   var b = [];
 
-  if (dados.erro) {
+  if (dados.naoEncontrado) {
+    // Empresa recém-aberta ainda não entrou no dump de dados abertos da RFB.
+    // Não é falha de consulta — é defasagem da base, e o dado existe no
+    // comprovante de inscrição que costuma vir no próprio e-mail.
+    b.push('Empresa ainda não consta nas bases públicas de CNPJ — normal em ' +
+      'empresa recém-aberta. CNAE, endereço e situação cadastral a preencher pelo ' +
+      'comprovante de inscrição (e-mail da Thays) ou pelo e-CAC.');
+  } else if (dados.erro) {
     b.push('CNAE, endereço e situação cadastral não confirmados automaticamente (falha ao ' +
       'consultar a Receita: ' + dados.erro + ') — conferir manualmente.');
   }

@@ -181,3 +181,35 @@ def test_simples_para_ficha_none():
     situacao, ok = _simples_para_ficha(None)
     assert ok is False
     assert situacao == "(a preencher)"
+
+
+# ---------------------------- CNPJ ausente das bases públicas ------------
+
+def test_404_da_brasilapi_nao_e_tratado_como_falha_de_consulta():
+    """Empresa recém-aberta não está no dump de dados abertos da RFB. Isso é
+    defasagem da base, não consulta com erro — e o texto da ficha precisa
+    dizer onde buscar o dado em vez de só reportar o HTTP."""
+    from onboarding.cnpj_api import _erro
+    from onboarding.pipeline import _particularidades
+
+    dados = _erro("68.497.893/0001-66", "não encontrado", nao_encontrado=True)
+    assert dados.nao_encontrado is True
+
+    raw = EmpresaRaw(numero="1077", nome="MONTE BELVEDERE ENFESTA LTDA",
+                     cnpj="68.497.893/0001-66", regime_informado="Lucro Presumido")
+    bullets = _particularidades(raw, dados, "—", None, False, ["1077"])
+    assert "ainda não consta nas bases públicas" in bullets[0]
+    assert "comprovante de inscrição" in bullets[0]
+    assert "falha ao consultar" not in bullets[0]
+
+
+def test_erro_que_nao_e_404_segue_reportado_como_falha():
+    from onboarding.cnpj_api import _erro
+    from onboarding.pipeline import _particularidades
+
+    dados = _erro("68.497.893/0001-66", "HTTP 500 ao consultar CNPJ")
+    assert dados.nao_encontrado is False
+
+    raw = EmpresaRaw(numero="1077", nome="X LTDA", cnpj="68.497.893/0001-66")
+    bullets = _particularidades(raw, dados, "—", None, False, ["1077"])
+    assert "falha ao consultar a Receita: HTTP 500" in bullets[0]

@@ -141,6 +141,19 @@ exercitadas na primeira execução real.
   resposta errada. Confira o resultado das primeiras consultas reais.
 - **A BrasilAPI também não pôde ser testada ao vivo** pelo mesmo motivo. O
   código segue o formato documentado e estável da API.
+- **CNPJ recém-aberto costuma dar 404 na BrasilAPI.** Ela serve o dump de
+  dados abertos da RFB, republicado periodicamente e com semanas de atraso —
+  a empresa que a Thays acabou de mandar ainda não está lá. Não é falha de
+  configuração. O app trata esse caso à parte: tenta a **ReceitaWS** como
+  segunda fonte (`USAR_RECEITAWS` em `Config.gs`) e, se ela também não tiver,
+  registra na ficha que o dado vem do comprovante de inscrição ou do e-CAC,
+  em vez de reportar um erro de HTTP. A coluna **"Fonte dos dados"** da aba
+  Triagem diz de onde veio cada linha.
+- **A ReceitaWS tem limite de 3 consultas por minuto** no plano gratuito, e
+  por isso só é acionada para as empresas que a BrasilAPI não tinha, com
+  pausa de 21 s entre chamadas. Um lote com muitas empresas fora da base
+  pode passar dos 6 minutos de execução do Apps Script; nesse caso, processe
+  o e-mail em duas colagens. Ela também não pôde ser testada ao vivo daqui.
 - **O e-mail ainda é colado à mão.** A caixa `secretaria@moraex.com.br` é
   Microsoft 365 e não está conectada. Se a Thays passar a encaminhar para
   uma conta Google, dá para trocar a barra lateral por uma busca no

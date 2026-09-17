@@ -101,6 +101,7 @@ function mostrar(r) {
   html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
   html += lista('Anexo sem dono identificado', r.certificadosSemDono, 'alerta');
   html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
+  html += lista('Dados vindos da segunda fonte (ReceitaWS)', r.viaSegundaFonte);
   html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
 
   if (r.textoCobranca) {

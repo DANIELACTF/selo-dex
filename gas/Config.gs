@@ -42,7 +42,8 @@ var COLS_TRIAGEM = [
   'N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Regime informado',
   'Simples (RFB)', 'Divergência', 'Situação cadastral', 'CNAE principal',
   'Município / UF', 'Grupo econômico', 'Certificado', 'Senha (cofre)',
-  'E-mail do cliente', 'Particularidades', 'Ficha (PDF)', 'Processado em'
+  'E-mail do cliente', 'Particularidades', 'Fonte dos dados', 'Ficha (PDF)',
+  'Processado em'
 ];
 
 /** Colunas da aba Particularidades (formulário da reunião com o Paulo). */
@@ -98,4 +99,14 @@ var MESES_PASTA = [
 ];
 
 var URL_BRASILAPI = 'https://brasilapi.com.br/api/cnpj/v1/';
+
+// Segunda fonte, para quando a BrasilAPI devolve 404. Ela serve o dump de
+// dados abertos da RFB, que atrasa semanas — empresa recém-aberta ainda não
+// está lá, que é justamente o caso do cliente novo. A ReceitaWS consulta por
+// outro caminho e costuma ter a empresa antes.
+// Plano gratuito: 3 consultas por minuto. Por isso ela só é acionada quando
+// a primeira falha, com pausa entre as chamadas.
+var URL_RECEITAWS = 'https://receitaws.com.br/v1/cnpj/';
+var USAR_RECEITAWS = true;
+var PAUSA_RECEITAWS_MS = 21000;
 var URL_SIMPLES_RFB = 'https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21';

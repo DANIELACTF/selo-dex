@@ -222,7 +222,13 @@ def _particularidades(
 ) -> list[str]:
     bullets: list[str] = []
 
-    if dados.erro:
+    if getattr(dados, "nao_encontrado", False):
+        bullets.append(
+            "Empresa ainda não consta nas bases públicas de CNPJ — normal em empresa "
+            "recém-aberta. CNAE, endereço e situação cadastral a preencher pelo "
+            "comprovante de inscrição (e-mail da Thays) ou pelo e-CAC."
+        )
+    elif dados.erro:
         bullets.append(
             "CNAE, endereço e situação cadastral não confirmados automaticamente "
             f"(falha ao consultar a Receita: {dados.erro}) — conferir manualmente."

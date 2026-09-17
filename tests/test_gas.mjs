@@ -15,7 +15,9 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
 
-const ARQUIVOS = ['Config.gs', 'Competencia.gs', 'Parser.gs', 'Regras.gs'];
+// Consultas.gs entra aqui porque só toca UrlFetchApp dentro das funções: as
+// partes puras (montagem da mensagem de erro, objeto vazio) são testáveis.
+const ARQUIVOS = ['Config.gs', 'Competencia.gs', 'Parser.gs', 'Regras.gs', 'Consultas.gs'];
 const gas = { console };
 vm.createContext(gas);
 for (const arquivo of ARQUIVOS) {
@@ -344,4 +346,52 @@ test('as colunas do formulário batem com as do Python', () => {
     ['-c', 'import json; from onboarding.planilha_particularidades import COLUNAS; print(json.dumps([c[0] for c in COLUNAS]))'],
     { encoding: 'utf8' }));
   assert.deepEqual(planos(gas.COLS_PARTICULARIDADES.map((c) => c.titulo)), py);
+});
+
+// --------------------------------------- CNPJ não encontrado nas bases
+
+test('404 da BrasilAPI é tratado como base defasada, não como falha', () => {
+  const dados = gas.dadosCadastraisVazios_('68.497.893/0001-66', null);
+  dados.naoEncontrado = true;
+  const b = gas.particularidades(
+    { numero: '1077', regimeInformado: 'Lucro Presumido', emailContato: [] },
+    dados, '—', null, false, ['1077']
+  );
+  assert.match(b[0], /ainda não consta nas bases públicas/);
+  assert.match(b[0], /comprovante de inscrição/);
+  assert.doesNotMatch(b[0], /falha ao consultar/);
+});
+
+test('erro que não é 404 continua sendo reportado como falha', () => {
+  const dados = gas.dadosCadastraisVazios_('68.497.893/0001-66', 'BrasilAPI respondeu HTTP 500');
+  const b = gas.particularidades(
+    { numero: '1077', regimeInformado: null, emailContato: [] },
+    dados, '—', null, false, ['1077']
+  );
+  assert.match(b[0], /falha ao consultar a Receita: BrasilAPI respondeu HTTP 500/);
+});
+
+test('o objeto vazio tem todos os campos que a ficha lê', () => {
+  const dados = gas.dadosCadastraisVazios_('11.111.111/0001-11', 'motivo');
+  for (const campo of ['razaoSocial', 'situacaoCadastral', 'dataInicioAtividade', 'cnaeCodigo',
+    'cnaeDescricao', 'cnaesSecundarios', 'naturezaJuridica', 'porte', 'municipio', 'uf',
+    'optanteSimples', 'optanteMei', 'fonte', 'naoEncontrado', 'erro']) {
+    assert.ok(campo in dados, `falta o campo ${campo}`);
+  }
+  assert.deepEqual(planos(dados.cnaesSecundarios), []);
+  assert.equal(dados.naoEncontrado, false);
+});
+
+test('a mensagem de erro da própria API é aproveitada', () => {
+  const resposta = { getContentText: () => JSON.stringify({ message: 'CNPJ 68497893000166 não encontrado.' }) };
+  assert.match(gas.detalheDaResposta_(resposta), /CNPJ 68497893000166 não encontrado/);
+});
+
+test('resposta sem JSON não quebra a montagem do erro', () => {
+  const resposta = { getContentText: () => '<html>502 Bad Gateway</html>' };
+  assert.equal(gas.detalheDaResposta_(resposta), '');
+});
+
+test('a aba Triagem registra de onde veio o dado', () => {
+  assert.ok(gas.COLS_TRIAGEM.includes('Fonte dos dados'));
 });

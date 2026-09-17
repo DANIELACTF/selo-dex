@@ -40,8 +40,8 @@ function processarEmail(texto, consultar) {
 
   var registros = [];
   var resumo = {
-    processadas: [], jaExistiam: [], alertasCertificado: [],
-    divergencias: [], consultasFalhas: [], certificadosSemDono: []
+    processadas: [], jaExistiam: [], alertasCertificado: [], divergencias: [],
+    consultasFalhas: [], certificadosSemDono: [], viaSegundaFonte: []
   };
   var anexosUsados = [];
 
@@ -70,6 +70,7 @@ function processarEmail(texto, consultar) {
     registro['Simples (RFB)'] = optante === true ? 'Sim' : optante === false ? 'Não' : '?';
     registro['Divergência'] = divergencia || '';
     registro['Situação cadastral'] = x.dados.situacaoCadastral || '';
+    registro['Fonte dos dados'] = x.dados.fonte || '(não consultado)';
     registro['CNAE principal'] = formatarCnaePrincipal(x.dados);
     registro['Município / UF'] = (x.dados.municipio && x.dados.uf)
       ? x.dados.municipio + '/' + x.dados.uf : '-';
@@ -94,6 +95,9 @@ function processarEmail(texto, consultar) {
     if (x.dados.erro || x.simples.erro) {
       resumo.consultasFalhas.push(raw.nome + ': ' + (x.dados.erro || x.simples.erro));
     }
+    if (x.dados.fonte === 'ReceitaWS') {
+      resumo.viaSegundaFonte.push(raw.nome + ' (N°' + raw.numero + ')');
+    }
   });
 
   acrescentarLinhas_(aba, idx, registros);
@@ -106,12 +110,7 @@ function processarEmail(texto, consultar) {
 }
 
 function dadosVazios_(cnpj, motivo) {
-  return {
-    cnpj: cnpj, razaoSocial: null, nomeFantasia: null, situacaoCadastral: null,
-    dataInicioAtividade: null, cnaeCodigo: null, cnaeDescricao: null, cnaesSecundarios: [],
-    naturezaJuridica: null, porte: null, municipio: null, uf: null, bairro: null,
-    endereco: null, optanteSimples: null, optanteMei: null, erro: motivo
-  };
+  return dadosCadastraisVazios_(cnpj, motivo);
 }
 
 /** Texto pronto para o usuário copiar e mandar para a Thays. */

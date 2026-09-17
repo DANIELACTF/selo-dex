@@ -10,22 +10,45 @@
  * a ficha imprime "(não consultado)" com o registro no alerta.
  */
 
-/** Consulta cadastral na BrasilAPI. Nunca lança: devolve .erro preenchido. */
+/**
+ * Consulta cadastral: BrasilAPI primeiro, ReceitaWS quando ela não tem a
+ * empresa. Nunca lança — devolve o objeto com `.erro` preenchido, e a
+ * ficha imprime "(não consultado)" em vez de inventar dado.
+ */
 function consultarCnpj(cnpj) {
   var digitos = apenasDigitos_(cnpj);
-  var vazio = {
-    cnpj: cnpj, razaoSocial: null, nomeFantasia: null, situacaoCadastral: null,
-    dataInicioAtividade: null, cnaeCodigo: null, cnaeDescricao: null,
-    cnaesSecundarios: [], naturezaJuridica: null, porte: null, municipio: null,
-    uf: null, bairro: null, endereco: null, optanteSimples: null, optanteMei: null,
-    erro: null
-  };
-
   if (digitos.length !== 14) {
-    vazio.erro = 'CNPJ com ' + digitos.length + ' dígitos — esperado 14';
-    return vazio;
+    return dadosCadastraisVazios_(cnpj, 'CNPJ com ' + digitos.length + ' dígitos — esperado 14');
   }
 
+  var r = consultarBrasilApi_(cnpj, digitos);
+  if (!r.erro) return r;
+
+  // 404 = a empresa não está no dump de dados abertos da RFB. É o esperado
+  // para cliente recém-aberto; vale tentar a segunda fonte.
+  if (USAR_RECEITAWS && r.naoEncontrado) {
+    var alternativa = consultarReceitaWs_(cnpj, digitos);
+    if (!alternativa.erro) {
+      alternativa.fonte = 'ReceitaWS';
+      return alternativa;
+    }
+    r.erro = r.erro + '; ReceitaWS: ' + alternativa.erro;
+  }
+  return r;
+}
+
+function dadosCadastraisVazios_(cnpj, motivo) {
+  return {
+    cnpj: cnpj, razaoSocial: null, nomeFantasia: null, situacaoCadastral: null,
+    dataSituacaoCadastral: null, dataInicioAtividade: null, cnaeCodigo: null,
+    cnaeDescricao: null, cnaesSecundarios: [], naturezaJuridica: null, porte: null,
+    municipio: null, uf: null, bairro: null, endereco: null, optanteSimples: null,
+    optanteMei: null, fonte: null, naoEncontrado: false, erro: motivo
+  };
+}
+
+function consultarBrasilApi_(cnpj, digitos) {
+  var vazio = dadosCadastraisVazios_(cnpj, null);
   try {
     var resposta = UrlFetchApp.fetch(URL_BRASILAPI + digitos, {
       muteHttpExceptions: true,
@@ -33,16 +56,30 @@ function consultarCnpj(cnpj) {
       validateHttpsCertificates: true
     });
     var codigo = resposta.getResponseCode();
-    if (codigo !== 200) {
-      vazio.erro = 'BrasilAPI respondeu HTTP ' + codigo;
+
+    if (codigo === 404) {
+      vazio.naoEncontrado = true;
+      vazio.erro = 'CNPJ não encontrado na base da BrasilAPI — ela serve o dump ' +
+        'de dados abertos da RFB, que atrasa semanas, e empresa recém-aberta ' +
+        'ainda não consta' + detalheDaResposta_(resposta);
       return vazio;
     }
+    if (codigo === 429) {
+      vazio.erro = 'BrasilAPI recusou por excesso de consultas (429) — tente daqui a pouco';
+      return vazio;
+    }
+    if (codigo !== 200) {
+      vazio.erro = 'BrasilAPI respondeu HTTP ' + codigo + detalheDaResposta_(resposta);
+      return vazio;
+    }
+
     var d = JSON.parse(resposta.getContentText());
     return {
       cnpj: cnpj,
       razaoSocial: d.razao_social || null,
       nomeFantasia: d.nome_fantasia || null,
       situacaoCadastral: d.descricao_situacao_cadastral || null,
+      dataSituacaoCadastral: formatarDataIso_(d.data_situacao_cadastral),
       dataInicioAtividade: formatarDataIso_(d.data_inicio_atividade),
       cnaeCodigo: d.cnae_fiscal ? String(d.cnae_fiscal) : null,
       cnaeDescricao: d.cnae_fiscal_descricao || null,
@@ -57,12 +94,94 @@ function consultarCnpj(cnpj) {
       endereco: montarEndereco_(d),
       optanteSimples: typeof d.opcao_pelo_simples === 'boolean' ? d.opcao_pelo_simples : null,
       optanteMei: typeof d.opcao_pelo_mei === 'boolean' ? d.opcao_pelo_mei : null,
+      fonte: 'BrasilAPI',
+      naoEncontrado: false,
+      erro: null
+    };
+  } catch (e) {
+    vazio.erro = 'Falha ao chamar a BrasilAPI: ' + String(e && e.message ? e.message : e);
+    return vazio;
+  }
+}
+
+/**
+ * Segunda fonte. O plano gratuito da ReceitaWS aceita 3 consultas por
+ * minuto, então pausamos antes de cada chamada — ela só roda para as
+ * empresas que a BrasilAPI não tinha, o que costuma ser uma ou duas.
+ */
+function consultarReceitaWs_(cnpj, digitos) {
+  var vazio = dadosCadastraisVazios_(cnpj, null);
+  try {
+    if (typeof Utilities !== 'undefined' && Utilities.sleep) Utilities.sleep(PAUSA_RECEITAWS_MS);
+
+    var resposta = UrlFetchApp.fetch(URL_RECEITAWS + digitos, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      validateHttpsCertificates: true
+    });
+    var codigo = resposta.getResponseCode();
+    if (codigo === 429) {
+      vazio.erro = 'limite de consultas por minuto atingido (429)';
+      return vazio;
+    }
+    if (codigo !== 200) {
+      vazio.erro = 'HTTP ' + codigo;
+      return vazio;
+    }
+
+    var d = JSON.parse(resposta.getContentText());
+    if (d.status === 'ERROR') {
+      vazio.erro = d.message || 'CNPJ não encontrado';
+      return vazio;
+    }
+
+    var principal = (d.atividade_principal || [])[0] || {};
+    return {
+      cnpj: cnpj,
+      razaoSocial: d.nome || null,
+      nomeFantasia: d.fantasia || null,
+      situacaoCadastral: d.situacao || null,
+      dataSituacaoCadastral: d.data_situacao || null,
+      dataInicioAtividade: d.abertura || null,
+      cnaeCodigo: principal.code ? apenasDigitos_(principal.code) : null,
+      cnaeDescricao: principal.text || null,
+      cnaesSecundarios: (d.atividades_secundarias || [])
+        .filter(function (c) { return c && c.code && !/^00\.00/.test(c.code); })
+        .map(function (c) { return { codigo: apenasDigitos_(c.code), descricao: c.text || '' }; }),
+      naturezaJuridica: d.natureza_juridica || null,
+      porte: d.porte || null,
+      municipio: d.municipio || null,
+      uf: d.uf || null,
+      bairro: d.bairro || null,
+      endereco: montarEnderecoReceitaWs_(d),
+      // O plano gratuito não devolve a opção pelo Simples; quem responde por
+      // isso é a consulta oficial da Receita, em consultarOptanteSimples().
+      optanteSimples: (d.simples && typeof d.simples.optante === 'boolean') ? d.simples.optante : null,
+      optanteMei: (d.simei && typeof d.simei.optante === 'boolean') ? d.simei.optante : null,
+      fonte: 'ReceitaWS',
+      naoEncontrado: false,
       erro: null
     };
   } catch (e) {
     vazio.erro = String(e && e.message ? e.message : e);
     return vazio;
   }
+}
+
+/** Mensagem de erro que a própria API devolveu, quando houver. */
+function detalheDaResposta_(resposta) {
+  try {
+    var corpo = JSON.parse(resposta.getContentText());
+    var msg = corpo.message || corpo.erro || (corpo.errors && corpo.errors[0] && corpo.errors[0].message);
+    return msg ? ' (a API disse: "' + msg + '")' : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function montarEnderecoReceitaWs_(d) {
+  return [d.logradouro, d.numero, d.complemento, d.bairro, d.municipio, d.uf, d.cep]
+    .filter(String).join(', ') || null;
 }
 
 function formatarDataIso_(valor) {
