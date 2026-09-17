@@ -112,12 +112,23 @@ export function planilhaFalsa(dados, arquivos = null) {
   return { ctx, aba: (n) => abas[n], planilha };
 }
 
-/** Lê uma aba do dublê como lista de objetos {cabeçalho: valor}. */
+const ROTULOS = ['N° Cliente', 'Nº Cliente', 'Nome', 'CNPJ', 'Analista Responsável',
+  'Sugestão Analista', 'Razão social'];
+
+/**
+ * Lê uma aba do dublê como lista de objetos {cabeçalho: valor}, procurando a
+ * linha de cabeçalho da mesma forma que Planilha.gs — senão o próprio teste
+ * leria um banner como cabeçalho.
+ */
 export function comoObjetos(aba) {
   const linhas = aba._celulas;
   if (linhas.length < 2) return [];
-  const cabecalho = linhas[0].map((c) => String(c).trim());
-  return linhas.slice(1).map((linha) => {
+  let inicio = 0;
+  for (let i = 0; i < Math.min(linhas.length, 10); i++) {
+    if (linhas[i].some((c) => ROTULOS.includes(String(c).trim()))) { inicio = i; break; }
+  }
+  const cabecalho = linhas[inicio].map((c) => String(c).trim());
+  return linhas.slice(inicio + 1).map((linha) => {
     const o = {};
     cabecalho.forEach((t, i) => { if (t) o[t] = linha[i] === undefined ? '' : String(linha[i]); });
     return o;

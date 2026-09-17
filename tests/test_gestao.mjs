@@ -263,3 +263,113 @@ test('a carteira reflete o estado depois das operações', () => {
   assert.deepEqual(planos(d.carteira.map((c) => c.numero)), ['1091']);
   assert.deepEqual(planos(d.pendentes.map((c) => c.numero)), ['1092', '777']);
 });
+
+// ------------------------- planilha do escritório, com suas irregularidades
+
+import { carregarPainel } from './painel-falso.mjs';
+
+const CAB_CARTEIRA_REAL = CAB_CARTEIRA;
+
+test('cabeçalho abaixo de um título de banner ainda é encontrado', () => {
+  // Carteira importada de .xlsx costuma ter título e data antes dos rótulos.
+  const { ctx, aba } = planilhaFalsa({
+    'Carteira Completa': [
+      ['Carteira Tributária Fiscal — Dep. Fiscal Moraex', '', '', '', '', '', '', ''],
+      ['Atualizado em: 03/09/2026', '', '', '', '', '', '', ''],
+      CAB_CARTEIRA_REAL,
+      ['500', 'ANTIGA LTDA', '11.111.111/0001-11', 'Simples Nacional', 'Serviço',
+        'Wellington', 'Auxiliar', 'OK']],
+    'Pendentes Daniela': [
+      ['Pendentes sob a Gestão Fiscal', '', '', '', '', '', '', '', '', ''],
+      CAB_PENDENTES,
+      ['1091', 'C LORENA LTDA', '68.717.251/0001-25', 'Lucro Real', 'Comércio',
+        '', '🆕 Onboarding', '', '05/2026', '08/2026']]
+  });
+
+  const d = ctx.carregarGestao();
+  assert.equal(d.ok, true);
+  assert.deepEqual(planos(d.carteira.map((c) => c.numero)), ['500']);
+  assert.deepEqual(planos(d.pendentes.map((c) => c.numero)), ['1091']);
+  assert.equal(d.diagnostico.find((a) => a.aba === 'Carteira Completa').linhaCabecalho, 3);
+  assert.equal(d.diagnostico.find((a) => a.aba === 'Pendentes Daniela').linhaCabecalho, 2);
+
+  // e a operação continua acertando a linha certa
+  ctx.distribuirCliente('1091', 'Dulce Neves', 'Sênior', false);
+  assert.ok(comoObjetos(aba('Carteira Completa')).some((l) => l['N° Cliente'] === '1091'));
+});
+
+test('aba que não existe é relatada, não engolida', () => {
+  const { ctx } = planilhaFalsa({
+    'Carteira Completa': [CAB_CARTEIRA]
+  });
+  const d = ctx.carregarGestao();
+  assert.equal(d.ok, true);
+  const pend = d.diagnostico.find((a) => a.aba === 'Pendentes Daniela');
+  assert.equal(pend.existe, false);
+  assert.ok(pend.faltando.length);
+});
+
+test('coluna essencial ausente é nomeada no diagnóstico', () => {
+  const { ctx } = planilhaFalsa({
+    'Carteira Completa': [CAB_CARTEIRA],
+    'Pendentes Daniela': [['Cliente', 'Empresa', 'CNPJ'], ['1091', 'C LORENA LTDA', '68.7']]
+  });
+  const pend = ctx.carregarGestao().diagnostico.find((a) => a.aba === 'Pendentes Daniela');
+  assert.ok(pend.faltando.includes('N° Cliente'), 'deveria apontar a coluna que falta');
+  assert.ok(pend.colunas.includes('Cliente'), 'deveria listar o que encontrou');
+});
+
+// ------------------------------------------- o painel nunca fica mudo
+
+test('painel carrega a lista quando as abas estão em ordem', () => {
+  const { ctx } = cenario();
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.deepEqual(planos(p.chamadas.map((c) => c.funcao)), ['carregarGestao']);
+  assert.ok(!p.corpo().includes('Carregando'), 'o painel ficou preso no "Carregando"');
+  assert.match(p.corpo(), /id="cliente"/);
+});
+
+test('sem pendentes, o painel explica em vez de mostrar tela vazia', () => {
+  const { ctx } = planilhaFalsa({
+    'Carteira Completa': [CAB_CARTEIRA],
+    'Pendentes Daniela': [['Cliente', 'Empresa'], ['1091', 'C LORENA LTDA']]
+  });
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.ok(!p.corpo().includes('Carregando'));
+  assert.match(p.corpo(), /o que o app encontrou/i);
+  assert.match(p.corpo(), /faltam as colunas/i);
+  assert.match(p.corpo(), /N° Cliente/);
+});
+
+test('servidor com Gestao.gs velho: o painel diz isso, não fica carregando', () => {
+  const { ctx } = cenario();
+  ctx.carregarGestao = function () { return { pendentes: [], carteira: [] }; };  // sem ok:true
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.ok(!p.corpo().includes('Carregando'));
+  assert.match(p.corpo(), /Gestao\.gs/);
+  assert.match(p.corpo(), /desatualizado/);
+});
+
+test('servidor sem resposta: o painel diz isso, não fica carregando', () => {
+  const { ctx } = cenario();
+  ctx.carregarGestao = function () { return undefined; };
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.ok(!p.corpo().includes('Carregando'));
+  assert.match(p.corpo(), /não reconheço|sem os dados/);
+});
+
+test('servidor que lança erro: o painel mostra a mensagem', () => {
+  const { ctx } = cenario();
+  ctx.carregarGestao = function () { throw new Error('A aba "Pendentes Daniela" não existe'); };
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.ok(!p.corpo().includes('Carregando'));
+  assert.match(p.corpo(), /Pendentes Daniela.*não existe/);
+});
+
+test('demora excessiva vira aviso com o que fazer, não espera infinita', () => {
+  const { ctx } = cenario();
+  ctx.carregarGestao = function () { return { ok: true, pendentes: [], carteira: [], diagnostico: [] }; };
+  const p = carregarPainel('Gestao.html', ctx);
+  assert.ok(p.agendados.length > 0, 'o painel não arma prazo nenhum para o carregamento');
+  assert.ok(p.agendados[0].ms >= 10000, 'o prazo é curto demais para uma carteira grande');
+});

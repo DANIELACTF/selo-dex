@@ -25,11 +25,40 @@ function abaObrigatoria_(nome) {
   return aba;
 }
 
+// Rótulos que identificam a linha de cabeçalho das abas do escritório.
+var ROTULOS_CONHECIDOS = ['N° Cliente', 'Nº Cliente', 'Nome', 'CNPJ',
+  'Analista Responsável', 'Sugestão Analista', 'Razão social'];
+
+var LINHAS_PROCURA_CABECALHO = 10;
+
+/**
+ * Em qual linha está o cabeçalho.
+ *
+ * Carteira importada de .xlsx costuma ter título, data de atualização ou
+ * linha em branco antes dos rótulos — aí o cabeçalho não é a linha 1, e ler
+ * a linha 1 como cabeçalho devolve lixo em silêncio. Procuramos nas
+ * primeiras linhas a que traz algum rótulo conhecido; não achando nenhuma,
+ * fica a linha 1, que é o comportamento de sempre.
+ */
+function linhaDoCabecalho_(aba) {
+  var ultimaLinha = Math.min(aba.getLastRow(), LINHAS_PROCURA_CABECALHO);
+  var ultimaCol = aba.getLastColumn();
+  if (ultimaLinha < 1 || ultimaCol < 1) return 1;
+
+  var linhas = aba.getRange(1, 1, ultimaLinha, ultimaCol).getValues();
+  for (var i = 0; i < linhas.length; i++) {
+    for (var j = 0; j < linhas[i].length; j++) {
+      if (ROTULOS_CONHECIDOS.indexOf(String(linhas[i][j]).trim()) !== -1) return i + 1;
+    }
+  }
+  return 1;
+}
+
 /** {título do cabeçalho: número da coluna (1-based)}. */
 function indices_(aba) {
   var ultima = aba.getLastColumn();
   if (ultima < 1) return {};
-  var cabecalho = aba.getRange(1, 1, 1, ultima).getValues()[0];
+  var cabecalho = aba.getRange(linhaDoCabecalho_(aba), 1, 1, ultima).getValues()[0];
   var idx = {};
   cabecalho.forEach(function (titulo, i) {
     var t = String(titulo).trim();
@@ -44,10 +73,11 @@ function indices_(aba) {
  */
 function garantirColunas_(aba, colunas) {
   var idx = indices_(aba);
+  var linhaCab = linhaDoCabecalho_(aba);
   colunas.forEach(function (nome) {
     if (!idx[nome]) {
       var nova = Math.max(aba.getLastColumn(), 1) + 1;
-      var celula = aba.getRange(1, nova);
+      var celula = aba.getRange(linhaCab, nova);
       celula.setValue(nome);
       formatarCabecalho_(celula);
       aba.setColumnWidth(nova, 130);
@@ -72,26 +102,28 @@ function escreverCabecalho_(aba, titulos) {
   aba.setFrozenRows(1);
 }
 
-/** Valores de uma coluna, da linha 2 para baixo, como texto sem vazios. */
+/** Valores de uma coluna, abaixo do cabeçalho, como texto sem vazios. */
 function valoresColuna_(aba, coluna) {
+  var primeira = linhaDoCabecalho_(aba) + 1;
   var ultima = aba.getLastRow();
-  if (ultima < 2 || !coluna) return [];
-  return aba.getRange(2, coluna, ultima - 1, 1).getValues()
+  if (ultima < primeira || !coluna) return [];
+  return aba.getRange(primeira, coluna, ultima - primeira + 1, 1).getValues()
     .map(function (l) { return String(l[0]).trim(); })
     .filter(String);
 }
 
 /** Lê a aba inteira como lista de objetos {cabeçalho: valor}. */
 function lerObjetos_(aba) {
+  var linhaCab = linhaDoCabecalho_(aba);
   var ultimaLinha = aba.getLastRow();
   var ultimaCol = aba.getLastColumn();
-  if (ultimaLinha < 2 || ultimaCol < 1) return [];
+  if (ultimaLinha <= linhaCab || ultimaCol < 1) return [];
 
-  var dados = aba.getRange(1, 1, ultimaLinha, ultimaCol).getValues();
+  var dados = aba.getRange(linhaCab, 1, ultimaLinha - linhaCab + 1, ultimaCol).getValues();
   var cabecalho = dados[0].map(function (c) { return String(c).trim(); });
 
   return dados.slice(1).map(function (linha, i) {
-    var obj = { _linha: i + 2 };
+    var obj = { _linha: i + linhaCab + 1 };
     cabecalho.forEach(function (titulo, c) {
       if (titulo) obj[titulo] = linha[c] === null || linha[c] === undefined ? '' : String(linha[c]).trim();
     });

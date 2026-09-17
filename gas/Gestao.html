@@ -96,15 +96,52 @@ function abrir(modo) {
   ['distribuir', 'trocar', 'baixar'].forEach(function (m) {
     document.getElementById('btn-' + m).className = (m === modo ? 'ativo' : '');
   });
-  if (!DADOS) return;
-  document.getElementById('corpo').innerHTML =
-    modo === 'distribuir' ? telaDistribuir() : modo === 'trocar' ? telaTrocar() : telaBaixar();
-  mostrarCliente();
+  if (!DADOS) {
+    // Sem isto o painel ficava eternamente em "Carregando clientes…": o
+    // servidor respondia algo inesperado e não havia o que mostrar.
+    falhar('O servidor respondeu, mas sem os dados das abas. ' +
+      'Confira em Configurar → Conferir instalação se o arquivo Gestao.gs ' +
+      'foi colado por inteiro.');
+    return;
+  }
+  try {
+    document.getElementById('corpo').innerHTML =
+      modo === 'distribuir' ? telaDistribuir() : modo === 'trocar' ? telaTrocar() : telaBaixar();
+    mostrarCliente();
+  } catch (e) {
+    falhar('Não consegui montar a tela: ' + (e && e.message ? e.message : e));
+  }
+}
+
+function falhar(mensagem, diagnostico) {
+  var html = '<div class="caixa ruim">' + esc(mensagem) + '</div>';
+  if (diagnostico && diagnostico.length) html += tabelaDiagnostico(diagnostico);
+  document.getElementById('corpo').innerHTML = html;
+}
+
+/** Mostra o que o app enxergou em cada aba — é o que responde "por que vazio?". */
+function tabelaDiagnostico(d) {
+  return '<div class="cartao" style="margin-top:12px">' + d.map(function (a) {
+    if (!a.existe) {
+      return '<dt>' + esc(a.aba) + '</dt><dd><strong>a aba não existe nesta planilha.</strong> ' +
+        'Use Configurar → Criar/conferir abas, ou confira se ela tem outro nome.</dd>';
+    }
+    var txt = '<dt>' + esc(a.aba) + '</dt><dd>cabeçalho na linha ' + a.linhaCabecalho +
+      ', ' + a.linhas + ' linha' + (a.linhas === 1 ? '' : 's') + ' de dados';
+    if (a.faltando.length) {
+      txt += '<br><strong>faltam as colunas:</strong> ' + esc(a.faltando.join(', ')) +
+        '<br><span style="color:#5A6470">colunas encontradas: ' +
+        esc(a.colunas.slice(0, 12).join(', ') || '(nenhuma)') + '</span>';
+    }
+    return txt + '</dd>';
+  }).join('') + '</div>';
 }
 
 function telaDistribuir() {
   if (!DADOS.pendentes.length) {
-    return '<h2>Distribuir cliente</h2><p class="ajuda">Não há ninguém em "Pendentes Daniela".</p>';
+    return '<h2>Distribuir cliente</h2>' +
+      '<p class="ajuda">Nenhum cliente pendente foi lido. Abaixo, o que o app ' +
+      'encontrou nas abas:</p>' + tabelaDiagnostico(DADOS.diagnostico || []);
   }
   return '<h2>Distribuir cliente</h2>' +
     '<p class="ajuda">Escolha para qual analista o cliente pendente vai. Se a carência ' +
@@ -124,6 +161,11 @@ function telaDistribuir() {
 }
 
 function telaTrocar() {
+  if (!DADOS.pendentes.length && !DADOS.carteira.length) {
+    return '<h2>Trocar responsável</h2>' +
+      '<p class="ajuda">Nenhum cliente foi lido. Abaixo, o que o app encontrou ' +
+      'nas abas:</p>' + tabelaDiagnostico(DADOS.diagnostico || []);
+  }
   return '<h2>Trocar responsável</h2>' +
     '<p class="ajuda">Passa o cliente de um analista para outro. Para quem ainda está em ' +
     'carência, o que muda é a sugestão — quem responde nesse período é a Gestão Fiscal.</p>' +
@@ -142,6 +184,11 @@ function telaTrocar() {
 }
 
 function telaBaixar() {
+  if (!DADOS.pendentes.length && !DADOS.carteira.length) {
+    return '<h2>Dar baixa no cliente</h2>' +
+      '<p class="ajuda">Nenhum cliente foi lido. Abaixo, o que o app encontrou ' +
+      'nas abas:</p>' + tabelaDiagnostico(DADOS.diagnostico || []);
+  }
   return '<h2>Dar baixa no cliente</h2>' +
     '<p class="ajuda">Tira o cliente da carteira. A linha não some: vai para a aba ' +
     '<strong>Baixados</strong> com motivo, data e quem deu baixa.</p>' +
@@ -280,12 +327,29 @@ function recarregar() {
   }).carregarGestao();
 }
 
+var carregou = false;
+
+// Carteira grande leva alguns segundos; passou disso, algo travou e a pessoa
+// precisa saber — "Carregando clientes…" para sempre não é resposta.
+setTimeout(function () {
+  if (!carregou) {
+    falhar('A leitura das abas passou de 30 segundos. Recarregue a planilha (F5) ' +
+      'e abra o painel de novo. Se repetir, veja Configurar → Conferir instalação.');
+  }
+}, 30000);
+
 google.script.run.withSuccessHandler(function (d) {
+  carregou = true;
+  if (!d || !d.ok) {
+    falhar('O servidor respondeu algo que não reconheço. O arquivo Gestao.gs ' +
+      'pode estar desatualizado — recopie-o do guia.', d && d.diagnostico);
+    return;
+  }
   DADOS = d;
   abrir('distribuir');
 }).withFailureHandler(function (e) {
-  document.getElementById('corpo').innerHTML =
-    '<div class="caixa ruim">' + esc(e.message || e) + '</div>';
+  carregou = true;
+  falhar('O servidor recusou a leitura: ' + esc(e && e.message ? e.message : e));
 }).carregarGestao();
 </script>
 </body>

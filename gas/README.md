@@ -120,6 +120,19 @@ Na barra lateral, desmarque **"Consultar a Receita"**. O app faz todo o
 resto — parsing, certificado, grupo econômico, fichas — e marca os campos
 da Receita como `(não consultado)`, sem inventar dado.
 
+## Quando o painel de gestão abre vazio
+
+Ele não fica mais em "Carregando clientes…": mostra o que encontrou em cada
+aba — se ela existe, em que linha achou o cabeçalho, quantas linhas de dados
+tem e quais colunas essenciais faltam, com a lista do que existe no lugar.
+A partir daí o conserto costuma ser renomear uma coluna ou usar
+**Configurar → Criar/conferir abas**.
+
+O cabeçalho não precisa estar na linha 1: carteira importada de `.xlsx`
+costuma ter título e data antes dos rótulos, e o app procura nas dez
+primeiras linhas a que traz `N° Cliente`, `Nome`, `CNPJ` ou
+`Analista Responsável`. Não achando nenhuma, assume a linha 1.
+
 ## Atualizando o app
 
 O app é instalado por copiar-e-colar, então a falha mais comum é um arquivo
@@ -168,6 +181,13 @@ node --test tests/test_gas.mjs tests/test_gestao.mjs
 contra um dublê da API do Sheets (`tests/planilha-falsa.mjs`): verifica para
 onde a linha foi, o que ficou registrado e quando a operação é recusada.
 Desligar a guarda da carência quebra dois testes.
+
+O mesmo arquivo roda o JavaScript do painel fora do navegador
+(`tests/painel-falso.mjs`): extrai o `<script>` do `.html` e executa contra
+um DOM mínimo e um `google.script.run` que chama de verdade as funções do
+servidor. É o que garante que o painel nunca fica preso em "Carregando" —
+há teste para servidor mudo, servidor com erro, `Gestao.gs` desatualizado e
+abas sem as colunas esperadas.
 
 O teste mais forte é o de **paridade**: o parser em JS tem que extrair
 exatamente as mesmas empresas que o parser em Python extrai dos 5 e-mails

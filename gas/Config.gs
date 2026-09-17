@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '1.3';
+var VERSAO_APP = '1.4';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'Gestão de carteira: distribuir, trocar responsável e dar baixa.';
+var NOVIDADES_DA_VERSAO = 'Painel de gestão diz o que encontrou nas abas; cabeçalho é localizado mesmo abaixo de um título.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;

@@ -66,6 +66,8 @@ function carregarGestao() {
   }
 
   return {
+    ok: true,
+    diagnostico: diagnosticarAbas_(),
     pendentes: pendentes,
     carteira: carteira,
     analistas: ANALISTAS,
@@ -75,6 +77,36 @@ function carregarGestao() {
     competencia: referencia,
     mesesCarencia: MESES_CARENCIA
   };
+}
+
+/**
+ * O que o app enxerga nas duas abas de carteira.
+ *
+ * Quando o painel abre vazio, a pergunta é sempre a mesma: a aba existe? o
+ * cabeçalho foi encontrado? as colunas têm o nome esperado? Em vez de deixar
+ * a pessoa adivinhar, respondemos as três.
+ */
+function diagnosticarAbas_() {
+  var COLUNAS_ESSENCIAIS = {};
+  COLUNAS_ESSENCIAIS[ABAS.pendentes] = ['N° Cliente', 'Nome', COL_COMPETENCIA];
+  COLUNAS_ESSENCIAIS[ABAS.carteira] = ['N° Cliente', 'Nome', 'Analista Responsável'];
+
+  return [ABAS.pendentes, ABAS.carteira].map(function (nome) {
+    var aba = aba_(nome, false);
+    if (!aba) {
+      return { aba: nome, existe: false, linhaCabecalho: null, linhas: 0,
+        colunas: [], faltando: COLUNAS_ESSENCIAIS[nome] };
+    }
+    var idx = indices_(aba);
+    var colunas = Object.keys(idx);
+    var faltando = COLUNAS_ESSENCIAIS[nome].filter(function (c) { return !idx[c]; });
+    var linhaCab = linhaDoCabecalho_(aba);
+    return {
+      aba: nome, existe: true, linhaCabecalho: linhaCab,
+      linhas: Math.max(0, aba.getLastRow() - linhaCab),
+      colunas: colunas, faltando: faltando
+    };
+  });
 }
 
 // -------------------------------------------------------------- 1. distribuir
