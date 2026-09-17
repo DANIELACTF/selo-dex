@@ -53,9 +53,16 @@ Comece pela carteira que já existe, para não refazer nada:
    | Script | `Config`, `Competencia`, `Parser`, `Regras`, `Consultas`, `Planilha`, `Triagem`, `Particularidades`, `Fichas`, `Pastas`, `Carteira`, `Menu`, `Instalar` |
    | HTML | `Sidebar` |
 
-4. **Configurações do projeto** → marque *"Mostrar arquivo de manifesto
-   appsscript.json"* → abra o `appsscript.json` que aparece e substitua pelo
-   desta pasta (é ele que declara os escopos de Drive e de acesso externo).
+4. O **`appsscript.json` é a exceção: ele já existe, e não se cria arquivo
+   novo para ele.** Vá em **Configurações do projeto**, marque *"Mostrar
+   arquivo de manifesto appsscript.json no editor"*, volte ao Editor, abra o
+   arquivo que apareceu e substitua o conteúdo pelo desta pasta (é ele que
+   declara os escopos de Drive e de acesso externo).
+
+   > Criar um Script chamado `appsscript.json` produz `appsscript..gs` e o
+   > editor tenta ler JSON como JavaScript:
+   > `SyntaxError: Unexpected token ':'` na linha 2. Se aconteceu, apague
+   > esse arquivo (⋮ → Excluir) e siga o passo acima.
 5. **Salvar** (💾).
 
 > Ordem dos arquivos não importa: o Apps Script carrega todos antes de
