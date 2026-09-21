@@ -67,7 +67,16 @@ function pdfsParaTexto(arquivos) {
   var lidos = [];
   var falharam = [];
 
-  (arquivos || []).forEach(function (a) {
+  var lista = arquivos || [];
+  if (lista.length > MAX_PDFS_POR_EXECUCAO) {
+    lista.slice(MAX_PDFS_POR_EXECUCAO).forEach(function (a) {
+      falharam.push(a.nome + ': não convertido — no máximo ' + MAX_PDFS_POR_EXECUCAO +
+        ' PDFs por execução, para a conversão não estourar o tempo. Processe o resto depois.');
+    });
+    lista = lista.slice(0, MAX_PDFS_POR_EXECUCAO);
+  }
+
+  lista.forEach(function (a) {
     var r = pdfParaTexto(a.base64, a.nome);
     if (r.texto) {
       partes.push(r.texto);

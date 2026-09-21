@@ -592,3 +592,102 @@ function montarParticularidades(ctx, analista, nivel) {
     analista || '', nivel || '', 'Serviço', 'Simples Nacional', '08/2026', '']);
   return aba;
 }
+
+// ------------------------------- o tempo acabar não pode perder o lote
+
+/** Consulta que demora: simula a Receita lenta, sem esperar de verdade. */
+function cenarioLento(msPorConsulta) {
+  const p = cenarioTriagem();
+
+  const avancar = (ms) => p.relogio.avancar(ms);
+
+  p.ctx.consultarCnpj = (cnpj) => {
+    avancar(msPorConsulta);
+    const d = p.ctx.dadosCadastraisVazios_(cnpj, null);
+    d.razaoSocial = 'CONSULTADA LTDA';
+    d.fonte = 'BrasilAPI';
+    return d;
+  };
+  p.ctx.consultarOptanteSimples = (cnpj) => {
+    avancar(msPorConsulta);
+    return { cnpj, optante: true, mensagem: null, erro: null };
+  };
+  return p;
+}
+
+test('estourado o orçamento, as empresas ainda são gravadas', () => {
+  // 150 s por consulta: a primeira empresa já consome o orçamento inteiro.
+  const { ctx, aba } = cenarioLento(150000);
+  const r = ctx.processarEmail(EMAIL_LOTE, true);
+
+  // nada se perdeu: as duas estão na Triagem e em Pendentes
+  assert.equal(comoObjetos(aba('Triagem')).length, 2);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2);
+  assert.equal(r.entraramPendentes.length, 2);
+
+  // e o resumo diz quem ficou sem consulta
+  assert.equal(r.semTempoDeConsulta.length, 1);
+  assert.match(r.semTempoDeConsulta[0], /N°1092/);
+});
+
+test('quem ficou sem tempo é marcado, não preenchido por dedução', () => {
+  const { ctx, aba } = cenarioLento(150000);
+  ctx.processarEmail(EMAIL_LOTE, true);
+
+  const linhas = comoObjetos(aba('Triagem'));
+  const semConsulta = linhas.find((l) => l['N° Cliente'] === '1092');
+  assert.equal(semConsulta['Simples (RFB)'], '?');
+  assert.equal(semConsulta['Fonte dos dados'], '(não consultado)');
+  assert.match(semConsulta['Particularidades'], /tempo da execução acabou/);
+});
+
+test('dentro do orçamento, todas são consultadas', () => {
+  const { ctx, aba } = cenarioLento(1000);
+  const r = ctx.processarEmail(EMAIL_LOTE, true);
+
+  assert.deepEqual(planos(r.semTempoDeConsulta), []);
+  const linhas = comoObjetos(aba('Triagem'));
+  assert.ok(linhas.every((l) => l['Fonte dos dados'] === 'BrasilAPI'));
+  assert.ok(linhas.every((l) => l['Simples (RFB)'] === 'Sim'));
+});
+
+test('reprocessar o e-mail pula quem já foi e consulta só o que faltou', () => {
+  const { ctx, aba } = cenarioLento(150000);
+  ctx.processarEmail(EMAIL_LOTE, true);
+  assert.equal(comoObjetos(aba('Triagem')).length, 2);
+
+  // segunda passada, agora com a rede rápida
+  const rapido = cenarioLento(1000);
+  const r2 = ctx.processarEmail(EMAIL_LOTE, true);
+  assert.equal(r2.processadas.length, 0, 'não reprocessa quem já está na Triagem');
+  assert.equal(r2.jaExistiam.length, 2);
+  assert.equal(comoObjetos(aba('Triagem')).length, 2, 'não duplica');
+});
+
+test('a segunda fonte só é permitida enquanto há folga de tempo', () => {
+  const { ctx, relogio } = cenarioTriagem();
+  const permissoes = [];
+
+  ctx.consultarCnpj = function (cnpj, opcoes) {
+    permissoes.push(!!(opcoes && opcoes.permitirSegundaFonte));
+    // Deixa 30 s de orçamento — abaixo dos 50 s que a pausa da segunda
+    // fonte exige (CUSTO_SEGUNDA_FONTE_MS × 2).
+    relogio.avancar(170000);
+    return ctx.dadosCadastraisVazios_(cnpj, 'erro');
+  };
+  ctx.consultarOptanteSimples = (cnpj) => ({ cnpj, optante: null, mensagem: null, erro: 'x' });
+
+  ctx.processarEmail(EMAIL_LOTE, true);
+
+  // A primeira tem os 200 s inteiros pela frente: pode gastar os 21 s da
+  // pausa. A segunda já não — e aí a pausa não pode ser gasta.
+  assert.equal(permissoes[0], true, 'com o orçamento inteiro, a segunda fonte é permitida');
+  assert.equal(permissoes[1], false, 'com pouco tempo, a pausa de 21 s não pode ser gasta');
+});
+
+test('o resumo informa quanto tempo as consultas levaram', () => {
+  const { ctx } = cenarioLento(1000);
+  const r = ctx.processarEmail(EMAIL_LOTE, true);
+  assert.equal(typeof r.segundosGastos, 'number');
+  assert.ok(r.segundosGastos >= 0);
+});

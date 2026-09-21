@@ -70,18 +70,47 @@ function enviar() {
   document.getElementById('botao').disabled = true;
 
   lerPdfs(function (arquivos) {
+    var empresas = (texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || []).length;
     saida.innerHTML = '<p class="carregando">Processando' +
-      (arquivos.length ? ' — convertendo ' + arquivos.length + ' PDF(s) e consultando' : '') +
-      '… leva alguns segundos por empresa.</p>';
+      (arquivos.length ? ' — convertendo ' + arquivos.length + ' PDF(s)' : '') +
+      (empresas ? ' — ' + empresas + ' empresa(s), cada consulta leva alguns segundos' : '') +
+      '…</p>';
 
+    armarPrazo();
     google.script.run
-      .withSuccessHandler(mostrar)
+      .withSuccessHandler(function (r) { terminou = true; mostrar(r); })
       .withFailureHandler(function (e) {
+        terminou = true;
         document.getElementById('botao').disabled = false;
-        saida.innerHTML = '<p class="erro">' + escapar(e.message || e) + '</p>';
+        saida.innerHTML = '<div class="bloco alerta"><h3>O servidor recusou</h3>' +
+          escapar(e && e.message ? e.message : e) + '</div>';
       })
       .processarComAnexos(texto, document.getElementById('consultar').checked, arquivos);
   });
+}
+
+var terminou = false;
+
+/**
+ * O Apps Script mata a execução aos 6 minutos e, quando isso acontece, a
+ * barra lateral nunca recebe resposta. Sem este prazo ela ficava em
+ * "Processando…" para sempre, sem dizer o que houve.
+ */
+function armarPrazo() {
+  terminou = false;
+  setTimeout(function () {
+    if (terminou) return;
+    document.getElementById('botao').disabled = false;
+    document.getElementById('resultado').innerHTML =
+      '<div class="bloco alerta"><h3>Passou de 6 minutos</h3>' +
+      'O Apps Script encerra a execução nesse tempo, então ela não voltou. ' +
+      'Confira a aba <strong>Triagem</strong>: se as empresas estiverem lá, deu certo ' +
+      'e só a resposta se perdeu.' +
+      '<p class="ajuda" style="margin:8px 0 0">Se não estiverem, processe de novo com ' +
+      '<strong>menos empresas por vez</strong>, ou desmarque "Consultar a Receita" — ' +
+      'é a consulta que consome o tempo. Com o comprovante anexado, os dados cadastrais ' +
+      'saem dele e só a opção pelo Simples fica faltando.</p></div>';
+  }, 370000);
 }
 
 /** Lê os PDFs escolhidos como base64 e devolve a lista pronta ao servidor. */
@@ -157,6 +186,14 @@ function mostrar(r) {
   html += lista('PDF que não deu para ler', r.pdfsComFalha, 'alerta');
   html += lista('Comprovante sem empresa correspondente no e-mail', r.comprovantesSemEmpresa, 'alerta');
   html += lista('Dados vindos da segunda fonte (ReceitaWS)', r.viaSegundaFonte);
+  if (r.semTempoDeConsulta && r.semTempoDeConsulta.length) {
+    html += '<div class="bloco alerta"><h3>Sem consulta por falta de tempo (' +
+      r.semTempoDeConsulta.length + ')</h3><ul>' +
+      r.semTempoDeConsulta.map(function (e) { return '<li>' + escapar(e) + '</li>'; }).join('') +
+      '</ul><p class="ajuda" style="margin:8px 0 0">Estas empresas foram gravadas, mas sem os ' +
+      'dados da Receita. Processe o mesmo e-mail de novo depois: quem já está na Triagem é ' +
+      'pulado, e só estas serão consultadas.</p></div>';
+  }
   html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
 
   if (r.textoCobranca) {

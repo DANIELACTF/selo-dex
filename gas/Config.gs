@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '1.6';
+var VERSAO_APP = '1.7';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'A triagem já põe as empresas em Pendentes Daniela, com a competência do e-mail — a carência conta da chegada.';
+var NOVIDADES_DA_VERSAO = 'As consultas têm prazo: estourar os 6 minutos do Apps Script não faz mais perder o lote, e a barra lateral avisa.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
@@ -163,4 +163,24 @@ var URL_BRASILAPI = 'https://brasilapi.com.br/api/cnpj/v1/';
 var URL_RECEITAWS = 'https://receitaws.com.br/v1/cnpj/';
 var USAR_RECEITAWS = true;
 var PAUSA_RECEITAWS_MS = 21000;
+
+/**
+ * Orçamento de tempo de uma execução.
+ *
+ * O Apps Script mata a execução aos 6 minutos. Como as consultas vinham
+ * todas antes de qualquer escrita, estourar o limite significava perder o
+ * lote inteiro — nem Triagem, nem Pendentes — e a barra lateral ficava em
+ * "Processando…" para sempre.
+ *
+ * Agora as consultas têm prazo: vencido o orçamento, as empresas que
+ * faltarem ficam com "(não consultado)" e a gravação acontece do mesmo
+ * jeito. Nada se perde, e o resumo diz quem ficou para uma segunda passada.
+ */
+var ORCAMENTO_CONSULTAS_MS = 200000;   // ~3min20 dos 6 min disponíveis
+
+/** Custo estimado de uma consulta à segunda fonte (pausa + requisição). */
+var CUSTO_SEGUNDA_FONTE_MS = 25000;
+
+/** Teto de PDFs convertidos por execução — OCR é caro. */
+var MAX_PDFS_POR_EXECUCAO = 6;
 var URL_SIMPLES_RFB = 'https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21';

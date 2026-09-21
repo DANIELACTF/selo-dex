@@ -35,29 +35,56 @@ function processarEmail(texto, consultar, textoComprovantes) {
   }
 
   // 1ª passada: consultas e tipo, necessários para detectar grupo econômico.
+  //
+  // Com prazo: o Apps Script mata a execução aos 6 minutos e a gravação só
+  // acontece depois daqui. Vencido o orçamento, o resto do lote fica sem
+  // consulta em vez de derrubar a execução inteira e perder tudo.
+  var comecou = Date.now();
+  var semTempo = [];
+
   var lista = empresas.map(function (e) {
+    var gasto = Date.now() - comecou;
+    var restante = ORCAMENTO_CONSULTAS_MS - gasto;
+    var aindaDaTempo = restante > 0;
+
     // Ordem de preferência para os dados cadastrais: comprovante (documento
     // oficial, sempre atual) → consulta → nada. A opção pelo Simples é a
     // única coisa que o comprovante não informa, então ela é consultada de
-    // qualquer jeito.
+    // qualquer jeito — quando há tempo.
     var doComprovante = comprovantes[apenasDigitos_(e.cnpj)] || null;
+    var vaiConsultar = consultar && aindaDaTempo;
+    if (consultar && !aindaDaTempo && !doComprovante) {
+      semTempo.push('N°' + e.numero + ' ' + e.nome);
+    }
+
     var dados;
     if (doComprovante) {
       dados = doComprovante;
+    } else if (vaiConsultar) {
+      // A segunda fonte custa 21 s de pausa: só vale se sobrar folga.
+      dados = consultarCnpj(e.cnpj, {
+        permitirSegundaFonte: restante > CUSTO_SEGUNDA_FONTE_MS * 2
+      });
     } else if (consultar) {
-      dados = consultarCnpj(e.cnpj);
+      dados = dadosVazios_(e.cnpj, 'não consultado — o tempo da execução acabou antes desta empresa');
     } else {
       dados = dadosVazios_(e.cnpj, 'Sem comprovante no e-mail e consulta desabilitada nesta execução');
     }
 
-    return {
-      raw: e,
-      tipo: tipoEstabelecimento(e.cnpj),
-      dados: dados,
-      simples: consultar ? consultarOptanteSimples(e.cnpj)
-        : { cnpj: e.cnpj, optante: null, mensagem: null, erro: 'Consulta desabilitada nesta execução' }
-    };
+    var simples;
+    if (vaiConsultar) {
+      simples = consultarOptanteSimples(e.cnpj);
+    } else {
+      simples = {
+        cnpj: e.cnpj, optante: null, mensagem: null,
+        erro: consultar ? 'não consultado — o tempo da execução acabou antes desta empresa'
+          : 'Consulta desabilitada nesta execução'
+      };
+    }
+
+    return { raw: e, tipo: tipoEstabelecimento(e.cnpj), dados: dados, simples: simples };
   });
+
   var tipos = lista.map(function (x) { return x.tipo; });
 
   var aba = abaObrigatoria_(ABAS.triagem);
@@ -70,7 +97,7 @@ function processarEmail(texto, consultar, textoComprovantes) {
   var resumo = {
     processadas: [], jaExistiam: [], alertasCertificado: [], divergencias: [],
     consultasFalhas: [], certificadosSemDono: [], viaSegundaFonte: [],
-    viaComprovante: [], comprovantesSemEmpresa: []
+    viaComprovante: [], comprovantesSemEmpresa: [], semTempoDeConsulta: []
   };
   var anexosUsados = [];
 
@@ -148,6 +175,8 @@ function processarEmail(texto, consultar, textoComprovantes) {
     }
   });
 
+  resumo.semTempoDeConsulta = semTempo;
+  resumo.segundosGastos = Math.round((Date.now() - comecou) / 1000);
   resumo.certificadosSemDono = anexosNaoIdentificados(anexos, anexosUsados);
   resumo.textoCobranca = montarTextoCobranca_(resumo.alertasCertificado, resumo.certificadosSemDono);
 

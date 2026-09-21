@@ -15,7 +15,8 @@
  * empresa. Nunca lança — devolve o objeto com `.erro` preenchido, e a
  * ficha imprime "(não consultado)" em vez de inventar dado.
  */
-function consultarCnpj(cnpj) {
+function consultarCnpj(cnpj, opcoes) {
+  opcoes = opcoes || {};
   var digitos = apenasDigitos_(cnpj);
   if (digitos.length !== 14) {
     return dadosCadastraisVazios_(cnpj, 'CNPJ com ' + digitos.length + ' dígitos — esperado 14');
@@ -25,14 +26,18 @@ function consultarCnpj(cnpj) {
   if (!r.erro) return r;
 
   // 404 = a empresa não está no dump de dados abertos da RFB. É o esperado
-  // para cliente recém-aberto; vale tentar a segunda fonte.
-  if (USAR_RECEITAWS && r.naoEncontrado) {
+  // para cliente recém-aberto; vale tentar a segunda fonte — mas ela custa
+  // 21 s de pausa, então só quando há tempo de sobra na execução.
+  var podeSegundaFonte = opcoes.permitirSegundaFonte !== false;
+  if (USAR_RECEITAWS && r.naoEncontrado && podeSegundaFonte) {
     var alternativa = consultarReceitaWs_(cnpj, digitos);
     if (!alternativa.erro) {
       alternativa.fonte = 'ReceitaWS';
       return alternativa;
     }
     r.erro = r.erro + '; ReceitaWS: ' + alternativa.erro;
+  } else if (USAR_RECEITAWS && r.naoEncontrado && !podeSegundaFonte) {
+    r.erro = r.erro + '; a segunda fonte não foi tentada por falta de tempo nesta execução';
   }
   return r;
 }

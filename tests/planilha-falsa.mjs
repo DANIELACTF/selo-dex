@@ -68,6 +68,20 @@ function criarAba(nome, matriz) {
  */
 export function planilhaFalsa(dados, arquivos = null) {
   const abas = {};
+
+  // Relógio controlável. As consultas do app têm orçamento de tempo, e
+  // testar isso esperando de verdade seria absurdo — então o teste avança o
+  // relógio. Só Date.now() é falso: `new Date()` continua real, porque
+  // competenciaAtual() e outras dependem dele.
+  const relogio = { agora: Date.now(), avancar(ms) { this.agora += ms; } };
+  const DateReal = Date;
+  function DateFalso(...args) {
+    return args.length ? new DateReal(...args) : new DateReal(relogio.agora);
+  }
+  DateFalso.now = () => relogio.agora;
+  DateFalso.parse = DateReal.parse;
+  DateFalso.UTC = DateReal.UTC;
+  DateFalso.prototype = DateReal.prototype;
   for (const [nome, matriz] of Object.entries(dados)) abas[nome] = criarAba(nome, matriz);
 
   const planilha = {
@@ -100,7 +114,8 @@ export function planilhaFalsa(dados, arquivos = null) {
       sleep: () => null,
       newBlob: () => ({ getAs: () => ({ setName: () => ({}) }) })
     },
-    DriveApp: {}, UrlFetchApp: {}, HtmlService: {}
+    DriveApp: {}, UrlFetchApp: {}, HtmlService: {},
+    Date: DateFalso
   };
   vm.createContext(ctx);
 
@@ -109,7 +124,7 @@ export function planilhaFalsa(dados, arquivos = null) {
     vm.runInContext(fs.readFileSync(`gas/${arquivo}`, 'utf8'), ctx, { filename: arquivo });
   }
 
-  return { ctx, aba: (n) => abas[n], planilha };
+  return { ctx, aba: (n) => abas[n], planilha, relogio };
 }
 
 const ROTULOS = ['N° Cliente', 'Nº Cliente', 'Nome', 'CNPJ', 'Analista Responsável',

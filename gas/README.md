@@ -114,6 +114,34 @@ Comece pela carteira que já existe, para não refazer nada:
 3. Pronto. Teste com **1 · Processar e-mail** colando um dos exemplos de
    `fixtures/` do repositório.
 
+## O limite de 6 minutos do Apps Script
+
+Cada empresa consultada custa até **quatro requisições** (BrasilAPI, a
+ReceitaWS com sua pausa de 21 s, e o GET + POST da consulta do Simples).
+Com a Receita lenta, cinco empresas passam dos 6 minutos que o Apps Script
+permite — e, como a gravação vinha depois de todas as consultas, estourar o
+limite significava **perder o lote inteiro**.
+
+Agora as consultas têm orçamento (`ORCAMENTO_CONSULTAS_MS`, 3 min 20 s dos
+6 min). Vencido o prazo:
+
+- as empresas restantes ficam **sem consulta**, marcadas como
+  `(não consultado — o tempo da execução acabou)`;
+- a gravação na Triagem e em Pendentes Daniela **acontece do mesmo jeito**;
+- a barra lateral lista quem ficou de fora.
+
+Reprocessar o mesmo e-mail depois pula quem já está na Triagem, então a
+segunda passada cuida só de quem faltou.
+
+A segunda fonte (ReceitaWS) só é acionada enquanto sobram mais de 50 s de
+orçamento, porque a pausa dela sozinha come 21 s. A conversão de PDF tem
+teto de `MAX_PDFS_POR_EXECUCAO` por vez.
+
+**Se mesmo assim travar:** processe menos empresas por vez, ou desmarque
+"Consultar a Receita". Com o comprovante anexado, os dados cadastrais saem
+dele e só a opção pelo Simples fica faltando — que é uma requisição por
+empresa em vez de quatro.
+
 ## A carência conta da chegada do e-mail
 
 A empresa entra em "Pendentes Daniela" **no passo 1**, assim que o e-mail da
