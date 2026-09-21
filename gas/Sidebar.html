@@ -59,11 +59,12 @@
 <h2>Processar e-mail "EMPRESA NOVA"</h2>
 <p class="ajuda">
   Salve o e-mail inteiro como PDF — no Outlook, <strong>Imprimir → Salvar como
-  PDF</strong> — com os comprovantes de inscrição junto, e anexe aqui. O app lê
-  o PDF, extrai as empresas e consulta o que faltar.
+  PDF</strong> — com os comprovantes de inscrição junto, e anexe aqui. Imagens
+  (PNG, JPG) também servem: o app faz OCR. Ele extrai as empresas e consulta o
+  que faltar.
 </p>
 
-<input type="file" id="pdfs" accept="application/pdf" multiple>
+<input type="file" id="pdfs" accept="application/pdf,image/*" multiple>
 
 <label class="linha">
   <input type="checkbox" id="consultar" checked>

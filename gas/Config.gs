@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '2.0';
+var VERSAO_APP = '2.1';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'Etapa 1 só por PDF, com barra de progresso. A aba Triagem some: tudo é consolidado em Particularidades.';
+var NOVIDADES_DA_VERSAO = 'A conversão de PDF não precisa mais do serviço avançado do Drive, e imagens (PNG/JPG) também são aceitas.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
@@ -197,6 +197,6 @@ var ORCAMENTO_CONSULTAS_MS = 200000;   // ~3min20 dos 6 min disponíveis
 /** Custo estimado de uma consulta à segunda fonte (pausa + requisição). */
 var CUSTO_SEGUNDA_FONTE_MS = 25000;
 
-/** Teto de PDFs convertidos por execução — OCR é caro. */
+/** Teto de arquivos convertidos por execução — OCR é caro. */
 var MAX_PDFS_POR_EXECUCAO = 6;
 var URL_SIMPLES_RFB = 'https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21';

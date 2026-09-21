@@ -116,7 +116,14 @@ Comece pela carteira que já existe, para não refazer nada:
 ## A etapa 1, em três passos curtos
 
 O e-mail chega como **PDF** — no Outlook, Imprimir → Salvar como PDF, com os
-comprovantes de inscrição junto. Não há mais campo de texto para colar.
+comprovantes de inscrição junto. Imagens (PNG, JPG, GIF, BMP, TIFF, WEBP)
+também servem, que é como o comprovante costuma vir. Não há mais campo de
+texto para colar.
+
+A conversão em texto, com OCR, é feita pelo Drive **sem nenhuma configuração**:
+o app chama a API REST com o token que a própria planilha já tem. Versões
+anteriores exigiam ligar o serviço avançado do Drive à mão em cada projeto, e
+esquecer disso derrubava a etapa 1 inteira.
 
 A barra lateral conduz o trabalho em chamadas curtas, e é isso que move a
 barra de progresso:
@@ -211,11 +218,8 @@ Dois caminhos, nesta ordem de preferência:
 1. **Colado no corpo do e-mail.** Não precisa de nada: o app varre o texto
    colado, acha um comprovante por empresa e casa pelo CNPJ. É o caminho
    barato e o que funciona sem configuração nenhuma.
-2. **Anexado em PDF.** A barra lateral tem um campo de arquivo. Requer o
-   **serviço avançado do Drive** ligado no projeto (Editor do Apps Script →
-   Serviços → + → Drive API), que é quem converte o PDF em texto, com OCR
-   quando o PDF é imagem escaneada. Sem o serviço, o app avisa e segue com o
-   resto.
+2. **Anexado ao PDF do e-mail.** É o caminho normal: o comprovante vai junto
+   quando você salva o e-mail inteiro em PDF. Imagem solta também serve.
 
 Comprovante cujo CNPJ não bate com nenhuma empresa do e-mail é listado à
 parte — ou a Thays mandou a mais, ou o CNPJ do texto está diferente.
@@ -329,8 +333,11 @@ exercitadas na primeira execução real.
   `node --test tests/test_comprovante.mjs`: se algum rótulo tiver mudado, o
   teste diz qual campo parou de sair.
 - **A conversão de PDF não pôde ser testada ao vivo**, porque depende do
-  Drive. A leitura do texto convertido, sim — é a mesma função que lê o
-  comprovante colado no e-mail, e essa tem 18 testes.
+  Drive. O que é testado: a montagem da chamada (URL, multipart, token), o
+  descarte da conversão temporária, os formatos aceitos e cada caminho de
+  erro — 403 pedindo reautorização, erro do Drive com a mensagem dele,
+  conversão vazia e o teto por execução. A leitura do texto convertido
+  também, com 18 testes próprios.
 - **CNPJ recém-aberto costuma dar 404 na BrasilAPI.** Ela serve o dump de
   dados abertos da RFB, republicado periodicamente e com semanas de atraso —
   a empresa que a Thays acabou de mandar ainda não está lá. Não é falha de
