@@ -10,7 +10,10 @@ Oliveira, secretaria@moraex.com.br) e você produz as fichas.
 
 **Onde esta skill entra na rotina do escritório:** ela é o *primeiro* passo,
 o da triagem fiscal — o e-mail chega, e ela transforma isso em ficha e em
-lista de pendências para o Dep. Fiscal distribuir. O onboarding formal do
+lista de pendências para o Dep. Fiscal distribuir. A empresa entra em
+carência já aqui, com a competência da **data do e-mail**: são três
+competências sob a Gestão Fiscal antes da distribuição, contadas da chegada,
+não da reunião com o Paulo. O onboarding formal do
 cliente (contrato, procuração e-CAC, pasta digital, cadastro no Domínio/G
 Click) é a etapa seguinte e fica com a skill `onboarding-cliente`. Quando o
 usuário pedir as duas coisas, rode esta primeiro e depois chame a outra.

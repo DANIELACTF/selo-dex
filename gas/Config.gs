@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '1.5';
+var VERSAO_APP = '1.6';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'Lê o comprovante de inscrição (colado no e-mail ou anexado em PDF): só o Simples continua sendo consulta.';
+var NOVIDADES_DA_VERSAO = 'A triagem já põe as empresas em Pendentes Daniela, com a competência do e-mail — a carência conta da chegada.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;

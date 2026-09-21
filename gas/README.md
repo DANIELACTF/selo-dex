@@ -10,7 +10,7 @@ computador).
 
 | Menu | O que faz | Onde escreve |
 |---|---|---|
-| 1 · Processar e-mail "EMPRESA NOVA" | Lê o e-mail colado, consulta a Receita, confere certificado e regime | aba `Triagem` |
+| 1 · Processar e-mail "EMPRESA NOVA" | Lê o e-mail colado, consulta a Receita, confere certificado e regime, **e põe as empresas em carência** | abas `Triagem` e `Pendentes Daniela` |
 | 2 · Gerar planilha de particularidades | Cria o formulário da reunião com o Paulo, com listas suspensas | aba `Particularidades` |
 | 3 · Emitir Fichas de Abertura (PDF) | Ficha no padrão do Dep. Fiscal, uma por página A4 | Drive, em `<cliente>/Fichas/` |
 | 4 · Criar pastas do cliente no Drive | `Apuracao/<ano>/<meses>`, `Certificado/`, `Fichas/` | Drive |
@@ -113,6 +113,23 @@ Comece pela carteira que já existe, para não refazer nada:
 
 3. Pronto. Teste com **1 · Processar e-mail** colando um dos exemplos de
    `fixtures/` do repositório.
+
+## A carência conta da chegada do e-mail
+
+A empresa entra em "Pendentes Daniela" **no passo 1**, assim que o e-mail da
+Thays é processado — não depois da reunião com o Paulo. É o e-mail que marca
+a entrada dela no escritório, e é dele que saem as três competências.
+
+A **competência de entrada é a da data do e-mail** (`Data: Qui, 27/08/2026`
+→ `08/2026`), não a do dia em que você processou. Lote guardado uma semana
+não perde a semana. Sem data legível no e-mail, cai na competência atual.
+
+A observação da linha já leva o que a triagem descobriu: divergência de
+regime, certificado pendente e grupo econômico.
+
+O passo 5 (**Alimentar a Carteira**) continua existindo e não muda: ele
+simplesmente não reinsere quem já está em pendentes, e cuida da distribuição
+quando a carência vence.
 
 ## O comprovante de inscrição dispensa a consulta de CNPJ
 

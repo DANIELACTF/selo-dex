@@ -150,8 +150,97 @@ function processarEmail(texto, consultar, textoComprovantes) {
 
   resumo.certificadosSemDono = anexosNaoIdentificados(anexos, anexosUsados);
   resumo.textoCobranca = montarTextoCobranca_(resumo.alertasCertificado, resumo.certificadosSemDono);
+
+  // A empresa entra em carência na hora em que chega, não depois da reunião
+  // com o Paulo: é o e-mail da Thays que marca a entrada dela no escritório.
+  entrarEmPendentes_(registros, competenciaDoEmail_(recebidoEm), resumo);
+
   registrarLog_('Triagem', registros.length + ' empresa(s) do e-mail de ' + recebidoEm);
   return resumo;
+}
+
+/** Competência da data do e-mail (DD/MM/AAAA), ou a atual se não der. */
+function competenciaDoEmail_(recebidoEm) {
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(recebidoEm || '').trim());
+  return m ? m[2] + '/' + m[3] : competenciaAtual();
+}
+
+/**
+ * Põe as empresas recém-triadas em "Pendentes Daniela", já com a competência
+ * de entrada e a de liberação.
+ *
+ * É o passo que faltava no fluxo: antes, a empresa só aparecia em pendentes
+ * quando a carteira era alimentada, depois da reunião — e a carência, que
+ * conta da entrada, começava tarde. Alimentar a carteira continua funcionando
+ * e simplesmente não reinsere quem já está aqui.
+ */
+function entrarEmPendentes_(registros, competencia, resumo) {
+  resumo.entraramPendentes = [];
+  resumo.competenciaEntrada = competencia;
+  resumo.liberaEm = null;
+
+  if (!registros.length) return;
+
+  var abaPend = aba_(ABAS.pendentes, false);
+  if (!abaPend) {
+    resumo.avisoPendentes = 'A aba "' + ABAS.pendentes + '" não existe, então as empresas ' +
+      'ficaram só na Triagem. Use Configurar → Criar/conferir abas e processe de novo.';
+    return;
+  }
+
+  try {
+    validarCompetencia(competencia);
+  } catch (e) {
+    resumo.avisoPendentes = 'Competência de entrada inválida (' + competencia + ') — ' +
+      'as empresas ficaram só na Triagem.';
+    return;
+  }
+
+  var idxPend = garantirColunas_(abaPend, [COL_COMPETENCIA, COL_LIBERA]);
+  var jaEmPendentes = valoresColuna_(abaPend, idxPend['N° Cliente']);
+
+  var abaCart = aba_(ABAS.carteira, false);
+  var jaNaCarteira = abaCart ? valoresColuna_(abaCart, indices_(abaCart)['N° Cliente']) : [];
+
+  var liberaEm = competenciaLiberacao(competencia);
+  var novas = [];
+
+  registros.forEach(function (r) {
+    var numero = String(r['N° Cliente']);
+    if (jaEmPendentes.indexOf(numero) !== -1 || jaNaCarteira.indexOf(numero) !== -1) return;
+
+    var linha = {};
+    linha['N° Cliente'] = numero;
+    linha['Nome'] = r['Razão social'] || '';
+    linha['CNPJ'] = r['CNPJ'] || '';
+    linha['Regime Tributário'] = r['Regime informado'] || '⚠ A confirmar';
+    linha['Origem'] = ORIGEM_ONBOARDING;
+    linha['Observação'] = observacaoDaTriagem_(r);
+    linha[COL_COMPETENCIA] = competencia;
+    linha[COL_LIBERA] = liberaEm;
+
+    novas.push(linha);
+    jaEmPendentes.push(numero);
+    resumo.entraramPendentes.push('N°' + numero + ' ' + linha['Nome']);
+  });
+
+  acrescentarLinhas_(abaPend, idxPend, novas);
+  if (novas.length) {
+    resumo.liberaEm = liberaEm;
+    registrarLog_('Entrada em carência', novas.length + ' empresa(s) em "' + ABAS.pendentes +
+      '", competência ' + competencia + ', liberam em ' + liberaEm);
+  }
+}
+
+/** O que a triagem já sabe e a carteira precisa ver de relance. */
+function observacaoDaTriagem_(registro) {
+  var partes = [];
+  if (registro['Divergência']) partes.push('⚠ ' + registro['Divergência']);
+  if (registro['Certificado'] === 'pendente') partes.push('Certificado A1 pendente');
+  if (registro['Grupo econômico'] && registro['Grupo econômico'] !== '—') {
+    partes.push('Grupo: ' + registro['Grupo econômico']);
+  }
+  return partes.join(' · ');
 }
 
 function dadosVazios_(cnpj, motivo) {

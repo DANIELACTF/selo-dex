@@ -454,3 +454,141 @@ test('comprovante de empresa que não está no e-mail é apontado', () => {
   const r = ctx.processarEmail(email, true);
   assert.deepEqual(planos(r.comprovantesSemEmpresa), ['THAIS REIS DESIGN LTDA (60.772.067/0001-76)']);
 });
+
+// ----------------- etapa 1 leva direto para Pendentes Daniela
+
+const CAB_TRIAGEM = ['N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Abertura', 'Porte',
+  'Município / UF', 'Grupo econômico', 'E-mail do cliente', 'CNAE principal',
+  'CNAEs secundários', 'Regime informado', 'Regime / enquadramento', 'Simples (RFB)',
+  'Situação cadastral', 'Certificado', 'Senha (cofre)', 'Particularidades',
+  'Divergência', 'Fonte dos dados', 'Ficha (PDF)', 'Processado em'];
+
+const EMAIL_LOTE = [
+  'EMPRESA NOVA', '', 'Data: Qui, 27/08/2026 13:07', '', '1 anexos (10 KB)',
+  'C LORENA DISTRIBUIDORA LTDA.pfx;', '',
+  'C LORENA DISTRIBUIDORA LTDA CNPJ: 68.717.251/0001-25 N°1091',
+  'Lucro Real', 'E mail : lorena@exemplo.com.br', '',
+  'GRAFICA SQUARE LTDA CNPJ: 30.569.577/0001-80 N°1092',
+  'Simples Nacional', 'E mail : square@exemplo.com.br'
+].join('\n');
+
+function cenarioTriagem() {
+  const p = planilhaFalsa({
+    'Triagem': [CAB_TRIAGEM],
+    'Pendentes Daniela': [CAB_PENDENTES],
+    'Carteira Completa': [CAB_CARTEIRA]
+  });
+  p.ctx.consultarCnpj = (cnpj) => p.ctx.dadosCadastraisVazios_(cnpj, 'offline no teste');
+  p.ctx.consultarOptanteSimples = (cnpj) => ({ cnpj, optante: null, mensagem: null, erro: 'offline' });
+  return p;
+}
+
+test('terminada a etapa 1, as empresas já estão em Pendentes Daniela', () => {
+  const { ctx, aba } = cenarioTriagem();
+  const r = ctx.processarEmail(EMAIL_LOTE, false);
+
+  assert.equal(r.entraramPendentes.length, 2);
+  const pend = comoObjetos(aba('Pendentes Daniela'));
+  assert.deepEqual(planos(pend.map((l) => l['N° Cliente'])), ['1091', '1092']);
+  assert.equal(pend[0]['Nome'], 'C LORENA DISTRIBUIDORA LTDA');
+  assert.equal(pend[0]['CNPJ'], '68.717.251/0001-25');
+  assert.equal(pend[0]['Regime Tributário'], 'Lucro Real');
+  assert.equal(pend[0]['Origem'], '🆕 Onboarding');
+});
+
+test('a competência de entrada vem da data do e-mail, não do dia do processamento', () => {
+  const { ctx, aba } = cenarioTriagem();
+  const r = ctx.processarEmail(EMAIL_LOTE, false);
+
+  assert.equal(r.competenciaEntrada, '08/2026');
+  assert.equal(r.liberaEm, '11/2026');
+  const pend = comoObjetos(aba('Pendentes Daniela'));
+  assert.equal(pend[0]['Competência entrada'], '08/2026');
+  assert.equal(pend[0]['Libera em'], '11/2026');
+});
+
+test('e-mail sem data legível cai na competência atual', () => {
+  const { ctx } = cenarioTriagem();
+  const semData = EMAIL_LOTE.replace('Data: Qui, 27/08/2026 13:07', 'Data: ontem');
+  const r = ctx.processarEmail(semData, false);
+  assert.match(r.competenciaEntrada, /^\d{2}\/\d{4}$/);
+});
+
+test('a observação leva para a carteira o que a triagem já sabe', () => {
+  const { ctx, aba } = cenarioTriagem();
+  ctx.processarEmail(EMAIL_LOTE, false);
+  const pend = comoObjetos(aba('Pendentes Daniela'));
+  // a GRAFICA não tem .pfx entre os anexos
+  const grafica = pend.find((l) => l['N° Cliente'] === '1092');
+  assert.match(grafica['Observação'], /Certificado A1 pendente/);
+});
+
+test('processar o mesmo e-mail duas vezes não duplica em pendentes', () => {
+  const { ctx, aba } = cenarioTriagem();
+  ctx.processarEmail(EMAIL_LOTE, false);
+  const segunda = ctx.processarEmail(EMAIL_LOTE, false);
+
+  assert.equal(segunda.entraramPendentes.length, 0);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2);
+});
+
+test('empresa já distribuída não volta para pendentes', () => {
+  const { ctx, aba } = cenarioTriagem();
+  aba('Carteira Completa').appendRow(['1091', 'C LORENA DISTRIBUIDORA LTDA',
+    '68.717.251/0001-25', 'Lucro Real', 'Comércio', 'Wellington', 'Auxiliar', 'OK']);
+
+  const r = ctx.processarEmail(EMAIL_LOTE, false);
+  assert.deepEqual(planos(r.entraramPendentes.map((e) => e.slice(0, 6))), ['N°1092']);
+  assert.deepEqual(planos(comoObjetos(aba('Pendentes Daniela')).map((l) => l['N° Cliente'])), ['1092']);
+});
+
+test('sem a aba de pendentes, avisa em vez de perder as empresas', () => {
+  const p = planilhaFalsa({ 'Triagem': [CAB_TRIAGEM] });
+  p.ctx.consultarCnpj = (cnpj) => p.ctx.dadosCadastraisVazios_(cnpj, 'offline');
+  p.ctx.consultarOptanteSimples = (cnpj) => ({ cnpj, optante: null, mensagem: null, erro: 'offline' });
+
+  const r = p.ctx.processarEmail(EMAIL_LOTE, false);
+  assert.match(r.avisoPendentes, /Pendentes Daniela.*não existe/);
+  assert.equal(comoObjetos(p.aba('Triagem')).length, 2, 'a triagem em si não pode se perder');
+});
+
+test('alimentar a carteira depois não reinsere quem a triagem já pôs', () => {
+  const { ctx, aba } = cenarioTriagem();
+  ctx.processarEmail(EMAIL_LOTE, false);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2);
+
+  montarParticularidades(ctx);
+  const r = ctx.alimentarCarteira('08/2026');
+
+  assert.ok(!r.erro, `alimentarCarteira falhou: ${r.erro}`);
+  assert.deepEqual(planos(r.entraramCarencia), [], 'não pode entrar de novo');
+  // e reconhece que elas estão em carência, com a data que a triagem gravou
+  assert.equal(r.emCarencia.length, 2);
+  assert.match(r.emCarencia[0], /libera em 11\/2026/);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2, 'não pode duplicar');
+});
+
+test('com responsável e carência vencida, a distribuição segue funcionando', () => {
+  const { ctx, aba } = cenarioTriagem();
+  ctx.processarEmail(EMAIL_LOTE, false);
+  montarParticularidades(ctx, 'Dulce Neves', 'Sênior');
+
+  const r = ctx.alimentarCarteira('11/2026');
+  assert.ok(!r.erro, `alimentarCarteira falhou: ${r.erro}`);
+  assert.deepEqual(planos(r.distribuidas), ['1091', '1092']);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 0);
+  assert.equal(comoObjetos(aba('Carteira Completa')).length, 2);
+});
+
+/** A planilha da reunião, com ou sem responsável definido. */
+function montarParticularidades(ctx, analista, nivel) {
+  const aba = ctx.aba_('Particularidades', true);
+  aba.appendRow(['N° Cliente', 'Razão social', 'CNPJ', 'Responsável (analista)',
+    'Nível / equipe', 'Segmento', 'Regime confirmado', 'Competência entrada',
+    'Obs. para a carteira']);
+  aba.appendRow(['1091', 'C LORENA DISTRIBUIDORA LTDA', '68.717.251/0001-25',
+    analista || '', nivel || '', 'Comércio', 'Lucro Real', '08/2026', '']);
+  aba.appendRow(['1092', 'GRAFICA SQUARE LTDA', '30.569.577/0001-80',
+    analista || '', nivel || '', 'Serviço', 'Simples Nacional', '08/2026', '']);
+  return aba;
+}

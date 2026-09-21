@@ -135,6 +135,19 @@ function mostrar(r) {
       }).join('') + '</ul></div>';
   }
 
+  if (r.entraramPendentes && r.entraramPendentes.length) {
+    html += '<div class="bloco"><h3>Entraram em carência (' + r.entraramPendentes.length + ')</h3>' +
+      '<ul>' + r.entraramPendentes.map(function (e) {
+        return '<li>' + escapar(e) + '</li>';
+      }).join('') + '</ul>' +
+      '<p class="ajuda" style="margin:8px 0 0">Estão na aba <strong>Pendentes Daniela</strong>, ' +
+      'competência de entrada <strong>' + escapar(r.competenciaEntrada) + '</strong> — ' +
+      'liberam para distribuição em <strong>' + escapar(r.liberaEm) + '</strong>.</p></div>';
+  }
+  if (r.avisoPendentes) {
+    html += '<div class="bloco alerta"><h3>Não entraram em pendentes</h3>' +
+      escapar(r.avisoPendentes) + '</div>';
+  }
   html += lista('Já estavam na triagem', r.jaExistiam);
   html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
   html += lista('Anexo sem dono identificado', r.certificadosSemDono, 'alerta');
@@ -155,7 +168,8 @@ function mostrar(r) {
   if (r.processadas.length) {
     html += '<div class="bloco"><h3>Próximo passo</h3>' +
       'Menu <strong>🏢 Onboarding Fiscal → 2 · Gerar planilha de particularidades</strong>, ' +
-      'que é o formulário da reunião com o Paulo.</div>';
+      'que é o formulário da reunião com o Paulo. As empresas já estão em ' +
+      'Pendentes Daniela contando carência — não precisa esperar a reunião para isso.</div>';
   }
 
   saida.innerHTML = html;

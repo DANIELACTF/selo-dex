@@ -49,7 +49,38 @@ var ROTULOS_COMPROVANTE = [
 var VAZIO_RFB = /^[*\-\s]*$/;
 
 var RE_CNPJ_COMPROVANTE = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
+var RE_DATA_BR = /^\d{2}\/\d{2}\/\d{4}$/;
 var RE_CNAE = /(\d{2}\.\d{2}-\d-\d{2})\s*[-–]?\s*(.*)/;
+
+/**
+ * O CNPJ é válido pelos dígitos verificadores?
+ *
+ * Existe por causa do OCR: o comprovante da Thays vem como imagem, e o
+ * reconhecimento troca 8 por B, 0 por O, 1 por 7. Um CNPJ lido errado viraria
+ * ficha errada, pasta errada e linha errada na carteira. O dígito verificador
+ * pega quase toda troca de um algarismo — e o que ele não pegar, pega o
+ * confronto com o CNPJ que a Thays digitou no corpo do e-mail.
+ */
+function cnpjValido(cnpj) {
+  var d = apenasDigitos_(cnpj);
+  if (d.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(d)) return false;  // 00000000000000 e afins
+
+  function digito(ate) {
+    var peso = ate - 7;
+    var soma = 0;
+    for (var i = 0; i < ate; i++) {
+      soma += parseInt(d.charAt(i), 10) * peso;
+      peso--;
+      if (peso < 2) peso = 9;
+    }
+    var resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  }
+
+  return digito(12) === parseInt(d.charAt(12), 10) &&
+    digito(13) === parseInt(d.charAt(13), 10);
+}
 
 /** Um texto contém um comprovante? */
 function temComprovante(texto) {
@@ -134,6 +165,14 @@ function lerComprovante(texto) {
   var mCnpj = RE_CNPJ_COMPROVANTE.exec(campos['NÚMERO DE INSCRIÇÃO'] || texto);
   if (!mCnpj) return null;
 
+  // Campos que o OCR costuma estragar: conferimos o formato e avisamos, em
+  // vez de gravar um valor que parece certo e não é.
+  var avisos = [];
+  if (!cnpjValido(mCnpj[0])) {
+    avisos.push('o CNPJ lido (' + mCnpj[0] + ') não passa no dígito verificador — ' +
+      'provável erro de leitura da imagem');
+  }
+
   var principal = separarCnae_(campos['CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL'])[0];
   var municipio = limparValor_(campos['MUNICÍPIO']);
   var uf = limparValor_(campos['UF']).toUpperCase().slice(0, 2);
@@ -144,13 +183,27 @@ function lerComprovante(texto) {
     municipio, uf, limparValor_(campos['CEP'])
   ].filter(String).join(', ');
 
+  var abertura = limparValor_(campos['DATA DE ABERTURA']) || null;
+  if (abertura && !RE_DATA_BR.test(abertura)) {
+    avisos.push('data de abertura ilegível ("' + abertura + '")');
+    abertura = null;
+  }
+  var dataSituacao = limparValor_(campos['DATA DA SITUAÇÃO CADASTRAL']) || null;
+  if (dataSituacao && !RE_DATA_BR.test(dataSituacao)) dataSituacao = null;
+
+  var razao = limparValor_(campos['NOME EMPRESARIAL']) || null;
+  if (!razao) avisos.push('não consegui ler o nome empresarial');
+  if (!principal) avisos.push('não consegui ler o CNAE principal');
+
   return {
     cnpj: mCnpj[0],
-    razaoSocial: limparValor_(campos['NOME EMPRESARIAL']) || null,
+    cnpjValido: cnpjValido(mCnpj[0]),
+    avisos: avisos,
+    razaoSocial: razao,
     nomeFantasia: limparValor_(campos['TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)']) || null,
     situacaoCadastral: limparValor_(campos['SITUAÇÃO CADASTRAL']) || null,
-    dataSituacaoCadastral: limparValor_(campos['DATA DA SITUAÇÃO CADASTRAL']) || null,
-    dataInicioAtividade: limparValor_(campos['DATA DE ABERTURA']) || null,
+    dataSituacaoCadastral: dataSituacao,
+    dataInicioAtividade: abertura,
     cnaeCodigo: principal ? principal.codigo : null,
     cnaeDescricao: principal ? principal.descricao : null,
     cnaesSecundarios: separarCnae_(campos['CÓDIGO E DESCRIÇÃO DAS ATIVIDADES ECONÔMICAS SECUNDÁRIAS']),
