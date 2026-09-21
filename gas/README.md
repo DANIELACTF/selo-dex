@@ -10,11 +10,10 @@ computador).
 
 | Menu | O que faz | Onde escreve |
 |---|---|---|
-| 1 · Processar e-mail "EMPRESA NOVA" | Lê o e-mail colado, consulta a Receita, confere certificado e regime, **e põe as empresas em carência** | abas `Triagem` e `Pendentes Daniela` |
-| 2 · Gerar planilha de particularidades | Cria o formulário da reunião com o Paulo, com listas suspensas | aba `Particularidades` |
-| 3 · Emitir Fichas de Abertura (PDF) | Ficha no padrão do Dep. Fiscal, uma por página A4 | Drive, em `<cliente>/Fichas/` |
-| 4 · Criar pastas do cliente no Drive | `Apuracao/<ano>/<meses>`, `Certificado/`, `Fichas/` | Drive |
-| 5 · Alimentar a Carteira (carência) | Entrada em carência e distribuição de quem venceu | abas `Pendentes Daniela` e `Carteira Completa` |
+| 1 · Processar e-mail "EMPRESA NOVA" (PDF) | Lê o PDF do e-mail, extrai as empresas, consulta a Receita e grava — com barra de progresso | abas `Particularidades` e `Pendentes Daniela` |
+| 2 · Emitir Fichas de Abertura (PDF) | Ficha no padrão do Dep. Fiscal, uma por página A4 | Drive, em `<cliente>/Fichas/` |
+| 3 · Criar pastas do cliente no Drive | `Apuracao/<ano>/<meses>`, `Certificado/`, `Fichas/` | Drive |
+| 4 · Alimentar a Carteira (carência) | Distribuição de quem venceu a carência | abas `Pendentes Daniela` e `Carteira Completa` |
 | 📊 Status da carência | Quem já liberou, quem ainda espera | nada — só lê |
 | 📄 Exportar CSV das pastas da rede | CSV `Numero,Nome` + comando do PowerShell | Drive |
 | 👤 Distribuir cliente para um analista | Diz para qual carteira o pendente vai | `Pendentes Daniela` → `Carteira Completa` |
@@ -113,6 +112,40 @@ Comece pela carteira que já existe, para não refazer nada:
 
 3. Pronto. Teste com **1 · Processar e-mail** colando um dos exemplos de
    `fixtures/` do repositório.
+
+## A etapa 1, em três passos curtos
+
+O e-mail chega como **PDF** — no Outlook, Imprimir → Salvar como PDF, com os
+comprovantes de inscrição junto. Não há mais campo de texto para colar.
+
+A barra lateral conduz o trabalho em chamadas curtas, e é isso que move a
+barra de progresso:
+
+| Passo | Função | O que faz |
+|---|---|---|
+| 1 | `abrirLote(arquivos)` | Converte os PDFs, extrai as empresas, casa os comprovantes e os `.pfx`. **Não consulta nada.** |
+| 2 | `consultarEmpresaDoLote(item, consultar)` | **Uma empresa por chamada.** É o que faz a barra andar. |
+| 3 | `gravarLote(lote, resultados)` | Escreve a aba Particularidades e a entrada em carência. |
+
+Cada chamada leva segundos, não minutos, então o teto de 6 minutos do Apps
+Script deixa de ser um problema — o que antes derrubava o lote inteiro. Uma
+empresa que falha na consulta não derruba as outras: ela é marcada e o lote
+segue.
+
+## Uma aba só: Particularidades
+
+A aba `Triagem` deixou de existir. Tudo que ela guardava foi consolidado em
+`Particularidades`, que passou a ser a única aba do fluxo:
+
+- **colunas cinza** — o que o app apurou do e-mail e da Receita: identificação,
+  tipo, abertura, porte, município, grupo econômico, CNAEs, regime, Simples,
+  situação cadastral, particularidades, divergência, fonte do dado;
+- **colunas amarelas** — o que a pessoa preenche: inscrições estadual e
+  municipal, procuração, as quatro "Particularidade (Paulo)", responsável,
+  nível, situação, backup, segmento e regime confirmado.
+
+Quem já tem a aba `Triagem` de uma versão anterior pode apagá-la: o app não
+escreve mais nela.
 
 ## O limite de 6 minutos do Apps Script
 

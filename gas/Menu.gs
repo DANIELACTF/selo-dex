@@ -8,12 +8,11 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🏢 Onboarding Fiscal')
-    .addItem('1 · Processar e-mail "EMPRESA NOVA"…', 'abrirBarraTriagem')
-    .addItem('2 · Gerar planilha de particularidades', 'menuGerarParticularidades')
+    .addItem('1 · Processar e-mail "EMPRESA NOVA" (PDF)…', 'abrirBarraTriagem')
     .addSeparator()
-    .addItem('3 · Emitir Fichas de Abertura (PDF)', 'menuGerarFichas')
-    .addItem('4 · Criar pastas do cliente no Drive', 'menuCriarPastas')
-    .addItem('5 · Alimentar a Carteira (carência)', 'menuAlimentarCarteira')
+    .addItem('2 · Emitir Fichas de Abertura (PDF)', 'menuGerarFichas')
+    .addItem('3 · Criar pastas do cliente no Drive', 'menuCriarPastas')
+    .addItem('4 · Alimentar a Carteira (carência)', 'menuAlimentarCarteira')
     .addSeparator()
     .addItem('👤 Distribuir cliente para um analista…', 'abrirDistribuir')
     .addItem('🔁 Trocar responsável…', 'abrirTrocar')
@@ -36,41 +35,6 @@ function abrirBarraTriagem() {
     .setTitle('Onboarding Fiscal — etapa 1')
     .setWidth(400);
   SpreadsheetApp.getUi().showSidebar(html);
-}
-
-/** Chamado pela barra lateral. */
-function processarEmailDaBarra(texto, consultar, textoComprovantes) {
-  try {
-    return processarEmail(texto, consultar !== false, textoComprovantes);
-  } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
-  }
-}
-
-function menuGerarParticularidades() {
-  var ui = SpreadsheetApp.getUi();
-  var padrao = competenciaAtual();
-  var resposta = ui.prompt('Planilha de particularidades',
-    'Competência de entrada do lote (MM/AAAA).\n\n' +
-    'É ela que conta a carência de ' + MESES_CARENCIA + ' competências.\n' +
-    'Deixe como está para usar a competência atual (' + padrao + ').',
-    ui.ButtonSet.OK_CANCEL);
-  if (resposta.getSelectedButton() !== ui.Button.OK) return;
-
-  var competencia = resposta.getResponseText().trim() || padrao;
-  try {
-    var r = gerarParticularidades(competencia);
-    if (r.erro) { alerta_('Nada a fazer', r.erro); return; }
-    ss_().setActiveSheet(abaObrigatoria_(ABAS.particularidades));
-    alerta_('Planilha de particularidades',
-      r.criadas + ' empresa(s) adicionada(s) na aba "' + r.aba + '".\n\n' +
-      'As células amarelas são de preenchimento manual. Na reunião com o Paulo, ' +
-      'cada definição vai em uma coluna "Particularidade N (Paulo)".\n\n' +
-      'Competência de entrada: ' + r.competencia + ' → libera em ' + r.liberaEm + '.\n\n' +
-      'Preencher "Responsável (analista)" NÃO antecipa a distribuição.');
-  } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
-  }
 }
 
 // --------------------------------------------------------------- etapa 2
@@ -250,13 +214,13 @@ function menuSobre() {
     'App do Departamento Fiscal para o onboarding de cliente novo.\n' +
     'Versão ' + VERSAO_APP + '\n\n' +
     'ETAPA 1 (chega o e-mail da Thays)\n' +
-    '  1 · Processar e-mail → preenche a aba Triagem\n' +
-    '  2 · Gerar planilha de particularidades → o formulário da reunião\n\n' +
-    '— reunião com o Paulo; a planilha é preenchida à mão —\n\n' +
+    '  1 · Anexe o e-mail salvo em PDF → o app lê, consulta e grava em\n' +
+    '      Particularidades e Pendentes Daniela, com barra de progresso\n\n' +
+    '— reunião com o Paulo; as colunas amarelas são preenchidas à mão —\n\n' +
     'ETAPA 2 (implantação)\n' +
-    '  3 · Emitir Fichas de Abertura em PDF no Drive\n' +
-    '  4 · Criar as pastas do cliente no Drive\n' +
-    '  5 · Alimentar a Carteira respeitando a carência\n\n' +
+    '  2 · Emitir Fichas de Abertura em PDF no Drive\n' +
+    '  3 · Criar as pastas do cliente no Drive\n' +
+    '  4 · Alimentar a Carteira respeitando a carência\n\n' +
     'GESTÃO DA CARTEIRA, a qualquer momento\n' +
     '  👤 Distribuir — diz para qual analista o pendente vai\n' +
     '  🔁 Trocar responsável — passa o cliente de um analista para outro\n' +
@@ -285,7 +249,7 @@ function menuConferirInstalacao() {
     ['Regras', 'certificadoPresente'], ['Consultas', 'consultarCnpj'],
     ['Comprovante', 'lerComprovante'], ['PdfTexto', 'pdfsParaTexto'],
     ['Planilha', 'lerObjetos_'],
-    ['Triagem', 'processarEmail'], ['Particularidades', 'gerarParticularidades'],
+    ['Etapa1', 'abrirLote'], ['Particularidades', 'montarCabecalhoParticularidades_'],
     ['Fichas', 'gerarFichasPdf'], ['Pastas', 'criarPastasDrive'], ['Carteira', 'alimentarCarteira'],
     ['Gestao', 'distribuirCliente'], ['Menu', 'onOpen'], ['Instalar', 'instalarAbas']
   ];

@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '1.7';
+var VERSAO_APP = '2.0';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'As consultas têm prazo: estourar os 6 minutos do Apps Script não faz mais perder o lote, e a barra lateral avisa.';
+var NOVIDADES_DA_VERSAO = 'Etapa 1 só por PDF, com barra de progresso. A aba Triagem some: tudo é consolidado em Particularidades.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
@@ -25,7 +25,6 @@ var MESES_CARENCIA = 3;
 /** Nomes das abas — batem com a Carteira Tributária Fiscal já existente. */
 var ABAS = {
   instrucoes: 'Instruções',
-  triagem: 'Triagem',
   particularidades: 'Particularidades',
   pendentes: 'Pendentes Daniela',
   carteira: 'Carteira Completa',
@@ -88,43 +87,60 @@ var COLS_MOVIMENTACOES = [
 var MEI_EXIGE_CERTIFICADO = false;
 
 /** Colunas da aba Triagem (saída da etapa 1). */
-// Na ordem em que aparecem na Ficha de Abertura — conferido contra a ficha
-// real 1099_THAIS_REIS. Toda coluna daqui é impressa na ficha; quem não é
-// impresso (Divergência, Fonte dos dados) vem depois, para conferência.
-var COLS_TRIAGEM = [
-  'N° Cliente', 'Razão social', 'CNPJ', 'Tipo', 'Abertura', 'Porte',
-  'Município / UF', 'Grupo econômico', 'E-mail do cliente',
-  'CNAE principal', 'CNAEs secundários', 'Regime informado',
-  'Regime / enquadramento', 'Simples (RFB)', 'Situação cadastral',
-  'Certificado', 'Senha (cofre)', 'Particularidades',
-  'Divergência', 'Fonte dos dados', 'Ficha (PDF)', 'Processado em'
-];
-
-/** Colunas da aba Particularidades (formulário da reunião com o Paulo). */
+/**
+ * A aba Particularidades é a única do fluxo: recebe o que a triagem apurou
+ * e o que a reunião com o Paulo definir.
+ *
+ * Três blocos, nesta ordem:
+ *   1-18  o que o app preenche a partir do e-mail e da Receita (fundo cinza)
+ *   19-30 o que a pessoa preenche à mão, com lista suspensa (fundo amarelo)
+ *   31-33 controle do app (fonte do dado, ficha emitida, data)
+ */
 var COLS_PARTICULARIDADES = [
-  { titulo: 'N° Cliente', largura: 80, lista: null },
-  { titulo: 'Razão social', largura: 300, lista: null },
-  { titulo: 'CNPJ', largura: 140, lista: null },
-  { titulo: 'Nome fantasia', largura: 170, lista: null },
-  { titulo: 'Município / UF', largura: 180, lista: null },
-  { titulo: 'Inscrição Estadual', largura: 140, lista: null },
-  { titulo: 'Inscrição Municipal', largura: 140, lista: null },
-  { titulo: 'Certificado A1', largura: 100, lista: SIM_PENDENTE },
-  { titulo: 'Validade do cert.', largura: 110, lista: null },
-  { titulo: 'Senha (cofre)', largura: 100, lista: SENHA_STATUS },
-  { titulo: 'Procuração e-CAC', largura: 120, lista: PROCURACAO },
-  { titulo: 'Particularidade 1 (Paulo)', largura: 320, lista: null },
-  { titulo: 'Particularidade 2 (Paulo)', largura: 320, lista: null },
-  { titulo: 'Particularidade 3 (Paulo)', largura: 320, lista: null },
-  { titulo: 'Particularidade 4 (Paulo)', largura: 320, lista: null },
-  { titulo: 'Responsável (analista)', largura: 160, lista: ANALISTAS },
-  { titulo: 'Nível / equipe', largura: 110, lista: NIVEIS },
-  { titulo: 'Situação', largura: 150, lista: SITUACOES },
-  { titulo: 'Backup / apoio', largura: 150, lista: ANALISTAS },
-  { titulo: 'Segmento', largura: 100, lista: SEGMENTOS },
-  { titulo: 'Regime confirmado', largura: 140, lista: REGIMES },
-  { titulo: 'Competência entrada', largura: 130, lista: null },
-  { titulo: 'Obs. para a carteira', largura: 280, lista: null }
+  // ---- identificação e Receita: preenchido pelo app ----
+  { titulo: 'N° Cliente', largura: 80, lista: null, manual: false },
+  { titulo: 'Razão social', largura: 300, lista: null, manual: false },
+  { titulo: 'CNPJ', largura: 140, lista: null, manual: false },
+  { titulo: 'Tipo', largura: 70, lista: null, manual: false },
+  { titulo: 'Nome fantasia', largura: 170, lista: null, manual: false },
+  { titulo: 'Abertura', largura: 90, lista: null, manual: false },
+  { titulo: 'Porte', largura: 80, lista: null, manual: false },
+  { titulo: 'Município / UF', largura: 180, lista: null, manual: false },
+  { titulo: 'Grupo econômico', largura: 170, lista: null, manual: false },
+  { titulo: 'E-mail do cliente', largura: 200, lista: null, manual: false },
+  { titulo: 'CNAE principal', largura: 320, lista: null, manual: false },
+  { titulo: 'CNAEs secundários', largura: 280, lista: null, manual: false },
+  { titulo: 'Regime informado', largura: 140, lista: null, manual: false },
+  { titulo: 'Regime / enquadramento', largura: 300, lista: null, manual: false },
+  { titulo: 'Simples (RFB)', largura: 100, lista: null, manual: false },
+  { titulo: 'Situação cadastral', largura: 130, lista: null, manual: false },
+  { titulo: 'Particularidades', largura: 360, lista: null, manual: false },
+  { titulo: 'Divergência', largura: 260, lista: null, manual: false },
+
+  // ---- preenchimento manual: documentos e decisões da reunião ----
+  { titulo: 'Inscrição Estadual', largura: 140, lista: null, manual: true },
+  { titulo: 'Inscrição Municipal', largura: 140, lista: null, manual: true },
+  { titulo: 'Certificado A1', largura: 110, lista: SIM_PENDENTE, manual: true },
+  { titulo: 'Validade do cert.', largura: 110, lista: null, manual: true },
+  { titulo: 'Senha (cofre)', largura: 110, lista: SENHA_STATUS, manual: true },
+  { titulo: 'Procuração e-CAC', largura: 120, lista: PROCURACAO, manual: true },
+  { titulo: 'Particularidade 1 (Paulo)', largura: 320, lista: null, manual: true },
+  { titulo: 'Particularidade 2 (Paulo)', largura: 320, lista: null, manual: true },
+  { titulo: 'Particularidade 3 (Paulo)', largura: 320, lista: null, manual: true },
+  { titulo: 'Particularidade 4 (Paulo)', largura: 320, lista: null, manual: true },
+  { titulo: 'Responsável (analista)', largura: 160, lista: ANALISTAS, manual: true },
+  { titulo: 'Nível / equipe', largura: 110, lista: NIVEIS, manual: true },
+  { titulo: 'Situação', largura: 150, lista: SITUACOES, manual: true },
+  { titulo: 'Backup / apoio', largura: 150, lista: ANALISTAS, manual: true },
+  { titulo: 'Segmento', largura: 100, lista: SEGMENTOS, manual: true },
+  { titulo: 'Regime confirmado', largura: 140, lista: REGIMES, manual: true },
+  { titulo: 'Obs. para a carteira', largura: 280, lista: null, manual: true },
+
+  // ---- controle do app ----
+  { titulo: 'Competência entrada', largura: 130, lista: null, manual: false },
+  { titulo: 'Fonte dos dados', largura: 130, lista: null, manual: false },
+  { titulo: 'Ficha (PDF)', largura: 180, lista: null, manual: false },
+  { titulo: 'Processado em', largura: 110, lista: null, manual: false }
 ];
 
 /** Colunas 1-3 vêm da triagem e não são reescritas à mão. */

@@ -1,60 +1,11 @@
 /**
- * Particularidades.gs — o formulário da reunião com o Paulo.
+ * Particularidades.gs — o formato da aba que concentra tudo.
  *
- * Porta de onboarding/planilha_particularidades.py, só que aqui o
- * "arquivo .xlsx" é uma aba da própria planilha: a pessoa preenche no
- * Sheets e o app lê de volta na etapa 2, sem upload nem download.
+ * Ela é a única aba do fluxo: recebe o que a etapa 1 apurou do e-mail e da
+ * Receita e o que a reunião com o Paulo definir. O que o app preenche vem em
+ * cinza (não se reescreve à mão); o que é decisão da pessoa vem em amarelo,
+ * com lista suspensa onde o valor precisa ser consistente com a carteira.
  */
-
-/** Gera/atualiza a aba Particularidades a partir da aba Triagem. */
-function gerarParticularidades(competencia) {
-  competencia = competencia || competenciaAtual();
-  validarCompetencia(competencia);
-
-  var triagem = abaObrigatoria_(ABAS.triagem);
-  var empresas = lerObjetos_(triagem).filter(function (e) { return e['N° Cliente']; });
-  if (!empresas.length) {
-    return { erro: 'A aba "' + ABAS.triagem + '" está vazia. Processe um e-mail "EMPRESA NOVA" antes.' };
-  }
-
-  var aba = aba_(ABAS.particularidades, true);
-  var idx = indices_(aba);
-  if (!idx['N° Cliente']) {
-    montarCabecalhoParticularidades_(aba);
-    idx = indices_(aba);
-  }
-
-  var jaTem = valoresColuna_(aba, idx['N° Cliente']);
-  var novas = empresas.filter(function (e) { return jaTem.indexOf(String(e['N° Cliente'])) === -1; });
-  if (!novas.length) {
-    return { erro: 'Todas as empresas da triagem já estão na aba "' + ABAS.particularidades + '".' };
-  }
-
-  var primeiraNova = aba.getLastRow() + 1;
-  acrescentarLinhas_(aba, idx, novas.map(function (e) {
-    var reg = {};
-    reg['N° Cliente'] = e['N° Cliente'];
-    reg['Razão social'] = e['Razão social'];
-    reg['CNPJ'] = e['CNPJ'];
-    reg['Município / UF'] = e['Município / UF'] || '';
-    reg['Certificado A1'] = e['Certificado'] || '';
-    reg['Senha (cofre)'] = e['Senha (cofre)'] || '';
-    reg['Regime confirmado'] = regimeParaLista_(e['Regime informado']);
-    reg[COL_COMPETENCIA] = competencia;
-    reg['Situação'] = 'Pendente distribuição';
-    return reg;
-  }));
-
-  aplicarFormatoParticularidades_(aba, primeiraNova, aba.getLastRow());
-  registrarLog_('Particularidades', novas.length + ' empresa(s), competência ' + competencia);
-
-  return {
-    criadas: novas.length,
-    competencia: competencia,
-    liberaEm: competenciaLiberacao(competencia),
-    aba: ABAS.particularidades
-  };
-}
 
 function regimeParaLista_(regimeInformado) {
   var r = String(regimeInformado || '').trim();
@@ -76,11 +27,11 @@ function aplicarFormatoParticularidades_(aba, primeira, ultima) {
     .setFontSize(9).setVerticalAlignment('top').setWrap(true)
     .setBorder(true, true, true, true, true, true, CORES.borda, SpreadsheetApp.BorderStyle.SOLID);
 
-  // Identificação vem da triagem: fundo neutro para dizer "não edite".
-  aba.getRange(primeira, 1, linhas, COLS_IDENTIFICACAO).setBackground(CORES.cabecalho);
-  // O resto é preenchimento manual: amarelo, como no .xlsx original.
-  aba.getRange(primeira, COLS_IDENTIFICACAO + 1, linhas,
-    COLS_PARTICULARIDADES.length - COLS_IDENTIFICACAO).setBackground(CORES.preencher);
+  // Cinza: veio do e-mail ou da Receita. Amarelo: é você quem preenche.
+  COLS_PARTICULARIDADES.forEach(function (c, i) {
+    aba.getRange(primeira, i + 1, linhas, 1)
+      .setBackground(c.manual ? CORES.preencher : CORES.cabecalho);
+  });
 
   COLS_PARTICULARIDADES.forEach(function (c, i) {
     if (!c.lista) return;

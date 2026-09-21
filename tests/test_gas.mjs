@@ -344,11 +344,31 @@ test('a equipe do app bate com a do Python', () => {
   assert.deepEqual(planos(gas.ANALISTAS), py);
 });
 
-test('as colunas do formulário batem com as do Python', () => {
+test('a consolidação não perdeu nenhuma coluna do formulário do Python', () => {
+  // A aba do Sheets passou a concentrar também o que era da aba Triagem, então
+  // ela é um SUPERCONJUNTO do formulário do Python — mas nada do formulário
+  // pode ter sumido no caminho.
   const py = JSON.parse(execFileSync('python3',
     ['-c', 'import json; from onboarding.planilha_particularidades import COLUNAS; print(json.dumps([c[0] for c in COLUNAS]))'],
     { encoding: 'utf8' }));
-  assert.deepEqual(planos(gas.COLS_PARTICULARIDADES.map((c) => c.titulo)), py);
+  const noSheets = gas.COLS_PARTICULARIDADES.map((c) => c.titulo);
+  for (const coluna of py) {
+    assert.ok(noSheets.includes(coluna), `a coluna "${coluna}" sumiu na consolidação`);
+  }
+});
+
+test('a aba concentra também o que era da aba Triagem', () => {
+  const noSheets = gas.COLS_PARTICULARIDADES.map((c) => c.titulo);
+  for (const coluna of ['Tipo', 'Abertura', 'Porte', 'Grupo econômico', 'CNAE principal',
+    'CNAEs secundários', 'Regime informado', 'Regime / enquadramento', 'Simples (RFB)',
+    'Situação cadastral', 'Divergência', 'Fonte dos dados', 'Ficha (PDF)', 'Processado em']) {
+    assert.ok(noSheets.includes(coluna), `a coluna "${coluna}" da Triagem não foi consolidada`);
+  }
+});
+
+test('a aba Triagem deixou de existir', () => {
+  assert.equal(gas.ABAS.triagem, undefined);
+  assert.equal(typeof gas.COLS_TRIAGEM, 'undefined');
 });
 
 // --------------------------------------- CNPJ não encontrado nas bases
@@ -395,8 +415,8 @@ test('resposta sem JSON não quebra a montagem do erro', () => {
   assert.equal(gas.detalheDaResposta_(resposta), '');
 });
 
-test('a aba Triagem registra de onde veio o dado', () => {
-  assert.ok(gas.COLS_TRIAGEM.includes('Fonte dos dados'));
+test('a aba registra de onde veio o dado', () => {
+  assert.ok(gas.COLS_PARTICULARIDADES.some((c) => c.titulo === 'Fonte dos dados'));
 });
 
 // ------------------------------------ fidelidade ao padrão do Dep. Fiscal
@@ -422,7 +442,7 @@ const FICHA_1099 = {
   'Regime / enquadramento': 'Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral',
   'Simples (RFB)': '?',
   'Situação cadastral': 'ATIVA',
-  'Certificado': 'pendente',
+  'Certificado A1': 'pendente',
   'Senha (cofre)': 'pendente',
   'Particularidades': 'ATENÇÃO: Município de DUQUE DE CAXIAS/RJ — fora do Rio de Janeiro\n'
     + 'CNAE 78.20-5-00 — atenção à retenção previdenciária de 11%',
@@ -514,7 +534,7 @@ test('linha antiga, sem as colunas novas, não imprime campo vazio sem aviso', (
   const antiga = {
     'N° Cliente': '1048', 'Razão social': 'INJECT PHARMA LTDA', 'CNPJ': '11.111.111/0001-11',
     'Tipo': 'Matriz', 'Regime informado': 'Lucro Presumido', 'Simples (RFB)': '?',
-    'Certificado': 'recebido', 'Senha (cofre)': 'arquivada', 'Processado em': '01/08/2026'
+    'Certificado A1': 'recebido', 'Senha (cofre)': 'arquivada', 'Processado em': '01/08/2026'
   };
   const texto = textoDaFicha(antiga);
   assert.ok(texto.includes('Abertura'));
@@ -523,18 +543,32 @@ test('linha antiga, sem as colunas novas, não imprime campo vazio sem aviso', (
   assert.ok(texto.includes('Lucro Presumido'));      // cai no regime informado
 });
 
-test('toda coluna que a ficha imprime existe na aba Triagem', () => {
+test('toda coluna que a ficha imprime existe na aba Particularidades', () => {
+  const noSheets = gas.COLS_PARTICULARIDADES.map((c) => c.titulo);
   for (const coluna of ['Abertura', 'Porte', 'CNAEs secundários', 'Regime / enquadramento',
-    'Situação cadastral', 'Grupo econômico', 'Fonte dos dados']) {
-    assert.ok(gas.COLS_TRIAGEM.includes(coluna), `a aba Triagem não guarda "${coluna}"`);
+    'Situação cadastral', 'Grupo econômico', 'Fonte dos dados', 'Certificado A1',
+    'Senha (cofre)', 'Particularidades', 'Processado em']) {
+    assert.ok(noSheets.includes(coluna), `a aba não guarda "${coluna}"`);
   }
+});
+
+test('cada coluna sabe se é do app ou de preenchimento manual', () => {
+  for (const c of gas.COLS_PARTICULARIDADES) {
+    assert.equal(typeof c.manual, 'boolean', `a coluna "${c.titulo}" não diz se é manual`);
+  }
+  const manuais = gas.COLS_PARTICULARIDADES.filter((c) => c.manual).map((c) => c.titulo);
+  assert.ok(manuais.includes('Particularidade 1 (Paulo)'));
+  assert.ok(manuais.includes('Responsável (analista)'));
+  // o que veio da Receita não é de preenchimento manual
+  assert.ok(!manuais.includes('CNAE principal'));
+  assert.ok(!manuais.includes('Competência entrada'));
 });
 
 test('o certificado marca a caixa certa', () => {
   const texto = textoDaFicha(FICHA_1099);
   assert.ok(texto.includes('☐') && texto.includes('pendente'));
   const recebido = textoDaFicha(Object.assign({}, FICHA_1099, {
-    'Certificado': 'recebido', 'Senha (cofre)': 'arquivada'
+    'Certificado A1': 'recebido', 'Senha (cofre)': 'arquivada'
   }));
   assert.ok(recebido.includes('☑'));
 });

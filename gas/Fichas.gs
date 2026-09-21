@@ -7,19 +7,19 @@
  * arquivo.
  *
  * O PDF vai para a pasta do cliente no Drive (Fichas/), e o link volta
- * para a coluna "Ficha (PDF)" da aba Triagem.
+ * para a coluna "Ficha (PDF)" da aba Particularidades.
  */
 
 /** Gera as fichas das empresas da aba Triagem que ainda não têm PDF. */
 function gerarFichasPdf(refazerTodas) {
-  var aba = abaObrigatoria_(ABAS.triagem);
+  var aba = abaObrigatoria_(ABAS.particularidades);
   var idx = indices_(aba);
   var empresas = lerObjetos_(aba).filter(function (e) { return e['N° Cliente']; });
-  if (!empresas.length) return { erro: 'A aba "' + ABAS.triagem + '" está vazia.' };
+  if (!empresas.length) return { erro: 'A aba "' + ABAS.particularidades + '" está vazia.' };
 
   var pendentes = empresas.filter(function (e) { return refazerTodas || !e['Ficha (PDF)']; });
   if (!pendentes.length) {
-    return { erro: 'Todas as empresas da triagem já têm ficha. Marque "refazer" para emitir de novo.' };
+    return { erro: 'Todas as empresas já têm ficha. Marque "refazer" para emitir de novo.' };
   }
 
   var raiz = pastaRaiz_();
@@ -87,7 +87,7 @@ function situacaoRfbDaFicha_(e) {
 }
 
 function montarFichaHtml_(e) {
-  var certificadoOk = String(e['Certificado']).trim() === 'recebido';
+  var certificadoOk = String(e['Certificado A1']).trim() === 'recebido';
   var senhaOk = String(e['Senha (cofre)']).trim() === 'arquivada';
   var simplesTexto = e['Divergência']
     ? 'ATENÇÃO: ' + e['Divergência']
@@ -157,7 +157,7 @@ function montarFichaHtml_(e) {
 
     '<div class="secao">3 · DOCUMENTOS, CERTIFICADO E PROCURAÇÃO</div><table class="grade">',
     '<tr><th>Certificado A1 (.pfx)</th><td class="par">', marca_(certificadoOk), ' ',
-    escapar_(e['Certificado'] || 'pendente'),
+    escapar_(e['Certificado A1'] || 'pendente'),
     '</td><th>Senha (cofre)</th><td class="par">', marca_(senhaOk), ' ',
     escapar_(e['Senha (cofre)'] || 'pendente'), '</td></tr>',
     '<tr><th>Procuração e-CAC</th><td class="par">☐ pendente</td>',

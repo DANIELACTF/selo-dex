@@ -4,212 +4,279 @@
 <base target="_top">
 <meta charset="utf-8">
 <style>
-  :root { --navy:#1B3A5C; --linha:#C9CFD6; --apagado:#5A6470; --alerta:#A32020; --ok:#1F6B3A; }
-  body { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#111; margin:0; padding:14px; }
+  :root { --navy:#1B3A5C; --linha:#C9CFD6; --apagado:#5A6470; --alerta:#A32020;
+          --alerta-fundo:#FBEEEC; --ok:#1C6340; --ok-fundo:#EAF4EE;
+          --atencao:#7A5510; --atencao-fundo:#FBF4E4; --campo:#F5F7F9; }
+  * { box-sizing:border-box; }
+  body { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#111; margin:0; padding:16px; }
   h2 { font-size:14px; margin:0 0 4px; color:var(--navy); }
-  p.ajuda { color:var(--apagado); font-size:12px; margin:0 0 12px; line-height:1.45; }
-  textarea { width:100%; box-sizing:border-box; min-height:220px; font-family:Menlo,Consolas,monospace;
-             font-size:11px; border:1px solid var(--linha); border-radius:3px; padding:8px; resize:vertical; }
-  label.linha { display:flex; align-items:center; gap:6px; margin:10px 0; font-size:12px; color:var(--apagado); }
-  button { background:var(--navy); color:#fff; border:0; border-radius:3px; padding:9px 14px;
-           font-size:13px; font-weight:bold; cursor:pointer; width:100%; }
-  button:disabled { background:#8B98A5; cursor:default; }
-  #resultado { margin-top:14px; font-size:12px; line-height:1.5; }
+  p.ajuda { color:var(--apagado); font-size:12px; margin:0 0 12px; line-height:1.5; }
+
+  input[type=file] { width:100%; font-size:12px; border:1px solid var(--linha);
+                     border-radius:3px; padding:8px; background:var(--campo); }
+  label.linha { display:flex; align-items:flex-start; gap:7px; margin:12px 0 0; font-size:12px; color:var(--apagado); }
+  label.linha input { margin-top:2px; }
+
+  button.acao { width:100%; margin-top:16px; background:var(--navy); color:#fff; border:0;
+                border-radius:3px; padding:10px; font-size:13px; font-weight:bold;
+                cursor:pointer; font-family:inherit; }
+  button.acao:disabled { background:#8B98A5; cursor:default; }
+
+  /* ---- progresso ---- */
+  #progresso { margin-top:16px; display:none; }
+  #progresso.ativo { display:block; }
+  .barra { height:8px; background:var(--campo); border:1px solid var(--linha);
+           border-radius:4px; overflow:hidden; }
+  .barra i { display:block; height:100%; width:0; background:var(--navy); transition:width .25s ease; }
+  .passo { display:flex; justify-content:space-between; gap:10px; font-size:12px;
+           color:var(--apagado); margin-top:6px; }
+  .passo b { color:#111; font-weight:normal; }
+  ol.andamento { list-style:none; margin:10px 0 0; padding:0; font-size:12px;
+                 max-height:190px; overflow-y:auto; border:1px solid var(--linha);
+                 border-radius:3px; }
+  ol.andamento li { padding:5px 9px; border-bottom:1px solid var(--linha); display:flex; gap:7px; }
+  ol.andamento li:last-child { border-bottom:none; }
+  .marca { width:14px; flex:none; text-align:center; }
+  .marca.ok { color:var(--ok); }
+  .marca.ruim { color:var(--alerta); }
+  .marca.agora { color:var(--navy); }
+
+  #saida { margin-top:14px; font-size:12px; line-height:1.55; }
   .bloco { border:1px solid var(--linha); border-radius:3px; padding:9px 10px; margin-bottom:9px; }
   .bloco h3 { font-size:12px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.05em; color:var(--apagado); }
   .bloco ul { margin:0; padding-left:16px; }
   .bloco li { margin-bottom:3px; }
-  .alerta { border-left:3px solid var(--alerta); }
-  .alerta h3 { color:var(--alerta); }
-  .ok { color:var(--ok); font-weight:bold; }
-  .erro { color:var(--alerta); font-weight:bold; }
-  pre.cobranca { background:#F5F6F8; border:1px solid var(--linha); padding:8px; font-size:11px;
+  .bloco.alerta { border-left:3px solid var(--alerta); background:var(--alerta-fundo); }
+  .bloco.alerta h3 { color:var(--alerta); }
+  .bloco.bom { border-left:3px solid var(--ok); background:var(--ok-fundo); }
+  pre.cobranca { background:var(--campo); border:1px solid var(--linha); padding:8px; font-size:11px;
                  white-space:pre-wrap; word-wrap:break-word; margin:6px 0 0; font-family:inherit; }
-  .carregando { color:var(--apagado); font-style:italic; }
+  .erro { color:var(--alerta); font-weight:bold; }
 </style>
 </head>
 <body>
 
 <h2>Processar e-mail "EMPRESA NOVA"</h2>
 <p class="ajuda">
-  Cole o corpo do e-mail da Thays, copiado do Outlook. Inclua a linha
-  <strong>"N anexos (...)"</strong> com os nomes dos <code>.pfx</code> — é dela
-  que sai a checagem de certificado.
+  Salve o e-mail inteiro como PDF — no Outlook, <strong>Imprimir → Salvar como
+  PDF</strong> — com os comprovantes de inscrição junto, e anexe aqui. O app lê
+  o PDF, extrai as empresas e consulta o que faltar.
 </p>
 
-<textarea id="texto" placeholder="EMPRESA NOVA&#10;&#10;De: Thays Oliveira | Administrativo Moraex&#10;Data: Qui, 20/08/2026 13:07&#10;&#10;4 anexos (45 KB)&#10;EMPRESA LTDA31909608000167.pfx; ...&#10;&#10;EMPRESA LTDA CNPJ: 68.497.893/0001-66 N°1077&#10;Lucro Presumido&#10;E mail : contato@empresa.com.br"></textarea>
+<input type="file" id="pdfs" accept="application/pdf" multiple>
 
 <label class="linha">
   <input type="checkbox" id="consultar" checked>
-  Consultar a Receita (opção pelo Simples, e CNPJ quando não houver comprovante)
+  <span>Consultar a Receita. Os dados cadastrais saem do comprovante quando ele
+  está no PDF; a consulta cobre a opção pelo Simples e quem não tiver
+  comprovante.</span>
 </label>
 
-<label for="pdfs" style="display:block;margin:14px 0 4px;font-size:12px;color:var(--apagado)">
-  Comprovantes de inscrição em PDF (opcional)
-</label>
-<input type="file" id="pdfs" accept="application/pdf" multiple
-       style="width:100%;font-size:12px;border:1px solid var(--linha);border-radius:3px;padding:7px;background:#F5F7F9">
-<p class="ajuda" style="margin:6px 0 0">
-  Os dados cadastrais saem do comprovante — razão social, abertura, porte, CNAE,
-  natureza jurídica e endereço —, sem depender de consulta. Se a Thays já colou o
-  comprovante no corpo do e-mail, não precisa anexar nada: o app lê de lá.
-</p>
+<button class="acao" type="button" id="botao" onclick="comecar()">Processar</button>
 
-<button id="botao" onclick="enviar()">Processar</button>
+<div id="progresso">
+  <div class="barra"><i id="barraFill"></i></div>
+  <div class="passo"><span id="passoTexto">Preparando…</span><b id="passoContador"></b></div>
+  <ol class="andamento" id="andamento"></ol>
+</div>
 
-<div id="resultado"></div>
+<div id="saida"></div>
 
 <script>
-function enviar() {
-  var texto = document.getElementById('texto').value.trim();
-  var saida = document.getElementById('resultado');
-  if (!texto) {
-    saida.innerHTML = '<p class="erro">Cole o e-mail antes de processar.</p>';
+var LOTE = null;
+var RESULTADOS = [];
+var POSICAO = 0;
+
+function esc(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function elem(id) { return document.getElementById(id); }
+
+function pintarBarra(feitos, total, texto) {
+  elem('progresso').className = 'ativo';
+  elem('barraFill').style.width = (total ? Math.round(feitos / total * 100) : 5) + '%';
+  elem('passoTexto').textContent = texto;
+  elem('passoContador').textContent = total ? feitos + ' de ' + total : '';
+}
+
+function linhaAndamento(item, marca, classe) {
+  var li = document.createElement('li');
+  li.id = 'and-' + item.indice;
+  li.innerHTML = '<span class="marca ' + classe + '">' + marca + '</span>' +
+    '<span>N°' + esc(item.numero) + ' ' + esc(item.nome) + '</span>';
+  return li;
+}
+
+function falhar(titulo, mensagem, extra) {
+  elem('botao').disabled = false;
+  elem('progresso').className = '';
+  var html = '<div class="bloco alerta"><h3>' + esc(titulo) + '</h3>' + esc(mensagem) + '</div>';
+  if (extra && extra.length) {
+    html += '<div class="bloco"><h3>Detalhe</h3><ul>' +
+      extra.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }
+  elem('saida').innerHTML = html;
+}
+
+// ------------------------------------------------- passo 1: abrir o lote
+
+function comecar() {
+  var campo = elem('pdfs');
+  var escolhidos = campo && campo.files ? Array.prototype.slice.call(campo.files) : [];
+  if (!escolhidos.length) {
+    elem('saida').innerHTML = '<p class="erro">Anexe o PDF do e-mail antes de processar.</p>';
     return;
   }
-  document.getElementById('botao').disabled = true;
 
-  lerPdfs(function (arquivos) {
-    var empresas = (texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || []).length;
-    saida.innerHTML = '<p class="carregando">Processando' +
-      (arquivos.length ? ' — convertendo ' + arquivos.length + ' PDF(s)' : '') +
-      (empresas ? ' — ' + empresas + ' empresa(s), cada consulta leva alguns segundos' : '') +
-      '…</p>';
+  elem('botao').disabled = true;
+  elem('saida').innerHTML = '';
+  elem('andamento').innerHTML = '';
+  RESULTADOS = [];
+  POSICAO = 0;
+  pintarBarra(0, 0, 'Lendo ' + escolhidos.length + ' PDF(s)… a conversão leva alguns segundos.');
 
-    armarPrazo();
+  lerArquivos(escolhidos, function (arquivos) {
     google.script.run
-      .withSuccessHandler(function (r) { terminou = true; mostrar(r); })
+      .withSuccessHandler(loteAberto)
       .withFailureHandler(function (e) {
-        terminou = true;
-        document.getElementById('botao').disabled = false;
-        saida.innerHTML = '<div class="bloco alerta"><h3>O servidor recusou</h3>' +
-          escapar(e && e.message ? e.message : e) + '</div>';
+        falhar('O servidor recusou a leitura', e && e.message ? e.message : e);
       })
-      .processarComAnexos(texto, document.getElementById('consultar').checked, arquivos);
+      .abrirLote(arquivos);
   });
 }
 
-var terminou = false;
-
-/**
- * O Apps Script mata a execução aos 6 minutos e, quando isso acontece, a
- * barra lateral nunca recebe resposta. Sem este prazo ela ficava em
- * "Processando…" para sempre, sem dizer o que houve.
- */
-function armarPrazo() {
-  terminou = false;
-  setTimeout(function () {
-    if (terminou) return;
-    document.getElementById('botao').disabled = false;
-    document.getElementById('resultado').innerHTML =
-      '<div class="bloco alerta"><h3>Passou de 6 minutos</h3>' +
-      'O Apps Script encerra a execução nesse tempo, então ela não voltou. ' +
-      'Confira a aba <strong>Triagem</strong>: se as empresas estiverem lá, deu certo ' +
-      'e só a resposta se perdeu.' +
-      '<p class="ajuda" style="margin:8px 0 0">Se não estiverem, processe de novo com ' +
-      '<strong>menos empresas por vez</strong>, ou desmarque "Consultar a Receita" — ' +
-      'é a consulta que consome o tempo. Com o comprovante anexado, os dados cadastrais ' +
-      'saem dele e só a opção pelo Simples fica faltando.</p></div>';
-  }, 370000);
-}
-
-/** Lê os PDFs escolhidos como base64 e devolve a lista pronta ao servidor. */
-function lerPdfs(pronto) {
-  var campo = document.getElementById('pdfs');
-  var escolhidos = campo && campo.files ? Array.prototype.slice.call(campo.files) : [];
-  if (!escolhidos.length) { pronto([]); return; }
-
+function lerArquivos(escolhidos, pronto) {
   var arquivos = [];
   var restantes = escolhidos.length;
   escolhidos.forEach(function (arquivo) {
     var leitor = new FileReader();
     leitor.onload = function () {
-      // dataURL vem como "data:application/pdf;base64,XXXX"
       arquivos.push({ nome: arquivo.name, base64: String(leitor.result).split(',')[1] });
       if (--restantes === 0) pronto(arquivos);
     };
-    leitor.onerror = function () {
-      if (--restantes === 0) pronto(arquivos);
-    };
+    leitor.onerror = function () { if (--restantes === 0) pronto(arquivos); };
     leitor.readAsDataURL(arquivo);
   });
 }
 
-function escapar(t) {
-  return String(t == null ? '' : t)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function loteAberto(r) {
+  if (!r || r.erro) {
+    falhar('Não deu para ler o PDF', (r && r.erro) || 'resposta vazia do servidor',
+      (r && (r.pdfsComFalha || [])).concat(r && r.amostraDoTexto
+        ? ['Começo do texto lido: ' + r.amostraDoTexto.slice(0, 200)] : []));
+    return;
+  }
+
+  LOTE = r;
+  var lista = elem('andamento');
+  r.empresas.forEach(function (item) {
+    lista.appendChild(linhaAndamento(item, '·', ''));
+  });
+  pintarBarra(0, r.empresas.length, 'Consultando a Receita…');
+  proxima();
+}
+
+// --------------------------------------- passo 2: uma empresa por chamada
+
+function proxima() {
+  if (POSICAO >= LOTE.empresas.length) {
+    gravar();
+    return;
+  }
+
+  var item = LOTE.empresas[POSICAO];
+  var li = elem('and-' + item.indice);
+  if (li) li.firstChild.textContent = '◗';
+  if (li) li.firstChild.className = 'marca agora';
+  pintarBarra(POSICAO, LOTE.empresas.length, 'Consultando N°' + item.numero + ' ' + item.nome);
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      RESULTADOS.push(r);
+      var marca = r && r.ok ? (r.erroConsulta ? '!' : '✓') : '✕';
+      var classe = r && r.ok ? (r.erroConsulta ? 'ruim' : 'ok') : 'ruim';
+      if (li) { li.firstChild.textContent = marca; li.firstChild.className = 'marca ' + classe; }
+      POSICAO++;
+      pintarBarra(POSICAO, LOTE.empresas.length, 'Consultando a Receita…');
+      proxima();
+    })
+    .withFailureHandler(function (e) {
+      // Uma empresa que falha não derruba o lote: segue e grava o resto.
+      RESULTADOS.push({ ok: false, indice: item.indice, numero: item.numero,
+        nome: item.nome, erro: e && e.message ? e.message : String(e) });
+      if (li) { li.firstChild.textContent = '✕'; li.firstChild.className = 'marca ruim'; }
+      POSICAO++;
+      proxima();
+    })
+    .consultarEmpresaDoLote(item, elem('consultar').checked);
+}
+
+// ------------------------------------------------ passo 3: gravar o lote
+
+function gravar() {
+  pintarBarra(LOTE.empresas.length, LOTE.empresas.length, 'Gravando nas abas…');
+  google.script.run
+    .withSuccessHandler(mostrar)
+    .withFailureHandler(function (e) {
+      falhar('Consultei tudo, mas a gravação falhou', e && e.message ? e.message : e);
+    })
+    .gravarLote(LOTE, RESULTADOS);
 }
 
 function lista(titulo, itens, classe) {
   if (!itens || !itens.length) return '';
   return '<div class="bloco ' + (classe || '') + '"><h3>' + titulo + ' (' + itens.length + ')</h3><ul>' +
-    itens.map(function (i) { return '<li>' + escapar(i) + '</li>'; }).join('') + '</ul></div>';
+    itens.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul></div>';
 }
 
 function mostrar(r) {
-  document.getElementById('botao').disabled = false;
-  var saida = document.getElementById('resultado');
-
-  if (r.erro) {
-    saida.innerHTML = '<p class="erro">' + escapar(r.erro) + '</p>';
+  elem('botao').disabled = false;
+  if (!r || r.erro) {
+    falhar('A gravação não completou', (r && r.erro) || 'resposta vazia do servidor');
     return;
   }
 
+  pintarBarra(1, 1, 'Concluído.');
   var html = '';
-  if (r.processadas.length) {
-    html += '<div class="bloco"><h3>Empresas processadas (' + r.processadas.length + ')</h3><ul>' +
-      r.processadas.map(function (e) {
-        var marca = e.certificado ? '<span class="ok">✓ cert.</span>' : '<span class="erro">sem cert.</span>';
-        return '<li>N°' + escapar(e.numero) + ' ' + escapar(e.nome) + ' — ' + marca + '</li>';
-      }).join('') + '</ul></div>';
+
+  if (r.gravadas.length) {
+    html += '<div class="bloco bom"><h3>Gravadas (' + r.gravadas.length + ')</h3><ul>' +
+      r.gravadas.map(function (e) {
+        return '<li>N°' + esc(e.numero) + ' ' + esc(e.nome) +
+          (e.certificado ? '' : ' — <span class="erro">sem certificado</span>') + '</li>';
+      }).join('') + '</ul>' +
+      '<p class="ajuda" style="margin:8px 0 0">Estão na aba <strong>Particularidades</strong> e em ' +
+      '<strong>Pendentes Daniela</strong>, competência <strong>' + esc(r.competencia) +
+      '</strong> — liberam para distribuição em <strong>' + esc(r.liberaEm) + '</strong>.</p></div>';
   }
 
-  if (r.entraramPendentes && r.entraramPendentes.length) {
-    html += '<div class="bloco"><h3>Entraram em carência (' + r.entraramPendentes.length + ')</h3>' +
-      '<ul>' + r.entraramPendentes.map(function (e) {
-        return '<li>' + escapar(e) + '</li>';
-      }).join('') + '</ul>' +
-      '<p class="ajuda" style="margin:8px 0 0">Estão na aba <strong>Pendentes Daniela</strong>, ' +
-      'competência de entrada <strong>' + escapar(r.competenciaEntrada) + '</strong> — ' +
-      'liberam para distribuição em <strong>' + escapar(r.liberaEm) + '</strong>.</p></div>';
-  }
-  if (r.avisoPendentes) {
-    html += '<div class="bloco alerta"><h3>Não entraram em pendentes</h3>' +
-      escapar(r.avisoPendentes) + '</div>';
-  }
-  html += lista('Já estavam na triagem', r.jaExistiam);
-  html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
-  html += lista('Anexo sem dono identificado', r.certificadosSemDono, 'alerta');
-  html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
+  html += lista('CNPJ que não passou no dígito verificador — confira no PDF', r.cnpjSuspeito, 'alerta');
+  html += lista('Já estavam cadastradas', r.jaExistiam);
   html += lista('Dados lidos do comprovante de inscrição', r.viaComprovante);
-  html += lista('PDFs lidos', r.pdfsLidos);
-  html += lista('PDF que não deu para ler', r.pdfsComFalha, 'alerta');
-  html += lista('Comprovante sem empresa correspondente no e-mail', r.comprovantesSemEmpresa, 'alerta');
-  html += lista('Dados vindos da segunda fonte (ReceitaWS)', r.viaSegundaFonte);
-  if (r.semTempoDeConsulta && r.semTempoDeConsulta.length) {
-    html += '<div class="bloco alerta"><h3>Sem consulta por falta de tempo (' +
-      r.semTempoDeConsulta.length + ')</h3><ul>' +
-      r.semTempoDeConsulta.map(function (e) { return '<li>' + escapar(e) + '</li>'; }).join('') +
-      '</ul><p class="ajuda" style="margin:8px 0 0">Estas empresas foram gravadas, mas sem os ' +
-      'dados da Receita. Processe o mesmo e-mail de novo depois: quem já está na Triagem é ' +
-      'pulado, e só estas serão consultadas.</p></div>';
-  }
+  html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
+  html += lista('Anexo sem dono identificado', r.anexosSemDono, 'alerta');
+  html += lista('Comprovante sem empresa correspondente', r.comprovantesSemEmpresa, 'alerta');
+  html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
   html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
+  if (r.avisoPendentes) {
+    html += '<div class="bloco alerta"><h3>Não entraram em pendentes</h3>' + esc(r.avisoPendentes) + '</div>';
+  }
 
   if (r.textoCobranca) {
     html += '<div class="bloco"><h3>Texto pronto para a Thays</h3>' +
-      '<pre class="cobranca">' + escapar(r.textoCobranca) + '</pre>' +
-      '<p class="ajuda" style="margin:8px 0 0">Copie e envie você — o app não manda e-mail por conta própria.</p></div>';
+      '<pre class="cobranca">' + esc(r.textoCobranca) + '</pre>' +
+      '<p class="ajuda" style="margin:8px 0 0">Copie e envie você — o app não manda e-mail ' +
+      'por conta própria.</p></div>';
   }
 
-  if (r.processadas.length) {
+  if (r.gravadas.length) {
     html += '<div class="bloco"><h3>Próximo passo</h3>' +
-      'Menu <strong>🏢 Onboarding Fiscal → 2 · Gerar planilha de particularidades</strong>, ' +
-      'que é o formulário da reunião com o Paulo. As empresas já estão em ' +
-      'Pendentes Daniela contando carência — não precisa esperar a reunião para isso.</div>';
+      'Abra a aba <strong>Particularidades</strong>. As colunas amarelas são as que você ' +
+      'preenche, inclusive as quatro "Particularidade (Paulo)" da reunião.</div>';
   }
 
-  saida.innerHTML = html;
+  elem('saida').innerHTML = html;
 }
 </script>
 </body>
