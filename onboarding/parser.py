@@ -17,18 +17,29 @@ CNPJ_FMT_RE = re.compile(r"\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}")
 # Cabeçalho de bloco: [NOME DA EMPRESA] [CNPJ:]? CNPJ [espaço] N°/n° NUMERO
 # Nome não inclui dígitos de propósito: evita que telefones/valores soltos
 # no texto anterior sejam engolidos pelo grupo não-guloso "nome".
+# Tolerâncias que o OCR do PDF exigiu, vistas em e-mails reais:
+#   • o marcador vem como "N°" (U+00B0) no texto do Outlook e como "Nº"
+#     (U+00BA) quando sai do OCR;
+#   • "CNPJ" é lido como "CNP)" ou "CNPU" — o J encosta nos dois pontos.
 BLOCO_HEADER_RE = re.compile(
     r"(?P<nome>[A-ZÀ-Ü&,.\-\s]{4,}?)\s*"
-    r"(?:CNPJ\s*:?\s*)?"
+    r"(?:CNP[JU)\]|]?\s*:?\s*)?"
     r"(?P<cnpj>\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})\s*"
-    r"[Nn]\W?°\s*(?P<numero>\d+)"
+    r"[Nn]\s*[°ºoO.\-]?\s*(?P<numero>\d{3,6})"
 )
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 SENHA_RE = re.compile(r"senha\s*(?:certificado)?\s*:?\s*([^\n]+)", re.IGNORECASE)
 CELULAR_RE = re.compile(r"celular\s*:?\s*([\d()\-\s+]{8,})", re.IGNORECASE)
-ANEXOS_LINE_RE = re.compile(r"\d+\s+anexos?\s*\([^)]*\)\s*\n(?P<lista>[^\n]+)", re.IGNORECASE)
+# A lista de anexos vem depois de "N anexos (25 KB)". No texto do Outlook
+# ela ocupa uma linha; no OCR ela se parte em várias. Pegamos uma janela
+# depois do marcador e recompomos os nomes pelos ponto-e-vírgulas.
+ANEXOS_BLOCO_RE = re.compile(r"\d+\s+anexos?\s*\([^)]*\)(?P<lista>[\s\S]{0,600})", re.IGNORECASE)
+RE_NOME_ARQUIVO = re.compile(r"\.[A-Za-z0-9]{2,5}$")
+# O Outlook grava a data em dois formatos, conforme quem imprime:
+# "Data Qui, 27/08/2026 16:26" e "Data Seg, 2026-09-14 16:00".
 DATA_EMAIL_RE = re.compile(r"Data\s*:?\s*\S+,?\s*(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
+DATA_EMAIL_ISO_RE = re.compile(r"Data\s*:?\s*\S+,?\s*(\d{4})-(\d{2})-(\d{2})", re.IGNORECASE)
 
 REGIME_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("MEI", re.compile(r"\bMEI\b", re.IGNORECASE)),
@@ -52,7 +63,9 @@ class EmpresaRaw:
 
 
 def _limpar_nome(nome: str) -> str:
-    nome = nome.strip(" \t\n-•.")
+    # `str.strip` com lista de caracteres não remove espaço não separável
+    # (U+00A0), que o Outlook usa na indentação das linhas de empresa.
+    nome = re.sub(r"^[\s\-•.]+|[\s\-•.]+$", "", nome)
     return re.sub(r"\s+", " ", nome)
 
 
@@ -104,12 +117,19 @@ def parse_email(texto: str) -> list[EmpresaRaw]:
 def extrair_anexos_email(texto: str) -> list[str]:
     """Retorna os nomes de arquivo listados nas linhas 'N anexos (...)' do e-mail."""
     anexos: list[str] = []
-    for m in ANEXOS_LINE_RE.finditer(texto):
-        anexos.extend(n.strip() for n in m.group("lista").split(";") if n.strip())
+    for m in ANEXOS_BLOCO_RE.finditer(texto):
+        for parte in m.group("lista").split(";"):
+            nome = re.sub(r"\s+", " ", parte).strip()
+            if nome and RE_NOME_ARQUIVO.search(nome):
+                anexos.append(nome)
     return anexos
 
 
 def extrair_data_email(texto: str) -> str | None:
-    """Retorna a data de envio do e-mail (linha 'Data: ...') no formato DD/MM/AAAA."""
+    """Retorna a data de envio do e-mail (linha 'Data: ...') em DD/MM/AAAA."""
     m = DATA_EMAIL_RE.search(texto)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+
+    iso = DATA_EMAIL_ISO_RE.search(texto)
+    return f"{iso.group(3)}/{iso.group(2)}/{iso.group(1)}" if iso else None

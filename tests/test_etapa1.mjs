@@ -12,24 +12,8 @@ import { planilhaFalsa, comoObjetos } from './planilha-falsa.mjs';
 
 const planos = (v) => JSON.parse(JSON.stringify(v));
 
-const COMPROVANTE = fs.readFileSync('fixtures/comprovantes/1099-THAIS-REIS-linhas.txt', 'utf8');
-
-/** O texto que sairia da conversão do PDF do e-mail. */
-const TEXTO_DO_PDF = [
-  'EMPRESA NOVA', '',
-  'De: Thays Oliveira | Administrativo Moraex <secretaria@moraex.com.br>',
-  'Data: Qui, 27/08/2026 13:07', '',
-  '2 anexos (30 KB)',
-  'THAIS REIS DESIGN LTDA.pfx; C LORENA DISTRIBUIDORA LTDA.pfx;', '',
-  'Segue novas empresas para cadastrar.', '',
-  'THAIS REIS DESIGN LTDA CNPJ: 60.772.067/0001-76 N°1099',
-  'Lucro Presumido',
-  'E mail : enfesta.adm@gmail.com', '',
-  'C LORENA DISTRIBUIDORA LTDA CNPJ: 68.717.251/0001-25 N°1091',
-  'Simples Nacional',
-  'E mail : lorena@exemplo.com.br', '',
-  COMPROVANTE
-].join('\n');
+/** O texto que a conversão do PDF real entrega, comprovantes em OCR. */
+const TEXTO_DO_PDF = fs.readFileSync('fixtures/ocr/email-27-08-2026-ocr.txt', 'utf8');
 
 const CAB_PENDENTES = ['N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Segmento',
   'Sugestão Analista', 'Origem', 'Observação', 'Competência entrada', 'Libera em'];
@@ -48,7 +32,6 @@ function cenario(texto) {
   });
   p.ctx.consultarCnpj = (cnpj) => {
     const d = p.ctx.dadosCadastraisVazios_(cnpj, null);
-    d.razaoSocial = 'C LORENA DISTRIBUIDORA LTDA';
     d.municipio = 'RIO DE JANEIRO';
     d.uf = 'RJ';
     d.porte = 'ME';
@@ -57,7 +40,7 @@ function cenario(texto) {
     return d;
   };
   p.ctx.consultarOptanteSimples = (cnpj) => ({
-    cnpj, optante: apenas(cnpj) === '68717251000125', mensagem: null, erro: null
+    cnpj, optante: apenas(cnpj) === '45668642000100', mensagem: null, erro: null
   });
   return p;
 }
@@ -82,7 +65,8 @@ test('abrirLote lê o PDF e lista as empresas sem consultar nada', () => {
   const lote = ctx.abrirLote([{ nome: 'email.pdf', base64: 'x' }]);
   assert.equal(lote.ok, true);
   assert.equal(consultou, false, 'abrir o lote não pode consultar — isso é o passo 2');
-  assert.deepEqual(planos(lote.empresas.map((e) => e.numero)), ['1099', '1091']);
+  assert.deepEqual(planos(lote.empresas.map((e) => e.numero)),
+    ['1093', '1094', '1095', '1096', '1097', '1098', '1099']);
   assert.equal(lote.recebidoEm, '27/08/2026');
   assert.equal(lote.competencia, '08/2026');
 });
@@ -90,14 +74,25 @@ test('abrirLote lê o PDF e lista as empresas sem consultar nada', () => {
 test('abrirLote já traz o que a barra precisa mostrar por empresa', () => {
   const { ctx } = cenario();
   const lote = ctx.abrirLote([{ nome: 'email.pdf', base64: 'x' }]);
-  const thais = lote.empresas[0];
+  const rezende = lote.empresas.find((e) => e.numero === '1094');
 
-  assert.equal(thais.nome, 'THAIS REIS DESIGN LTDA');
-  assert.equal(thais.tipo, 'Matriz');
-  assert.equal(thais.cnpjValido, true);
-  assert.equal(thais.certificado, true, 'o .pfx dela está nos anexos');
-  assert.ok(thais.comprovante, 'o comprovante do PDF deveria estar casado com ela');
-  assert.equal(thais.comprovante.porte, 'EPP');
+  assert.equal(rezende.nome, 'N&T REZENDE IMOBILIARIA S A');
+  assert.equal(rezende.tipo, 'Matriz');
+  assert.equal(rezende.cnpjValido, true);
+  assert.equal(rezende.certificado, true, 'o .pfx dela está nos anexos do e-mail');
+  // o comprovante dela veio legível o bastante para render o CNAE
+  assert.ok(rezende.comprovante);
+  assert.equal(rezende.comprovante.cnaeCodigo, '6810201');
+});
+
+test('quem não tem comprovante legível é listado, não inventado', () => {
+  const { ctx } = cenario();
+  const lote = ctx.abrirLote([{ nome: 'email.pdf', base64: 'x' }]);
+  // medido: o OCR deste lote rende comprovante em 2 das 7
+  assert.equal(lote.semComprovante.length, 4);
+  assert.equal(lote.empresas.filter((e) => e.comprovante).length, 3);
+  // dos 3 reconhecidos, só 2 renderam CNAE aproveitável
+  assert.equal(lote.empresas.filter((e) => e.comprovante && e.comprovante.cnaeCodigo).length, 2);
 });
 
 test('PDF sem empresa nenhuma explica o que faltou, com amostra do texto', () => {
@@ -128,23 +123,32 @@ test('consultarEmpresaDoLote trata uma empresa de cada vez', () => {
 
   const r = ctx.consultarEmpresaDoLote(lote.empresas[1], true);
   assert.equal(r.ok, true);
-  assert.equal(r.numero, '1091');
-  assert.equal(r.simples, 'Sim');
+  assert.equal(r.numero, '1094');
   assert.equal(r.dados.fonte, 'BrasilAPI');
 });
 
-test('empresa com comprovante no PDF não vai à consulta de cadastro', () => {
+test('a consulta tem precedência sobre o comprovante escaneado', () => {
+  // O OCR erra o bastante para não poder mandar numa ficha de cliente: ele
+  // é recurso para quando a consulta falha, não fonte preferida.
   const { ctx } = cenario();
-  let consultouCadastro = 0;
-  const original = ctx.consultarCnpj;
-  ctx.consultarCnpj = (cnpj) => { consultouCadastro++; return original(cnpj); };
+  const lote = ctx.abrirLote([{ nome: 'email.pdf', base64: 'x' }]);
+  const comComprovante = lote.empresas.find((e) => e.comprovante);
+
+  const r = ctx.consultarEmpresaDoLote(comComprovante, true);
+  assert.equal(r.dados.fonte, 'BrasilAPI');
+});
+
+test('falhando a consulta, o comprovante escaneado entra — marcado', () => {
+  const { ctx } = cenario();
+  ctx.consultarCnpj = (cnpj) => ctx.dadosCadastraisVazios_(cnpj, 'BrasilAPI respondeu HTTP 404');
 
   const lote = ctx.abrirLote([{ nome: 'email.pdf', base64: 'x' }]);
-  const r = ctx.consultarEmpresaDoLote(lote.empresas[0], true);
+  const comComprovante = lote.empresas.find((e) => e.comprovante);
+  const r = ctx.consultarEmpresaDoLote(comComprovante, true);
 
-  assert.equal(consultouCadastro, 0);
-  assert.equal(r.dados.fonte, 'Comprovante RFB');
-  assert.equal(r.dados.porte, 'EPP');
+  assert.match(r.dados.fonte, /OCR/);
+  assert.ok(r.dados.avisos.some((a) => /conferir/.test(a)));
+  assert.equal(r.dados.razaoSocial, null, 'o nome nunca vem do OCR');
 });
 
 test('erro numa empresa não derruba as outras', () => {
@@ -155,7 +159,7 @@ test('erro numa empresa não derruba as outras', () => {
   const r = ctx.consultarEmpresaDoLote(lote.empresas[0], true);
   assert.equal(r.ok, false);
   assert.match(r.erro, /Receita fora do ar/);
-  assert.equal(r.numero, '1099', 'o resultado precisa dizer de quem é o erro');
+  assert.equal(r.numero, '1093', 'o resultado precisa dizer de quem é o erro');
 });
 
 // ------------------------------------------------ passo 3: gravar o lote
@@ -164,9 +168,9 @@ test('grava em Particularidades e em Pendentes Daniela, de uma vez', () => {
   const { ctx, aba } = cenario();
   const { resumo } = rodarTudo(ctx);
 
-  assert.equal(resumo.gravadas.length, 2);
-  assert.equal(comoObjetos(aba('Particularidades')).length, 2);
-  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2);
+  assert.equal(resumo.gravadas.length, 7);
+  assert.equal(comoObjetos(aba('Particularidades')).length, 7);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 7);
   assert.equal(resumo.competencia, '08/2026');
   assert.equal(resumo.liberaEm, '11/2026');
 });
@@ -175,28 +179,23 @@ test('a linha consolida o que era da Triagem e o que é da reunião', () => {
   const { ctx, aba } = cenario();
   rodarTudo(ctx);
 
-  const thais = comoObjetos(aba('Particularidades')).find((l) => l['N° Cliente'] === '1099');
-  // bloco do app
-  assert.equal(thais['Razão social'], 'THAIS REIS DESIGN LTDA');
-  assert.equal(thais['Tipo'], 'Matriz');
-  assert.equal(thais['Abertura'], '12/05/2025');
-  assert.equal(thais['Porte'], 'EPP');
-  assert.equal(thais['Município / UF'], 'DUQUE DE CAXIAS/RJ');
-  assert.equal(thais['CNAE principal'],
-    '82.30-0-01 — Serviços de organização de feiras, congressos, exposições e festas');
-  assert.equal(thais['CNAEs secundários'], '78.20-5-00; 82.30-0-02');
-  assert.equal(thais['Regime informado'], 'Lucro Presumido');
-  assert.equal(thais['Regime / enquadramento'],
+  const linha = comoObjetos(aba('Particularidades')).find((l) => l['N° Cliente'] === '1099');
+  // bloco do app: identificação do e-mail + cadastro da consulta
+  assert.equal(linha['Razão social'], 'THAIS REIS DESIGN LTDA');
+  assert.equal(linha['Tipo'], 'Matriz');
+  assert.equal(linha['Município / UF'], 'RIO DE JANEIRO/RJ');
+  assert.equal(linha['Porte'], 'ME');
+  assert.equal(linha['Situação cadastral'], 'ATIVA');
+  assert.equal(linha['Regime informado'], 'Lucro Presumido');
+  assert.equal(linha['Regime / enquadramento'],
     'Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral');
-  assert.equal(thais['Situação cadastral'], 'ATIVA');
-  assert.equal(thais['Fonte dos dados'], 'Comprovante RFB');
-  assert.equal(thais['Certificado A1'], 'recebido');
-  assert.equal(thais['Competência entrada'], '08/2026');
-  assert.equal(thais['Processado em'], '27/08/2026');
+  assert.equal(linha['Fonte dos dados'], 'BrasilAPI');
+  assert.equal(linha['Competência entrada'], '08/2026');
+  assert.equal(linha['Processado em'], '27/08/2026');
   // bloco da reunião fica em branco, para a pessoa preencher
-  assert.equal(thais['Particularidade 1 (Paulo)'], '');
-  assert.equal(thais['Responsável (analista)'], '');
-  assert.equal(thais['Situação'], 'Pendente distribuição');
+  assert.equal(linha['Particularidade 1 (Paulo)'], '');
+  assert.equal(linha['Responsável (analista)'], '');
+  assert.equal(linha['Situação'], 'Pendente distribuição');
 });
 
 test('a entrada em carência sai com a competência do e-mail', () => {
@@ -204,7 +203,8 @@ test('a entrada em carência sai com a competência do e-mail', () => {
   rodarTudo(ctx);
 
   const pend = comoObjetos(aba('Pendentes Daniela'));
-  assert.deepEqual(planos(pend.map((l) => l['N° Cliente'])), ['1099', '1091']);
+  assert.deepEqual(planos(pend.map((l) => l['N° Cliente'])),
+    ['1093', '1094', '1095', '1096', '1097', '1098', '1099']);
   assert.equal(pend[0]['Competência entrada'], '08/2026');
   assert.equal(pend[0]['Libera em'], '11/2026');
   assert.equal(pend[0]['Origem'], '🆕 Onboarding');
@@ -216,25 +216,25 @@ test('processar o mesmo PDF duas vezes não duplica', () => {
   const segunda = rodarTudo(ctx);
 
   assert.equal(segunda.resumo.gravadas.length, 0);
-  assert.equal(segunda.resumo.jaExistiam.length, 2);
-  assert.equal(comoObjetos(aba('Particularidades')).length, 2);
-  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 2);
+  assert.equal(segunda.resumo.jaExistiam.length, 7);
+  assert.equal(comoObjetos(aba('Particularidades')).length, 7);
+  assert.equal(comoObjetos(aba('Pendentes Daniela')).length, 7);
 });
 
 test('empresa já na carteira não é recadastrada', () => {
   const { ctx, aba } = cenario();
-  aba('Carteira Completa').appendRow(['1091', 'C LORENA DISTRIBUIDORA LTDA',
-    '68.717.251/0001-25', 'Simples Nacional', 'Comércio', 'Wellington', 'Auxiliar', 'OK']);
+  aba('Carteira Completa').appendRow(['1094', 'N&T REZENDE IMOBILIARIA S A',
+    '68.449.732/0001-05', 'Lucro Presumido', 'Serviço', 'Wellington', 'Auxiliar', 'OK']);
 
   const { resumo } = rodarTudo(ctx);
-  assert.deepEqual(planos(resumo.gravadas.map((g) => g.numero)), ['1099']);
+  assert.ok(!resumo.gravadas.some((g) => g.numero === '1094'), 'a que já está na carteira');
+  assert.equal(resumo.gravadas.length, 6);
 });
 
 test('CNPJ que não passa no dígito verificador é apontado, não gravado em silêncio', () => {
   // 60.772.067/0001-70 tem o último dígito trocado, como um OCR faria
-  const { ctx, aba } = cenario(TEXTO_DO_PDF.replace(
-    'THAIS REIS DESIGN LTDA CNPJ: 60.772.067/0001-76 N°1099',
-    'THAIS REIS DESIGN LTDA CNPJ: 60.772.067/0001-70 N°1099'));
+  const { ctx, aba } = cenario(
+    TEXTO_DO_PDF.replace('60.772.067/0001-76', '60.772.067/0001-70'));
 
   const { resumo } = rodarTudo(ctx);
   assert.equal(resumo.cnpjSuspeito.length, 1);
@@ -245,11 +245,13 @@ test('CNPJ que não passa no dígito verificador é apontado, não gravado em si
 });
 
 test('certificado faltante vira alerta e texto de cobrança', () => {
-  const { ctx } = cenario(TEXTO_DO_PDF.replace(
-    'THAIS REIS DESIGN LTDA.pfx; C LORENA DISTRIBUIDORA LTDA.pfx;', 'outro-arquivo.pfx;'));
+  const { ctx } = cenario();
   const { resumo } = rodarTudo(ctx);
 
-  assert.equal(resumo.alertasCertificado.length, 2);
+  // Dos 7, só 2 têm .pfx nos anexos. O MEI (N°1093) normalmente não geraria
+  // alerta, mas o OCR perdeu o "MEI" dele (veja test_comprovante.mjs), então
+  // ele entra na cobrança — com o texto do Outlook seriam 4.
+  assert.equal(resumo.alertasCertificado.length, 5);
   assert.match(resumo.textoCobranca, /certificado digital A1/);
   assert.match(resumo.textoCobranca, /THAIS REIS DESIGN/);
 });
@@ -258,13 +260,16 @@ test('sem consultar, grava o que dá e marca o resto como não consultado', () =
   const { ctx, aba } = cenario();
   const { resumo } = rodarTudo(ctx, false);
 
-  assert.equal(resumo.gravadas.length, 2);
-  const lorena = comoObjetos(aba('Particularidades')).find((l) => l['N° Cliente'] === '1091');
-  assert.equal(lorena['Simples (RFB)'], '?');
-  assert.equal(lorena['Fonte dos dados'], '(não consultado)');
-  // mas a que tinha comprovante continua completa
-  const thais = comoObjetos(aba('Particularidades')).find((l) => l['N° Cliente'] === '1099');
-  assert.equal(thais['Porte'], 'EPP');
+  assert.equal(resumo.gravadas.length, 7);
+  const linhas = comoObjetos(aba('Particularidades'));
+  // sem consulta, ninguém tem o Simples — é a única coisa que só a Receita diz
+  assert.ok(linhas.every((l) => l['Simples (RFB)'] === '?'));
+  // quem teve comprovante reconhecido fica marcado como OCR — 3 neste lote,
+  // dos quais 2 renderam CNAE
+  const comOcr = linhas.filter((l) => /OCR/.test(l['Fonte dos dados']));
+  assert.equal(comOcr.length, 3);
+  assert.ok(comOcr.every((l) => /OCR/.test(l['Particularidades'])),
+    'a linha precisa avisar que o dado veio de OCR');
 });
 
 test('cada passo é uma chamada curta — o lote nunca é consultado de uma vez', () => {

@@ -257,7 +257,7 @@ function mostrar(r) {
   html += lista('Dados lidos do comprovante de inscrição', r.viaComprovante);
   html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
   html += lista('Anexo sem dono identificado', r.anexosSemDono, 'alerta');
-  html += lista('Comprovante sem empresa correspondente', r.comprovantesSemEmpresa, 'alerta');
+  html += lista('Sem comprovante legível no PDF — dados só da consulta', r.semComprovante);
   html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
   html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
   if (r.avisoPendentes) {

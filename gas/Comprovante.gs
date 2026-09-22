@@ -17,40 +17,45 @@
  * tanto faz o valor estar na linha seguinte ou logo após o rótulo.
  */
 
-/** Rótulos do documento, na ordem em que aparecem. */
-var ROTULOS_COMPROVANTE = [
-  'NÚMERO DE INSCRIÇÃO',
-  'COMPROVANTE DE INSCRIÇÃO E DE SITUAÇÃO CADASTRAL',
-  'DATA DE ABERTURA',
-  'NOME EMPRESARIAL',
-  'TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)',
-  'PORTE',
-  'CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL',
-  'CÓDIGO E DESCRIÇÃO DAS ATIVIDADES ECONÔMICAS SECUNDÁRIAS',
-  'CÓDIGO E DESCRIÇÃO DA NATUREZA JURÍDICA',
-  'LOGRADOURO',
-  'NÚMERO',
-  'COMPLEMENTO',
-  'CEP',
-  'BAIRRO/DISTRITO',
-  'MUNICÍPIO',
-  'UF',
-  'ENDEREÇO ELETRÔNICO',
-  'TELEFONE',
-  'ENTE FEDERATIVO RESPONSÁVEL (EFR)',
-  'SITUAÇÃO CADASTRAL',
-  'DATA DA SITUAÇÃO CADASTRAL',
-  'MOTIVO DE SITUAÇÃO CADASTRAL',
-  'SITUAÇÃO ESPECIAL',
-  'DATA DA SITUAÇÃO ESPECIAL'
-];
+/**
+ * Marcas que denunciam um comprovante, mesmo com o OCR estragando tudo em
+ * volta. Comparamos sem acento e em minúsculas, e aceitamos pedaços: o OCR
+ * entrega coisas como "COMPROVANTE DE INSCRIÇÃO E DE SITUAÇÃO! osmazoz".
+ */
+var MARCAS_COMPROVANTE = ['comprovante de inscricao', 'situacao cadastral',
+  'atividade economica principal', 'natureza juridica'];
 
-/** Marca de "não informado" usada pela Receita no próprio documento. */
-var VAZIO_RFB = /^[*\-\s]*$/;
+/**
+ * CNAE. O OCR troca hífen por ponto à vontade — "68.10-2.01" no lugar de
+ * "68.10-2-01" —, então os separadores são todos opcionais entre - e .
+ */
+var RE_CNAE_OCR = /(\d{2})\s*[.\-]\s*(\d{2})\s*[.\-]\s*(\d)\s*[.\-]\s*(\d{2})\s*[-–]?\s*([^\n]*)/g;
 
-var RE_CNPJ_COMPROVANTE = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
-var RE_DATA_BR = /^\d{2}\/\d{2}\/\d{4}$/;
-var RE_CNAE = /(\d{2}\.\d{2}-\d-\d{2})\s*[-–]?\s*(.*)/;
+/** Natureza jurídica: "206-2 - Sociedade Empresária Limitada". */
+var RE_NATUREZA = /\b(\d{3})\s*[-.]\s*(\d)\s*[-–]\s*([^\n]{4,80})/;
+
+/** CEP: "25.260-440". */
+var RE_CEP = /\b(\d{2}\.\d{3}\s*-\s*\d{3})\b/;
+
+/** UF no fim de uma linha de endereço: "... DUQUE DE CAXIAS RJ". */
+var RE_MUNICIPIO_UF = /([A-ZÀ-Ü][A-ZÀ-Ü\s'´`^~.-]{3,40}?)\s+([A-Z]{2})\s*$/m;
+
+var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB',
+  'PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+var PORTES = ['DEMAIS', 'ME', 'EPP', 'MEI'];
+
+var RE_DATA_BR = /\b(\d{2}\/\d{2}\/\d{4})\b/;
+var RE_SITUACAO = /\b(ATIVA|BAIXADA|SUSPENSA|INAPTA|NULA)\b/;
+
+/** Linha que é rótulo do documento ou do e-mail, não conteúdo. */
+var RE_ROTULO_DO_DOC = new RegExp([
+  'comprovante', 'inscricao', 'cadastral', 'empresarial', 'estabelecimento',
+  'fantasia', 'atividade', 'economica', 'natureza', 'juridica', 'logradouro',
+  'numero', 'complemento', 'bairro', 'municipio', 'porte', 'matriz', 'filial',
+  'e mail', 'cnpj', 'republica', 'federativa', 'telefone', 'ente federativo',
+  'situacao', 'distrito', 'outlook'
+].join('|'));
 
 /**
  * O CNPJ é válido pelos dígitos verificadores?
@@ -82,176 +87,134 @@ function cnpjValido(cnpj) {
     digito(13) === parseInt(d.charAt(13), 10);
 }
 
-/** Um texto contém um comprovante? */
+/**
+ * Um texto contém um comprovante?
+ *
+ * Duas marcas bastam: uma sozinha pode ser coincidência do e-mail, e exigir
+ * todas quebraria com o OCR comendo pedaços.
+ */
 function temComprovante(texto) {
-  var t = normalizarLivre_(texto);
-  return t.indexOf('comprovante de inscricao') !== -1 ||
-    (t.indexOf('numero de inscricao') !== -1 && t.indexOf('situacao cadastral') !== -1);
+  var t = normalizarLivre_(texto).replace(/\s+/g, ' ');
+  var achadas = MARCAS_COMPROVANTE.filter(function (m) { return t.indexOf(m) !== -1; });
+  return achadas.length >= 2;
 }
 
 function limparValor_(valor) {
   var v = String(valor || '').replace(/\s+/g, ' ').trim();
-  // Colado no e-mail o rótulo vem como "PORTE: EPP"; o separador não é valor.
-  v = v.replace(/^[:\-–—]\s*/, '').trim();
-  return VAZIO_RFB.test(v) ? '' : v;
+  v = v.replace(/^[:\-–—|\[\]]+\s*/, '').replace(/[\[\]|]+$/, '').trim();
+  // "********" e variações que o OCR produz a partir delas.
+  return /^[*\-_.\s]*$/.test(v) || /^e{3,}/i.test(v) ? '' : v;
 }
 
-/**
- * Corta o texto nos rótulos conhecidos.
- * @return {Object} {rótulo: valor bruto}
- */
-function fatiarPorRotulos_(texto) {
+/** Todos os CNAEs do trecho, na ordem em que aparecem. */
+function acharCnaes_(texto) {
   var achados = [];
-  ROTULOS_COMPROVANTE.forEach(function (rotulo) {
-    // Rótulo com acento inconsistente entre conversores: comparamos sem acento.
-    var alvo = normalizarLivre_(rotulo);
-    var corpo = normalizarLivre_(texto);
-    var de = 0;
-    while (true) {
-      var pos = corpo.indexOf(alvo, de);
-      if (pos === -1) break;
-      achados.push({ rotulo: rotulo, inicio: pos, fim: pos + alvo.length });
-      de = pos + alvo.length;
-    }
-  });
-
-  // Vários rótulos contêm outros: "SITUAÇÃO CADASTRAL" está dentro de "DATA
-  // DA SITUAÇÃO CADASTRAL" e de "MOTIVO DE SITUAÇÃO CADASTRAL"; "NÚMERO"
-  // está dentro de "NÚMERO DE INSCRIÇÃO". Sem tratar isso, o rótulo curto
-  // casa no lugar do longo e o valor sai errado — ou vazio. Quando dois
-  // achados se sobrepõem, vence o mais longo.
-  achados.sort(function (a, b) {
-    return a.inicio - b.inicio || (b.fim - b.inicio) - (a.fim - a.inicio);
-  });
-  achados = achados.filter(function (a) {
-    return !achados.some(function (outro) {
-      return outro !== a && outro.inicio <= a.inicio && outro.fim >= a.fim &&
-        (outro.fim - outro.inicio) > (a.fim - a.inicio);
-    });
-  });
-
-  var campos = {};
-  achados.forEach(function (a, i) {
-    var ate = i + 1 < achados.length ? achados[i + 1].inicio : texto.length;
-    // Só o primeiro valor de cada rótulo interessa; repetição vem de rodapé.
-    if (campos[a.rotulo] === undefined) {
-      campos[a.rotulo] = texto.slice(a.fim, ate);
-    }
-  });
-  return campos;
-}
-
-function separarCnae_(bruto) {
-  var linhas = String(bruto || '').split(/[\n;]/).map(function (l) { return l.trim(); });
-  var saida = [];
-  linhas.forEach(function (linha) {
-    var m = RE_CNAE.exec(linha);
-    if (m) saida.push({ codigo: apenasDigitos_(m[1]), descricao: limparValor_(m[2]) });
-  });
-  return saida;
+  var m;
+  RE_CNAE_OCR.lastIndex = 0;
+  while ((m = RE_CNAE_OCR.exec(texto)) !== null) {
+    var descricao = limparValor_(m[5]);
+    // Descrição vazia costuma ser cabeçalho ou lixo de OCR, não atividade.
+    if (descricao.length < 4) continue;
+    achados.push({ codigo: m[1] + m[2] + m[3] + m[4], descricao: descricao });
+  }
+  return achados;
 }
 
 /**
- * Lê um comprovante e devolve o mesmo formato de `consultarCnpj()`, para
- * que o resto do app não precise saber de onde o dado veio.
+ * Lê o que dá para aproveitar de um comprovante escaneado.
  *
- * @param {string} texto  o comprovante, do corpo do e-mail ou de um PDF
- * @return {?Object} null se o texto não for um comprovante
+ * ATENÇÃO ao que isto é e ao que não é. Medido contra o OCR real de um
+ * e-mail da Thays (fixtures/ocr/), o reconhecimento entrega bem os códigos
+ * de CNAE — que são quase só dígitos — e, com sorte, natureza jurídica e
+ * município. Rótulos e nomes saem destruídos: "NOME EMPRESARIAL" vira
+ * "NOME LMIMESANIAL", e uma linha de endereço pode passar por razão social.
+ *
+ * Por isso este leitor é PISTA, não fonte: vem depois da consulta à Receita,
+ * nunca por cima dela, não devolve razão social, e todo resultado carrega o
+ * aviso de que precisa de conferência.
+ *
+ * Reconhece por PADRÃO, não por rótulo: o comprovante da Thays vem como
+ * imagem dentro do PDF, e o OCR estraga os rótulos ("NOME EMPRESARIAL" vira
+ * "NOME LMIMESANIAL", "NATUREZA JURÍDICA" vira "NATUNEZA JUNIUICA"). Códigos
+ * de CNAE, natureza jurídica, CEP e UF sobrevivem porque são quase só
+ * dígitos — e é neles que nos apoiamos.
+ *
+ * O CNPJ NÃO sai daqui: ele vem da linha do e-mail, que é texto de verdade e
+ * passa pelo dígito verificador. Aqui o que importa é o resto.
+ *
+ * @param {string} texto  o trecho do documento referente a UMA empresa
+ * @param {string=} cnpjDaEmpresa  o CNPJ já conhecido, do e-mail
+ * @return {?Object} null se o trecho não for um comprovante
  */
-function lerComprovante(texto) {
+function lerComprovante(texto, cnpjDaEmpresa) {
   if (!texto || !temComprovante(texto)) return null;
 
-  var campos = fatiarPorRotulos_(texto);
-  var mCnpj = RE_CNPJ_COMPROVANTE.exec(campos['NÚMERO DE INSCRIÇÃO'] || texto);
-  if (!mCnpj) return null;
-
-  // Campos que o OCR costuma estragar: conferimos o formato e avisamos, em
-  // vez de gravar um valor que parece certo e não é.
   var avisos = [];
-  if (!cnpjValido(mCnpj[0])) {
-    avisos.push('o CNPJ lido (' + mCnpj[0] + ') não passa no dígito verificador — ' +
-      'provável erro de leitura da imagem');
-  }
+  var cnaes = acharCnaes_(texto);
+  var principal = cnaes.length ? cnaes[0] : null;
+  var secundarios = cnaes.slice(1);
+  if (!principal) avisos.push('não consegui ler o CNAE no comprovante');
 
-  var principal = separarCnae_(campos['CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL'])[0];
-  var municipio = limparValor_(campos['MUNICÍPIO']);
-  var uf = limparValor_(campos['UF']).toUpperCase().slice(0, 2);
+  var mNatureza = RE_NATUREZA.exec(texto);
+  var mCep = RE_CEP.exec(texto);
+  var mSituacao = RE_SITUACAO.exec(texto.toUpperCase());
+  var mData = RE_DATA_BR.exec(texto);
 
-  var endereco = [
-    limparValor_(campos['LOGRADOURO']), limparValor_(campos['NÚMERO']),
-    limparValor_(campos['COMPLEMENTO']), limparValor_(campos['BAIRRO/DISTRITO']),
-    municipio, uf, limparValor_(campos['CEP'])
-  ].filter(String).join(', ');
+  var local = acharMunicipioUf_(texto);
 
-  var abertura = limparValor_(campos['DATA DE ABERTURA']) || null;
-  if (abertura && !RE_DATA_BR.test(abertura)) {
-    avisos.push('data de abertura ilegível ("' + abertura + '")');
-    abertura = null;
-  }
-  var dataSituacao = limparValor_(campos['DATA DA SITUAÇÃO CADASTRAL']) || null;
-  if (dataSituacao && !RE_DATA_BR.test(dataSituacao)) dataSituacao = null;
-
-  var razao = limparValor_(campos['NOME EMPRESARIAL']) || null;
-  if (!razao) avisos.push('não consegui ler o nome empresarial');
-  if (!principal) avisos.push('não consegui ler o CNAE principal');
+  // Tudo que sai daqui veio de OCR de uma imagem e precisa de conferência —
+  // dizer isso é parte do resultado, não um detalhe.
+  avisos.push('dados lidos por OCR do comprovante — conferir antes de usar');
 
   return {
-    cnpj: mCnpj[0],
-    cnpjValido: cnpjValido(mCnpj[0]),
+    cnpj: cnpjDaEmpresa || '',
+    cnpjValido: cnpjDaEmpresa ? cnpjValido(cnpjDaEmpresa) : false,
     avisos: avisos,
-    razaoSocial: razao,
-    nomeFantasia: limparValor_(campos['TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)']) || null,
-    situacaoCadastral: limparValor_(campos['SITUAÇÃO CADASTRAL']) || null,
-    dataSituacaoCadastral: dataSituacao,
-    dataInicioAtividade: abertura,
+    // A razão social NÃO sai do OCR: a linha do e-mail já traz o nome, é
+    // texto de verdade, e uma leitura errada aqui contaminaria ficha, pasta
+    // e carteira.
+    razaoSocial: null,
+    nomeFantasia: null,
+    situacaoCadastral: mSituacao ? mSituacao[1] : null,
+    dataSituacaoCadastral: mData ? mData[1] : null,
+    dataInicioAtividade: mData ? mData[1] : null,
     cnaeCodigo: principal ? principal.codigo : null,
     cnaeDescricao: principal ? principal.descricao : null,
-    cnaesSecundarios: separarCnae_(campos['CÓDIGO E DESCRIÇÃO DAS ATIVIDADES ECONÔMICAS SECUNDÁRIAS']),
-    naturezaJuridica: limparValor_(campos['CÓDIGO E DESCRIÇÃO DA NATUREZA JURÍDICA']) || null,
-    porte: limparValor_(campos['PORTE']) || null,
-    municipio: municipio || null,
-    uf: uf || null,
-    bairro: limparValor_(campos['BAIRRO/DISTRITO']) || null,
-    endereco: endereco || null,
-    // O comprovante NÃO informa opção pelo Simples nem pelo MEI. Deixar
-    // null é o que faz a consulta oficial continuar valendo.
+    cnaesSecundarios: secundarios,
+    naturezaJuridica: mNatureza
+      ? mNatureza[1] + '-' + mNatureza[2] + ' - ' + limparValor_(mNatureza[3]) : null,
+    porte: acharPorte_(texto),
+    municipio: local.municipio,
+    uf: local.uf,
+    bairro: null,
+    endereco: mCep ? mCep[1].replace(/\s/g, '') +
+      (local.municipio ? ', ' + local.municipio : '') + (local.uf ? ', ' + local.uf : '') : null,
+    // O comprovante NÃO informa opção pelo Simples nem pelo MEI.
     optanteSimples: null,
     optanteMei: null,
-    fonte: 'Comprovante RFB',
+    fonte: 'Comprovante RFB (OCR)',
     naoEncontrado: false,
     erro: null
   };
 }
 
-/**
- * Acha todos os comprovantes de um texto — a Thays cola um por empresa na
- * mesma mensagem.
- * @return {Object} {cnpj só dígitos: dados}
- */
-function lerComprovantesDoTexto(texto) {
-  var porCnpj = {};
-  if (!texto) return porCnpj;
-
-  // Cada comprovante começa no cabeçalho do documento; cortamos ali para
-  // que os rótulos de um não sejam lidos como valores do anterior.
-  var marcas = [];
-  var corpo = normalizarLivre_(texto);
-  var alvo = 'numero de inscricao';
-  var de = 0;
-  while (true) {
-    var pos = corpo.indexOf(alvo, de);
-    if (pos === -1) break;
-    marcas.push(pos);
-    de = pos + alvo.length;
+function acharMunicipioUf_(texto) {
+  var m = RE_MUNICIPIO_UF.exec(texto);
+  if (m && UFS.indexOf(m[2]) !== -1) {
+    var municipio = limparValor_(m[1]);
+    // O trecho antes da UF costuma trazer CEP e bairro grudados; fica a
+    // última sequência de palavras, que é o município.
+    var partes = municipio.split(/\s{2,}/);
+    return { municipio: limparValor_(partes[partes.length - 1]) || null, uf: m[2] };
   }
+  return { municipio: null, uf: null };
+}
 
-  marcas.forEach(function (inicio, i) {
-    var fim = i + 1 < marcas.length ? marcas[i + 1] : texto.length;
-    var dados = lerComprovante(texto.slice(inicio, fim));
-    if (dados) {
-      var chave = apenasDigitos_(dados.cnpj);
-      if (!porCnpj[chave]) porCnpj[chave] = dados;
-    }
-  });
-  return porCnpj;
+function acharPorte_(texto) {
+  var linhas = String(texto).toUpperCase().split('\n');
+  for (var i = 0; i < linhas.length; i++) {
+    var limpa = limparValor_(linhas[i]);
+    if (PORTES.indexOf(limpa) !== -1) return limpa === 'DEMAIS' ? 'DEMAIS' : limpa;
+  }
+  return null;
 }

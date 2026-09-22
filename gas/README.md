@@ -139,6 +139,33 @@ Script deixa de ser um problema — o que antes derrubava o lote inteiro. Uma
 empresa que falha na consulta não derruba as outras: ela é marcada e o lote
 segue.
 
+## O comprovante escaneado é pista, não fonte
+
+A Thays cola o comprovante de inscrição como **imagem** dentro do e-mail.
+Medido contra o OCR real (`fixtures/ocr/`, tesseract em português a 200 dpi
+sobre o PDF de 27/08/2026):
+
+| O que | Como sai |
+|---|---|
+| Linhas de empresa do e-mail | legíveis — `N°` vira `Nº`, `CNPJ` vira `CNP)` |
+| CNPJ dentro do comprovante | destruído: `68.449.732/0001-05` → `EE 449 732000105` |
+| Rótulos do comprovante | destruídos: `NOME EMPRESARIAL` → `NOME LMIMESANIAL` |
+| Códigos de CNAE | **confiáveis** — quase só dígitos |
+| Nome empresarial | **não confiável** — uma linha de endereço passa por razão social |
+
+Daí três decisões:
+
+1. O **CNPJ não sai do comprovante**: vem da linha do e-mail, que é texto de
+   verdade, e passa pelo dígito verificador antes de ser gravado.
+2. A **razão social também não**, pelo mesmo motivo.
+3. A **consulta à Receita tem precedência** sobre o OCR. O comprovante entra
+   quando a consulta falha, marcado como `Comprovante RFB (OCR)`, e a linha
+   ganha a particularidade avisando que precisa de conferência.
+
+Neste lote real o OCR rendeu CNAE aproveitável em **2 das 7** empresas.
+`tests/test_comprovante.mjs` trava esse número: se cair, alguma mudança
+piorou a leitura.
+
 ## Uma aba só: Particularidades
 
 A aba `Triagem` deixou de existir. Tudo que ela guardava foi consolidado em

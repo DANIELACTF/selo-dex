@@ -71,9 +71,29 @@ test('formato que o Drive não converte é recusado com explicação', () => {
   assert.equal(chamadas.length, 0, 'nem deveria chamar o Drive');
 });
 
-test('403 manda reautorizar, não some com o erro', () => {
-  const { ctx } = contexto({ codigo: 403, corpo: '{"error":{"message":"Insufficient permissions"}}' }, '');
-  assert.match(ctx.pdfParaTexto('base64', 'email.pdf').erro, /reautorizar/);
+test('403 diz exatamente o que ligar, não só que falhou', () => {
+  const { ctx } = contexto(
+    { codigo: 403, corpo: '{"error":{"message":"Drive API has not been used in project"}}' }, '');
+  const erro = ctx.pdfParaTexto('base64', 'email.pdf').erro;
+  assert.match(erro, /HTTP 403/);
+  assert.match(erro, /Drive API has not been used/, 'a mensagem do Google precisa aparecer');
+  assert.match(erro, /Serviços/, 'precisa dizer onde ligar');
+  assert.match(erro, /Drive API/);
+});
+
+test('com o serviço avançado ligado, a API REST nem é chamada', () => {
+  const { ctx, chamadas } = contexto(OK, 'TEXTO PELO SERVIÇO');
+  ctx.Drive = { Files: { create: () => ({ id: 'doc-avancado' }) } };
+
+  const r = ctx.pdfParaTexto('base64', 'email.pdf');
+  assert.equal(r.texto, 'TEXTO PELO SERVIÇO');
+  assert.equal(chamadas.length, 0, 'não deveria cair no caminho REST');
+});
+
+test('serviço avançado de versão antiga (insert) também serve', () => {
+  const { ctx } = contexto(OK, 'TEXTO');
+  ctx.Drive = { Files: { insert: () => ({ id: 'doc-antigo' }) } };
+  assert.equal(ctx.pdfParaTexto('base64', 'email.pdf').erro, null);
 });
 
 test('erro do Drive traz a mensagem que ele devolveu', () => {

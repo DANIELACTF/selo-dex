@@ -46,7 +46,6 @@ function abrirLote(arquivos) {
       };
     }
 
-    var comprovantes = lerComprovantesDoTexto(texto);
     var anexos = extrairAnexos(texto);
     var recebidoEm = extrairDataEmail(texto) || hojeBr_();
     var tipos = empresas.map(function (e) { return tipoEstabelecimento(e.cnpj); });
@@ -55,7 +54,10 @@ function abrirLote(arquivos) {
 
     var itens = empresas.map(function (e, i) {
       var cert = certificadoPresente(e.nome, e.cnpj, anexos);
-      var doComprovante = comprovantes[apenasDigitos_(e.cnpj)] || null;
+      // O comprovante de cada empresa está no bloco dela: o e-mail traz o
+      // cabeçalho e, logo abaixo, o comprovante. Casar por CNPJ não serve,
+      // porque o OCR destrói o CNPJ dentro da imagem.
+      var doComprovante = lerComprovante(e.blocoTexto, e.cnpj);
       return {
         indice: i,
         numero: e.numero,
@@ -75,7 +77,6 @@ function abrirLote(arquivos) {
     });
 
     var usados = itens.map(function (x) { return x.certificadoArquivo; }).filter(String);
-    var cnpjsDoLote = empresas.map(function (e) { return apenasDigitos_(e.cnpj); });
 
     return {
       ok: true,
@@ -83,9 +84,8 @@ function abrirLote(arquivos) {
       competencia: competenciaDoEmail_(recebidoEm),
       empresas: itens,
       anexosSemDono: anexosNaoIdentificados(anexos, usados),
-      comprovantesSemEmpresa: Object.keys(comprovantes)
-        .filter(function (c) { return cnpjsDoLote.indexOf(c) === -1; })
-        .map(function (c) { return (comprovantes[c].razaoSocial || '?') + ' (' + comprovantes[c].cnpj + ')'; }),
+      semComprovante: itens.filter(function (x) { return !x.comprovante; })
+        .map(function (x) { return 'N°' + x.numero + ' ' + x.nome; }),
       pdfsLidos: conversao.lidos,
       pdfsComFalha: conversao.falharam
     };
@@ -115,12 +115,18 @@ function numerosJaCadastrados_() {
  */
 function consultarEmpresaDoLote(item, consultar) {
   try {
+    // Ordem de preferência: consulta (dado estruturado e limpo) → comprovante
+    // escaneado (OCR, só o que der, sempre marcado para conferência) → nada.
+    //
+    // O comprovante já foi o preferido, quando eu supunha que viria como
+    // texto. Vindo como imagem, o OCR erra o bastante para não poder mandar
+    // numa ficha de cliente.
     var dados;
-    if (item.comprovante) {
-      // O comprovante é documento oficial e traz tudo menos o Simples.
-      dados = item.comprovante;
-    } else if (consultar) {
+    if (consultar) {
       dados = consultarCnpj(item.cnpj, { permitirSegundaFonte: true });
+      if (dados.erro && item.comprovante) dados = item.comprovante;
+    } else if (item.comprovante) {
+      dados = item.comprovante;
     } else {
       dados = dadosCadastraisVazios_(item.cnpj, 'consulta desabilitada nesta execução');
     }
@@ -190,6 +196,9 @@ function gravarLote(lote, resultados) {
         { numero: item.numero, regimeInformado: item.regimeInformado, emailContato: item.emailContato },
         dados, item.grupo, r.divergencia || null, item.certificado, todosNumeros
       );
+      (dados.avisos || []).forEach(function (aviso) {
+        bullets.unshift('ATENÇÃO: ' + aviso + '.');
+      });
       if (!item.cnpjValido) {
         bullets.unshift('ATENÇÃO: o CNPJ lido (' + item.cnpj + ') não passa no dígito ' +
           'verificador — confira no PDF antes de seguir.');
@@ -232,7 +241,7 @@ function gravarLote(lote, resultados) {
       }
       if (r.divergencia) resumo.divergencias.push(item.nome + ' (N°' + item.numero + '): ' + r.divergencia);
       if (r.erroConsulta) resumo.consultasFalhas.push(item.nome + ': ' + r.erroConsulta);
-      if (dados.fonte === 'Comprovante RFB') {
+      if (dados.fonte && dados.fonte.indexOf('Comprovante') === 0) {
         resumo.viaComprovante.push(item.nome + ' (N°' + item.numero + ')');
       }
     });
@@ -242,7 +251,7 @@ function gravarLote(lote, resultados) {
     aplicarFormatoParticularidades_(aba, primeira, aba.getLastRow());
 
     resumo.anexosSemDono = lote.anexosSemDono || [];
-    resumo.comprovantesSemEmpresa = lote.comprovantesSemEmpresa || [];
+    resumo.semComprovante = lote.semComprovante || [];
     resumo.textoCobranca = montarTextoCobranca_(resumo.alertasCertificado, resumo.anexosSemDono);
 
     entrarEmPendentes_(registros, lote.competencia, resumo);

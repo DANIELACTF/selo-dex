@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '2.1';
+var VERSAO_APP = '2.2';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'A conversão de PDF não precisa mais do serviço avançado do Drive, e imagens (PNG/JPG) também são aceitas.';
+var NOVIDADES_DA_VERSAO = 'Parser ajustado ao PDF real do Outlook e ao OCR; a consulta passa à frente do comprovante escaneado.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;

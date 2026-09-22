@@ -1,12 +1,12 @@
 /**
- * Testa a leitura do "COMPROVANTE DE INSCRIÇÃO E DE SITUAÇÃO CADASTRAL".
+ * Testa a leitura do comprovante e do e-mail contra material REAL.
  *
  *   node --test tests/test_comprovante.mjs
  *
- * As amostras de fixtures/comprovantes/ são RECONSTRUÍDAS a partir do layout
- * padrão da Receita, com os dados reais da ficha 1099_THAIS_REIS. Ao receber
- * um comprovante de verdade, salve-o lá e rode isto: se algum rótulo tiver
- * mudado, o teste diz qual campo parou de sair.
+ * Os fixtures aqui não são reconstruções: saíram dos PDFs que a Thays
+ * enviou. `fixtures/email-real-*.txt` é o texto que o Outlook produz;
+ * `fixtures/ocr/*.txt` é o que o OCR produz das mesmas páginas, com os
+ * comprovantes que vêm como imagem.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,154 +20,141 @@ for (const arquivo of ['Config.gs', 'Competencia.gs', 'Parser.gs', 'Regras.gs', 
 }
 
 const planos = (v) => JSON.parse(JSON.stringify(v));
-const amostra = (nome) => fs.readFileSync(`fixtures/comprovantes/${nome}.txt`, 'utf8');
+const ler = (caminho) => fs.readFileSync(caminho, 'utf8');
 
-const FORMATOS = ['1099-THAIS-REIS-linhas', '1099-THAIS-REIS-inline'];
+const EMAIL_LIMPO = ler('fixtures/email-real-27-08-2026.txt');
+const EMAIL_ISO = ler('fixtures/email-real-14-09-2026-iso.txt');
+const EMAIL_OCR = ler('fixtures/ocr/email-27-08-2026-ocr.txt');
 
-// O que a ficha real 1099_THAIS_REIS traz — é o gabarito.
-const ESPERADO = {
-  cnpj: '60.772.067/0001-76',
-  razaoSocial: 'THAIS REIS DESIGN LTDA',
-  nomeFantasia: null,
-  dataInicioAtividade: '12/05/2025',
-  porte: 'EPP',
-  situacaoCadastral: 'ATIVA',
-  dataSituacaoCadastral: '12/05/2025',
-  cnaeCodigo: '8230001',
-  cnaeDescricao: 'Serviços de organização de feiras, congressos, exposições e festas',
-  naturezaJuridica: '206-2 - Sociedade Empresária Limitada',
-  municipio: 'DUQUE DE CAXIAS',
-  uf: 'RJ',
-  bairro: 'CENTRO',
-  fonte: 'Comprovante RFB'
-};
+// -------------------------------------------- o e-mail, nos três formatos
 
-for (const formato of FORMATOS) {
-  test(`lê todos os campos — ${formato}`, () => {
-    const d = gas.lerComprovante(amostra(formato));
-    assert.ok(d, 'não reconheceu o comprovante');
-    for (const [campo, valor] of Object.entries(ESPERADO)) {
-      assert.equal(d[campo], valor, `campo ${campo}`);
-    }
-  });
+const LOTE_27_08 = [
+  ['1093', '57.226.244/0001-04', 'MEI'],
+  ['1094', '68.449.732/0001-05', 'Lucro Presumido'],
+  ['1095', '68.311.865/0001-02', 'Lucro Presumido'],
+  ['1096', '32.529.246/0001-41', 'Simples Nacional'],
+  ['1097', '45.668.642/0001-00', 'Simples Nacional'],
+  ['1098', '55.195.793/0001-33', 'Lucro Presumido'],
+  ['1099', '60.772.067/0001-76', 'Lucro Presumido']
+];
 
-  test(`lê os CNAEs secundários — ${formato}`, () => {
-    const d = gas.lerComprovante(amostra(formato));
-    assert.deepEqual(planos(d.cnaesSecundarios), [
-      { codigo: '7820500', descricao: 'Locação de mão-de-obra temporária' },
-      { codigo: '8230002', descricao: 'Casas de festas e eventos' }
-    ]);
-  });
-
-  test(`monta o endereço completo — ${formato}`, () => {
-    const d = gas.lerComprovante(amostra(formato));
-    assert.equal(d.endereco,
-      'R ALMIRANTE BARROSO, 31, CENTRO, DUQUE DE CAXIAS, RJ, 25.010-000');
-  });
-}
-
-test('os dois formatos produzem exatamente o mesmo resultado', () => {
-  assert.deepEqual(planos(gas.lerComprovante(amostra(FORMATOS[0]))),
-    planos(gas.lerComprovante(amostra(FORMATOS[1]))));
+test('lê as 7 empresas do e-mail real, do texto do Outlook', () => {
+  const empresas = gas.parseEmail(EMAIL_LIMPO);
+  assert.deepEqual(planos(empresas.map((e) => [e.numero, e.cnpj, e.regimeInformado])), LOTE_27_08);
 });
 
-// ------------------------------------------------- o que ele não inventa
+test('acha as mesmas 7 empresas quando o texto vem do OCR', () => {
+  // O OCR escreve "Nº" (ordinal masculino) no lugar de "N°" e "CNP)" no
+  // lugar de "CNPJ" — foi o que travava o reconhecimento.
+  const empresas = gas.parseEmail(EMAIL_OCR);
+  assert.deepEqual(planos(empresas.map((e) => [e.numero, e.cnpj])),
+    LOTE_27_08.map(([numero, cnpj]) => [numero, cnpj]));
+});
+
+test('o OCR embaralha a ordem da página e pode perder o regime', () => {
+  // Limitação medida, não defeito do parser: no PDF real o "MEI" do N°1093
+  // sai ANTES do cabeçalho da empresa, caindo fora do bloco dela. Com o
+  // texto do Outlook, que preserva a ordem, o regime é lido normalmente.
+  const doOcr = gas.parseEmail(EMAIL_OCR).find((e) => e.numero === '1093');
+  const doTexto = gas.parseEmail(EMAIL_LIMPO).find((e) => e.numero === '1093');
+  assert.equal(doTexto.regimeInformado, 'MEI');
+  assert.equal(doOcr.regimeInformado, null);
+
+  // As outras seis mantêm o regime mesmo no OCR — a perda é pontual.
+  const comRegime = gas.parseEmail(EMAIL_OCR).filter((e) => e.regimeInformado);
+  assert.equal(comRegime.length, 6);
+});
+
+test('todos os CNPJs do lote real passam no dígito verificador', () => {
+  for (const [numero, cnpj] of LOTE_27_08) {
+    assert.ok(gas.cnpjValido(cnpj), `N°${numero} (${cnpj}) deveria ser válido`);
+  }
+});
+
+test('lê o segundo e-mail real, com a data em formato ISO', () => {
+  const empresas = gas.parseEmail(EMAIL_ISO);
+  assert.deepEqual(planos(empresas.map((e) => e.numero)), ['1102', '1103', '1104', '1105']);
+});
+
+test('a data sai em DD/MM/AAAA nos dois formatos do Outlook', () => {
+  assert.equal(gas.extrairDataEmail(EMAIL_LIMPO), '27/08/2026');  // "Data Qui, 27/08/2026 16:26"
+  assert.equal(gas.extrairDataEmail(EMAIL_ISO), '14/09/2026');    // "Data Seg, 2026-09-14 16:00"
+  assert.equal(gas.extrairDataEmail(EMAIL_OCR), '27/08/2026');
+});
+
+test('os anexos .pfx são reconhecidos no e-mail real', () => {
+  assert.deepEqual(planos(gas.extrairAnexos(EMAIL_LIMPO)), [
+    'NT REZENDE IMOBILIARIA S A 2026-2027.pfx',
+    'NT REZENDE PARTICIPACOES LTDA 2026-2027.pfx'
+  ]);
+});
+
+// ------------------------------------- o comprovante escaneado: o que dá
+
+/** O bloco de texto de uma empresa do lote, pelo N°. */
+function blocoDe(texto, numero) {
+  const empresa = gas.parseEmail(texto).find((e) => e.numero === numero);
+  return empresa ? empresa.blocoTexto : null;
+}
+
+test('aproveita o CNAE do comprovante escaneado', () => {
+  // N°1094 — N&T REZENDE IMOBILIARIA: "68.10-2.01 - Compra e venda de
+  // imóveis próprios" (o OCR trocou o segundo hífen por ponto).
+  const d = gas.lerComprovante(blocoDe(EMAIL_OCR, '1094'), '68.449.732/0001-05');
+  assert.ok(d, 'deveria reconhecer o comprovante');
+  assert.equal(d.cnaeCodigo, '6810201');
+  assert.match(d.cnaeDescricao, /Compra e venda de imóveis próprios/);
+  assert.deepEqual(planos(d.cnaesSecundarios.map((c) => c.codigo)), ['6810202', '6822600']);
+  assert.equal(d.uf, 'RJ');
+});
+
+test('o CNPJ do comprovante vem do e-mail, não do OCR', () => {
+  // No OCR o CNPJ desta empresa sai como "EE 449 732000105".
+  const d = gas.lerComprovante(blocoDe(EMAIL_OCR, '1094'), '68.449.732/0001-05');
+  assert.equal(d.cnpj, '68.449.732/0001-05');
+  assert.equal(d.cnpjValido, true);
+});
+
+test('a razão social NUNCA sai do comprovante escaneado', () => {
+  // O OCR ofereceria "CÓDIGO E VESCHIÇÃO UA NATUNEZA JUNIUICA" como nome.
+  for (const numero of ['1093', '1094', '1097']) {
+    const bloco = blocoDe(EMAIL_OCR, numero);
+    const d = gas.lerComprovante(bloco, '11.111.111/0001-11');
+    if (d) assert.equal(d.razaoSocial, null, `N°${numero} não pode ter nome vindo do OCR`);
+  }
+});
+
+test('todo resultado de OCR carrega o aviso de conferência', () => {
+  const d = gas.lerComprovante(blocoDe(EMAIL_OCR, '1094'), '68.449.732/0001-05');
+  assert.ok(d.avisos.some((a) => /OCR/.test(a) && /conferir/.test(a)));
+  assert.match(d.fonte, /OCR/);
+});
 
 test('não afirma opção pelo Simples — o comprovante não informa isso', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
+  const d = gas.lerComprovante(blocoDe(EMAIL_OCR, '1094'), '68.449.732/0001-05');
   assert.equal(d.optanteSimples, null);
   assert.equal(d.optanteMei, null);
 });
 
-test('asteriscos da Receita viram campo vazio, não texto', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
-  assert.equal(d.nomeFantasia, null, 'o "********" do fantasia deveria virar vazio');
-  assert.ok(!/\*/.test(d.endereco), 'o complemento vazio não pode entrar no endereço');
+test('o quanto o OCR rende neste lote real — 2 de 7', () => {
+  // Número medido, não aspiracional. Caiu? alguma mudança piorou a leitura.
+  // Subiu? melhorou, e este teste deve ser atualizado junto.
+  const aproveitados = gas.parseEmail(EMAIL_OCR).filter((e) => {
+    const d = gas.lerComprovante(e.blocoTexto, e.cnpj);
+    return d && d.cnaeCodigo;
+  });
+  assert.equal(aproveitados.length, 2,
+    `o OCR rendeu ${aproveitados.length} de 7 — se mudou, atualize o número e o LEIA-ME`);
 });
 
 test('texto que não é comprovante devolve null', () => {
-  assert.equal(gas.lerComprovante('Segue novas empresas para cadastrar.'), null);
-  assert.equal(gas.lerComprovante(''), null);
-  assert.equal(gas.lerComprovante(null), null);
-});
-
-test('comprovante sem CNPJ legível devolve null, em vez de dado pela metade', () => {
-  const sem = amostra(FORMATOS[0]).replace('60.772.067/0001-76', '(ilegível)');
-  assert.equal(gas.lerComprovante(sem), null);
-});
-
-// -------------------------------------- rótulos que contêm outros rótulos
-
-test('SITUAÇÃO CADASTRAL não é confundida com DATA DA SITUAÇÃO CADASTRAL', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
-  assert.equal(d.situacaoCadastral, 'ATIVA');
-  assert.equal(d.dataSituacaoCadastral, '12/05/2025');
-});
-
-test('NÚMERO não engole NÚMERO DE INSCRIÇÃO', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
-  assert.equal(d.cnpj, '60.772.067/0001-76');
-  assert.match(d.endereco, /BARROSO, 31,/);
-});
-
-// -------------------------------------------------- vários no mesmo texto
-
-test('separa um comprovante por empresa na mesma mensagem', () => {
-  const primeiro = amostra(FORMATOS[0]);
-  const segundo = primeiro
-    .replace('60.772.067/0001-76', '11.222.333/0001-44')
-    .replace('THAIS REIS DESIGN LTDA', 'SEGUNDA EMPRESA LTDA')
-    .replace('DUQUE DE CAXIAS', 'RIO DE JANEIRO')
-    .replace('EPP', 'ME');
-
-  const achados = gas.lerComprovantesDoTexto(primeiro + '\n\n' + segundo);
-  assert.deepEqual(planos(Object.keys(achados)).sort(),
-    ['11222333000144', '60772067000176']);
-  assert.equal(achados['60772067000176'].razaoSocial, 'THAIS REIS DESIGN LTDA');
-  assert.equal(achados['11222333000144'].razaoSocial, 'SEGUNDA EMPRESA LTDA');
-  // o segundo não pode herdar município do primeiro
-  assert.equal(achados['11222333000144'].municipio, 'RIO DE JANEIRO');
-  assert.equal(achados['11222333000144'].porte, 'ME');
-});
-
-test('texto sem comprovante nenhum devolve mapa vazio', () => {
-  assert.deepEqual(planos(gas.lerComprovantesDoTexto('EMPRESA NOVA\n\nSegue lista.')), {});
-  assert.deepEqual(planos(gas.lerComprovantesDoTexto('')), {});
-});
-
-// ---------------------------------------------- o formato que a ficha usa
-
-test('o resultado tem a mesma forma que o de uma consulta', () => {
-  const doComprovante = gas.lerComprovante(amostra(FORMATOS[0]));
-  const daConsulta = gas.dadosCadastraisVazios_ ? null : null;  // Consultas.gs não é carregado aqui
-  for (const campo of ['cnpj', 'razaoSocial', 'nomeFantasia', 'situacaoCadastral',
-    'dataInicioAtividade', 'cnaeCodigo', 'cnaeDescricao', 'cnaesSecundarios',
-    'naturezaJuridica', 'porte', 'municipio', 'uf', 'bairro', 'endereco',
-    'optanteSimples', 'optanteMei', 'fonte', 'naoEncontrado', 'erro']) {
-    assert.ok(campo in doComprovante, `falta o campo ${campo}`);
-  }
-  assert.equal(doComprovante.erro, null);
-  assert.equal(doComprovante.naoEncontrado, false);
+  assert.equal(gas.lerComprovante('Segue novas empresas para cadastrar.', '11.111.111/0001-11'), null);
+  assert.equal(gas.lerComprovante('', '11.111.111/0001-11'), null);
+  assert.equal(gas.lerComprovante(null, '11.111.111/0001-11'), null);
 });
 
 test('o CNAE sai no formato que a ficha imprime', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
-  assert.equal(gas.formatarCodigoCnae(d.cnaeCodigo), '82.30-0-01');
-  assert.equal(gas.formatarCnaePrincipal(d),
-    '82.30-0-01 — Serviços de organização de feiras, congressos, exposições e festas');
-  assert.equal(gas.formatarCnaesSecundarios(d), '78.20-5-00; 82.30-0-02');
-});
-
-test('a particularidade de empresa fora do RJ continua saindo', () => {
-  const d = gas.lerComprovante(amostra(FORMATOS[0]));
-  const b = gas.particularidades(
-    { numero: '1099', regimeInformado: 'Lucro Presumido', emailContato: [] },
-    d, '—', null, false, ['1099']
-  );
-  // Duque de Caxias é RJ, então não há alerta de UF; o que precisa sair é o
-  // enquadramento correto a partir do CNAE lido do comprovante.
-  assert.equal(gas.regimeEnquadramento('Lucro Presumido', d),
-    'Lucro Presumido — PIS/COFINS cumulativo; IRPJ/CSLL trimestral');
-  assert.ok(!b.some((x) => /não consta nas bases públicas/.test(x)),
-    'com comprovante lido não deve haver aviso de base defasada');
+  const d = gas.lerComprovante(blocoDe(EMAIL_OCR, '1094'), '68.449.732/0001-05');
+  assert.equal(gas.formatarCodigoCnae(d.cnaeCodigo), '68.10-2-01');
+  assert.match(gas.formatarCnaePrincipal(d), /^68\.10-2-01 — Compra e venda/);
 });

@@ -15,6 +15,7 @@
 
 var URL_DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 var MIME_DOC_GOOGLE = 'application/vnd.google-apps.document';
+var IDIOMA_OCR = 'pt';
 
 /** Tipos que o Drive converte com OCR. */
 var TIPOS_CONVERSIVEIS = {
@@ -36,9 +37,40 @@ function tipoDoArquivo_(nome) {
 
 /**
  * Sobe o arquivo pedindo a conversão em Documento Google e devolve o id.
- * Multipart montado à mão porque o UrlFetchApp não monta sozinho.
+ *
+ * Dois caminhos, nesta ordem:
+ *
+ *   1. Serviço avançado do Drive, se estiver ligado no projeto. Ligá-lo
+ *      também habilita a API do Drive no projeto do Google Cloud por trás
+ *      da planilha — e é essa habilitação que a chamada REST exige.
+ *   2. API REST, com o token da própria planilha. Funciona sem o serviço
+ *      avançado DESDE QUE a API do Drive esteja habilitada; quando não
+ *      está, o Google devolve 403 e a mensagem diz exatamente o que fazer.
  */
 function subirParaConversao_(bytes, mime, nome) {
+  if (typeof Drive !== 'undefined' && Drive.Files) {
+    return subirPeloServicoAvancado_(bytes, mime, nome);
+  }
+  return subirPelaApiRest_(bytes, mime, nome);
+}
+
+/** Caminho preferido: o serviço avançado cuida da autenticação sozinho. */
+function subirPeloServicoAvancado_(bytes, mime, nome) {
+  var blob = Utilities.newBlob(bytes, mime, nome);
+  var recurso = { name: 'conversao-temporaria-' + nome, mimeType: MIME_DOC_GOOGLE };
+  var opcoes = { ocrLanguage: IDIOMA_OCR, supportsAllDrives: true };
+
+  // O serviço avançado mudou de nome entre as versões da API.
+  var arquivo = Drive.Files.create
+    ? Drive.Files.create(recurso, blob, opcoes)
+    : Drive.Files.insert({ title: recurso.name, mimeType: MIME_DOC_GOOGLE }, blob, opcoes);
+
+  var id = arquivo.id || arquivo.getId;
+  if (!id) throw new Error('o Drive converteu mas não devolveu o id do documento');
+  return id;
+}
+
+function subirPelaApiRest_(bytes, mime, nome) {
   var limite = 'moraex' + Utilities.getUuid().replace(/-/g, '');
   var metadados = JSON.stringify({ name: 'conversao-temporaria-' + nome, mimeType: MIME_DOC_GOOGLE });
 
@@ -65,8 +97,12 @@ function subirParaConversao_(bytes, mime, nome) {
   var codigo = resposta.getResponseCode();
   var corpo = resposta.getContentText();
   if (codigo === 401 || codigo === 403) {
-    throw new Error('o Google recusou a conversão (HTTP ' + codigo + '). Abra o menu ' +
-      'Configurar → Criar/conferir abas para reautorizar o app e tente de novo.');
+    // Quase sempre é a API do Drive não habilitada no projeto por trás da
+    // planilha. Ligar o serviço avançado habilita a API e resolve os dois.
+    throw new Error('o Google recusou a conversão (HTTP ' + codigo + ')' +
+      detalheDoDrive_(corpo) + '. No editor do Apps Script, abra Serviços (menu da ' +
+      'esquerda), clique em +, escolha Drive API e adicione. Salve, recarregue a ' +
+      'planilha e tente de novo.');
   }
   if (codigo < 200 || codigo >= 300) {
     throw new Error('o Drive respondeu HTTP ' + codigo + ' ao converter' + detalheDoDrive_(corpo));
