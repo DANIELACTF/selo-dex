@@ -120,6 +120,117 @@ def apuracao_escriturada(esc):
 
 
 # ---------------------------------------------------------------------------
+# 1b. Apuracao CALCULADA a partir do movimento
+# ---------------------------------------------------------------------------
+def apurar(linhas, ctx):
+    """Calcula a apuracao de PIS/COFINS a partir do movimento, sem bloco M.
+
+    Serve quando a EFD-Contribuicoes nao foi entregue e a fonte e a movimentacao
+    do cliente. Devolve o demonstrativo em duas bases:
+
+      * escriturada - a base que o proprio movimento traz;
+      * ICMS integral - excluindo todo o ICMS destacado, inclusive o adicional de
+        FCP, que costuma ficar na base.
+
+    A diferenca entre as duas e o que esta em disputa na exclusao do ICMS.
+    """
+    aliq_pis, aliq_cofins = ctx["aliq_pis"], ctx["aliq_cofins"]
+    cem = Decimal("100")
+
+    saidas = [l for l in linhas if l.eh_saida]
+    entradas = [l for l in linhas if l.eh_entrada]
+
+    por_cst = {}
+    receita = base_escriturada = base_icms_integral = ZERO
+    icms_destacado = exclusao_aplicada = ZERO
+    pis_destacado = cofins_destacado = ZERO
+
+    for l in saidas:
+        liquido = l.vl_item - l.vl_desc
+        cst = (l.cst_pis or l.cst_cofins or "").zfill(2)
+        receita += liquido
+        icms_destacado += l.vl_icms
+        pis_destacado += l.vl_pis
+        cofins_destacado += l.vl_cofins
+        base_l = l.bc_pis
+        base_escriturada += base_l
+        # cenario alternativo: exclui o ICMS destacado inteiro
+        base_alt = (liquido - l.vl_icms) if base_l > 0 else ZERO
+        base_icms_integral += base_alt if base_alt > 0 else ZERO
+        if base_l > 0:
+            exclusao_aplicada += liquido - base_l
+
+        d = por_cst.setdefault(cst, {
+            "cst": cst, "descricao": tabelas.descreve_cst_pis_cofins(cst),
+            "qtd": 0, "receita": ZERO, "base": ZERO, "base_icms_integral": ZERO,
+            "pis": ZERO, "cofins": ZERO, "icms": ZERO,
+        })
+        d["qtd"] += 1
+        d["receita"] += liquido
+        d["base"] += base_l
+        d["base_icms_integral"] += base_alt if base_alt > 0 else ZERO
+        d["pis"] += l.vl_pis
+        d["cofins"] += l.vl_cofins
+        d["icms"] += l.vl_icms
+
+    credito_pis = credito_cofins = base_credito = ZERO
+    creditos_por_natureza = {}
+    for l in entradas:
+        cst = (l.cst_pis or l.cst_cofins or "").zfill(2)
+        if cst not in tabelas.CST_COM_CREDITO:
+            continue
+        credito_pis += l.vl_pis
+        credito_cofins += l.vl_cofins
+        base_credito += l.bc_pis
+        n = creditos_por_natureza.setdefault(l.nat_bc_cred or "(nao informada)", {
+            "nat_bc_cred": l.nat_bc_cred or "(nao informada)",
+            "descricao": tabelas.NAT_BC_CRED.get(l.nat_bc_cred, ""),
+            "base": ZERO, "pis": ZERO, "cofins": ZERO})
+        n["base"] += l.bc_pis
+        n["pis"] += l.vl_pis
+        n["cofins"] += l.vl_cofins
+
+    def cenario(base):
+        pis = _q(base * aliq_pis / cem)
+        cofins = _q(base * aliq_cofins / cem)
+        return {
+            "base": _q(base), "pis": pis, "cofins": cofins,
+            "pis_a_recolher": _q(max(pis - credito_pis, ZERO)),
+            "cofins_a_recolher": _q(max(cofins - credito_cofins, ZERO)),
+            "total_a_recolher": _q(max(pis - credito_pis, ZERO)
+                                   + max(cofins - credito_cofins, ZERO)),
+        }
+
+    escriturado = cenario(base_escriturada)
+    integral = cenario(base_icms_integral)
+    return {
+        "receita_bruta": _q(receita),
+        "icms_destacado": _q(icms_destacado),
+        "exclusao_aplicada": _q(exclusao_aplicada),
+        "residuo_de_icms_na_base": _q(icms_destacado - exclusao_aplicada),
+        "por_cst": sorted(por_cst.values(), key=lambda x: x["cst"]),
+        "creditos": {
+            "base": _q(base_credito), "pis": _q(credito_pis),
+            "cofins": _q(credito_cofins),
+            "qtd_entradas": len(entradas),
+            "por_natureza": sorted(creditos_por_natureza.values(),
+                                   key=lambda x: x["nat_bc_cred"]),
+        },
+        "cenario_escriturado": escriturado,
+        "cenario_icms_integral": integral,
+        "diferenca_entre_cenarios": _q(escriturado["total_a_recolher"]
+                                       - integral["total_a_recolher"]),
+        "destacado_nos_documentos": {"pis": _q(pis_destacado),
+                                     "cofins": _q(cofins_destacado)},
+        "divergencia_calculo_x_destaque": {
+            "pis": _q(escriturado["pis"] - pis_destacado),
+            "cofins": _q(escriturado["cofins"] - cofins_destacado),
+        },
+        "aliquotas": {"pis": aliq_pis, "cofins": aliq_cofins},
+    }
+
+
+# ---------------------------------------------------------------------------
 # 2. Recomposicao a partir dos documentos
 # ---------------------------------------------------------------------------
 def recompor(linhas):
@@ -675,16 +786,18 @@ def analisar_linhas(linhas, tabela=None, ctx_base=None):
     testes_de_base_x_aliquota(linhas, ctx, pc05)
     vazio = {"consolidacao": None, "detalhe_debito": [], "creditos": [],
              "bases_credito": [], "receitas_nao_tributadas": []}
+    calculada = apurar(linhas, ctx)
     return {
         "identificacao": {"competencia": ctx["competencia"], "cnpj": ctx["cnpj"],
                           "arquivo": "planilha do cliente", "tipo": "PLANILHA"},
         "regime": {
             "cod_inc_trib": cod_inc,
-            "descricao": "regime presumido a partir das aliquotas da planilha "
-                         "(nao ha registro 0110 sem o arquivo SPED)",
+            "descricao": "regime inferido das aliquotas do movimento - sem a "
+                         "EFD-Contribuicoes nao ha registro 0110 para confirmar",
             "aliquota_pis": aliq_pis, "aliquota_cofins": aliq_cofins,
         },
         "apuracao_escriturada": {"pis": dict(vazio), "cofins": dict(vazio)},
+        "apuracao_calculada": calculada,
         "recomposicao": recompor(linhas),
         "achados": achados,
         "qtd_linhas": len(linhas),

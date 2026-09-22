@@ -301,6 +301,7 @@ def parse(caminho, tipo=None):
             reg["_ind_emit"] = pai_c100.txt("IND_EMIT")
             reg["_cod_part"] = pai_c100.txt("COD_PART")
             reg["_cnpj_est"] = pai_c100.get("_cnpj_est", "")
+            reg["_linha_c100"] = pai_c100.get("_linha")
         elif cod == "C500":
             pai_c500 = reg
         elif cod in ("C501", "C505") and pai_c500 is not None:

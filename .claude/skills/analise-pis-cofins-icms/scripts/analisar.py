@@ -197,6 +197,25 @@ def executar(args):
                 resultado["cruzamento"] = {"resumo": diagnostico, "comparativo": [],
                                            "totais": cruz["resumo"]}
                 resultado["achados"].extend(cruz["achados"])
+                # Houve SPED, mas nao a EFD-Contribuicoes: a apuracao de PIS/COFINS
+                # nao existe em lugar nenhum. A planilha tem base, aliquota e CST por
+                # item, entao da para calcula-la - deixando claro que e calculo sobre
+                # o movimento, nao leitura de escrituracao.
+                if not escrituracoes_contrib:
+                    linhas_planilha = movimentacao_analitica.para_linhas_fiscais(
+                        registros, mapa_est)
+                    if any(l.vl_pis or l.vl_cofins or l.bc_pis for l in linhas_planilha):
+                        bloco = analise_pis_cofins.analisar_linhas(
+                            linhas_planilha, tabela, ctx)
+                        bloco["identificacao"]["arquivo"] = (
+                            "planilha de movimentacao (nao ha EFD-Contribuicoes)")
+                        resultado["pis_cofins"].append(bloco)
+                        resultado["achados"].extend(bloco["achados"])
+                        resultado["ressalvas"].insert(0,
+                            "A EFD-Contribuicoes nao foi entregue. A apuracao de "
+                            "PIS/COFINS deste relatorio foi CALCULADA a partir da "
+                            "movimentacao do cliente - nao e leitura do bloco M, e nao "
+                            "substitui a conferencia contra a escrituracao transmitida.")
             else:
                 # sem SPED, a planilha vira a fonte dos testes de item: mesmo
                 # catalogo, origem diferente

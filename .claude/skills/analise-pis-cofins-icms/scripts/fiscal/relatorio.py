@@ -170,9 +170,67 @@ def montar_markdown(resultado):
                     brl(c["retencoes_nc"] + c["retencoes_cum"]),
                     brl(c["total_recolher"]),
                 ])
-            a(_tabela_md(["Tributo", "Nao cum. do periodo", "Creditos descontados",
-                          "Nao cum. devida", "Cumulativa do periodo", "Retencoes",
-                          "Total a recolher"], linhas))
+            if linhas:
+                a("**Apuracao conforme escriturada (bloco M)**")
+                a("")
+                a(_tabela_md(["Tributo", "Nao cum. do periodo", "Creditos descontados",
+                              "Nao cum. devida", "Cumulativa do periodo", "Retencoes",
+                              "Total a recolher"], linhas))
+
+            calc = bloco.get("apuracao_calculada")
+            if calc:
+                a("> Esta apuracao foi **calculada a partir da movimentacao**, e nao "
+                  "lida do bloco M: a EFD-Contribuicoes nao foi entregue.")
+                a("")
+                a("**Demonstrativo de calculo**")
+                a("")
+                esc_c = calc["cenario_escriturado"]
+                a(_tabela_md(["Item", "Valor (R$)"], [
+                    ["Receita bruta das saidas", brl(calc["receita_bruta"])],
+                    ["(-) ICMS excluido da base", "(%s)" % brl(calc["exclusao_aplicada"])],
+                    ["**= Base de calculo**", "**%s**" % brl(esc_c["base"])],
+                    ["PIS %s%%" % calc["aliquotas"]["pis"], brl(esc_c["pis"])],
+                    ["COFINS %s%%" % calc["aliquotas"]["cofins"], brl(esc_c["cofins"])],
+                    ["(-) Creditos de PIS (%d entrada(s))" % calc["creditos"]["qtd_entradas"],
+                     "(%s)" % brl(calc["creditos"]["pis"])],
+                    ["(-) Creditos de COFINS", "(%s)" % brl(calc["creditos"]["cofins"])],
+                    ["**PIS a recolher**", "**%s**" % brl(esc_c["pis_a_recolher"])],
+                    ["**COFINS a recolher**", "**%s**" % brl(esc_c["cofins_a_recolher"])],
+                    ["**Total a recolher**", "**%s**" % brl(esc_c["total_a_recolher"])],
+                ]))
+                if calc["por_cst"]:
+                    a("**Receita e base por CST**")
+                    a("")
+                    a(_tabela_md(["CST", "Descricao", "Docs", "Receita", "ICMS destacado",
+                                  "Base de calculo", "PIS", "COFINS"],
+                                 [[c["cst"], c["descricao"][:44], c["qtd"],
+                                   brl(c["receita"]), brl(c["icms"]), brl(c["base"]),
+                                   brl(c["pis"]), brl(c["cofins"])]
+                                  for c in calc["por_cst"]]))
+                if calc["residuo_de_icms_na_base"] > 0:
+                    alt = calc["cenario_icms_integral"]
+                    a("**Cenario alternativo: excluir todo o ICMS destacado**")
+                    a("")
+                    a("Foram excluidos da base R$ %s dos R$ %s de ICMS destacado, "
+                      "deixando **R$ %s** dentro da base (tipicamente o adicional de FCP)."
+                      % (brl(calc["exclusao_aplicada"]), brl(calc["icms_destacado"]),
+                         brl(calc["residuo_de_icms_na_base"])))
+                    a("")
+                    a(_tabela_md(["Cenario", "Base de calculo", "PIS", "COFINS",
+                                  "Total a recolher"],
+                                 [["Como escriturado", brl(esc_c["base"]), brl(esc_c["pis"]),
+                                   brl(esc_c["cofins"]), brl(esc_c["total_a_recolher"])],
+                                  ["Excluindo o ICMS destacado integral", brl(alt["base"]),
+                                   brl(alt["pis"]), brl(alt["cofins"]),
+                                   brl(alt["total_a_recolher"])],
+                                  ["**Diferenca**", "", "", "",
+                                   "**%s**" % brl(calc["diferenca_entre_cenarios"])]]))
+                div = calc["divergencia_calculo_x_destaque"]
+                if abs(div["pis"]) > Decimal("0.50") or abs(div["cofins"]) > Decimal("0.50"):
+                    a("ATENCAO: o calculo sobre a base informada difere do valor "
+                      "destacado nos documentos em R$ %s de PIS e R$ %s de COFINS."
+                      % (brl(div["pis"]), brl(div["cofins"])))
+                    a("")
 
             rec = bloco["recomposicao"]
             a("**Recomposicao pelos documentos escriturados**")

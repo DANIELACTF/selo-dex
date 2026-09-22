@@ -2,6 +2,7 @@
 """Normaliza registros SPED em LinhaFiscal, independente do registro de origem."""
 from __future__ import annotations
 
+
 from decimal import Decimal
 
 from .modelo import LinhaFiscal, COD_SIT_DESCONSIDERAR, ZERO
@@ -84,6 +85,11 @@ def extrair_linhas(esc, incluir_icms=True):
             vl_icms=r.dec("VL_ICMS"), bc_icms_st=r.dec("VL_BC_ICMS_ST"),
             vl_icms_st=r.dec("VL_ICMS_ST"),
         ))
+
+    # --- C100 sem C170: NF-e de emissao propria dispensa o detalhe por item ---
+    # Nesse caso o analitico C190 e a maior granularidade disponivel. Sem isso o
+    # arquivo pareceria vazio e o cruzamento acusaria tudo como nao escriturado.
+    linhas.extend(_linhas_de_documento_sem_item(esc))
 
     # --- C175: analitico de saida da EFD-Contribuicoes (quando nao ha C170) ---
     for r in esc.get("C175"):
@@ -173,6 +179,57 @@ def _pareia_creditos(esc, linhas, reg_pis, reg_cofins, rotulo):
             vl_cofins=c.dec("VL_COFINS") if c else ZERO,
         ))
     return linhas
+
+
+def _linhas_de_documento_sem_item(esc):
+    """Gera linhas a partir de C100/C190 quando o documento nao tem C170.
+
+    PIS e COFINS so existem no total do C100, entao sao rateados entre os C190 na
+    proporcao do valor da operacao. Com um unico C190 o rateio e exato; com varios
+    e aproximacao, e a origem da linha diz isso ("C100/C190").
+    """
+    saida = []
+    c190_por_doc = {}
+    for r in esc.get("C190"):
+        c190_por_doc.setdefault(r.get("_linha_c100"), []).append(r)
+
+    tem_item = set()
+    for reg in ("C170", "C175"):
+        for r in esc.get(reg):
+            tem_item.add(r.get("_linha_c100"))
+
+    for c100 in esc.get("C100"):
+        chave = c100.get("_linha")
+        if chave in tem_item or _doc_cancelado_c100(c100):
+            continue
+        analiticos = c190_por_doc.get(chave, [])
+        if not analiticos:
+            continue
+        total_opr = sum((a.dec("VL_OPR") for a in analiticos), ZERO) or ZERO
+        vl_pis, vl_cofins = c100.dec("VL_PIS"), c100.dec("VL_COFINS")
+        for a in analiticos:
+            proporcao = (a.dec("VL_OPR") / total_opr) if total_opr else ZERO
+            cfop = tabelas.normaliza_cfop(a.txt("CFOP"))
+            saida.append(LinhaFiscal(
+                origem="C100/C190", arquivo=esc.arquivo, linha=c100.get("_linha"),
+                **_estab(esc, c100),
+                tipo=_tipo_por_cfop_ou_oper(c100.txt("IND_OPER"), cfop),
+                doc=c100.txt("NUM_DOC"), serie=c100.txt("SER"),
+                chave=c100.txt("CHV_NFE"), data=c100.txt("DT_DOC"),
+                cod_part=c100.txt("COD_PART"), cfop=cfop,
+                descricao="Documento sem detalhe de item (C190)",
+                vl_item=a.dec("VL_OPR"), vl_desc=ZERO,
+                cst_icms=a.txt("CST_ICMS"), bc_icms=a.dec("VL_BC_ICMS"),
+                aliq_icms=a.dec("ALIQ_ICMS"), vl_icms=a.dec("VL_ICMS"),
+                bc_icms_st=a.dec("VL_BC_ICMS_ST"), vl_icms_st=a.dec("VL_ICMS_ST"),
+                vl_pis=(vl_pis * proporcao).quantize(Decimal("0.01")),
+                vl_cofins=(vl_cofins * proporcao).quantize(Decimal("0.01")),
+            ))
+    return saida
+
+
+def _doc_cancelado_c100(reg):
+    return reg.txt("COD_SIT") in COD_SIT_DESCONSIDERAR
 
 
 def _pareia_consolidados(esc, linhas, reg_pis, reg_cofins):

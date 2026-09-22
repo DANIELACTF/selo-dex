@@ -13,6 +13,7 @@ Recebe três insumos e devolve apuração + achados + considerações tributári
 |---|---|---|
 | EFD-Contribuições (PIS/COFINS) | `.txt` do SPED | para a análise de PIS/COFINS |
 | EFD ICMS/IPI (SPED Fiscal) | `.txt` do SPED | para a análise de ICMS e para o cruzamento físico |
+| | | (NF-e de emissão própria costuma vir sem C170: o agente usa o analítico C190 e rateia PIS/COFINS do C100 pelo valor da operação) |
 | Movimentação de produtos | `.xlsx`, `.xls` (binário antigo) ou `.csv` | para detectar omissão de receita e conferir a escrituração |
 
 Cada insumo é opcional isoladamente: o agente roda com o que receber e declara
@@ -119,6 +120,25 @@ mede**. Antes de apresentar:
 - **Trate tese como tese.** PC-08 (crédito sobre ICMS-ST) depende de status
   processual e de posição da RFB na data do trabalho. Nunca apresente como crédito
   líquido e certo.
+
+### 4b. Quando pedirem para CALCULAR a apuração de PIS/COFINS
+
+Sem a EFD-Contribuições não há bloco M para ler, mas a movimentação traz base,
+alíquota e CST por item — dá para calcular. O agente monta o demonstrativo
+(receita bruta → exclusão do ICMS → base → PIS e COFINS → créditos → a recolher)
+e o apresenta em dois cenários: a base como escriturada e a base excluindo o ICMS
+destacado integral, cuja diferença é o FCP em disputa.
+
+Três coisas a dizer junto, sempre:
+
+- **É cálculo sobre o movimento, não leitura da escrituração.** Só a EFD-Contribuições
+  confirma o que foi efetivamente declarado.
+- **Confirme o regime.** As alíquotas do movimento (1,65/7,6 ou 0,65/3,0) revelam o
+  que o sistema usou, não o regime correto. Estime a receita anualizada e confronte
+  com o limite do Lucro Presumido (Lei 9.718/1998 art. 14) antes de aceitar.
+- **Sem entradas escrituradas não há crédito, e o cálculo fica só do lado do débito.**
+  Diga isso com todas as letras: um resultado sem crédito superestima o tributo de
+  quem é não cumulativo.
 
 ### 5. Entregar
 

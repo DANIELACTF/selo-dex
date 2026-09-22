@@ -845,3 +845,107 @@ class TestPlanilhaSemSped(unittest.TestCase):
         with self.assertRaises(SystemExit):
             analisar.executar(
                 analisar.main.__globals__["argparse"].Namespace(sped=[], movimentacao=None))
+
+
+class TestApuracaoCalculada(unittest.TestCase):
+    """Calculo da apuracao de PIS/COFINS a partir do movimento, sem bloco M."""
+
+    def _linhas(self):
+        from fiscal.modelo import LinhaFiscal
+        # saida de 1.000,00 com ICMS de 220,00 (22%), base excluindo so 200,00 (20%)
+        saida = LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="1", cfop="5102",
+                            ncm="21069030", vl_item=Decimal("1000"), cst_pis="01",
+                            cst_cofins="01", bc_pis=Decimal("800"),
+                            aliq_pis=Decimal("1.65"), vl_pis=Decimal("13.20"),
+                            bc_cofins=Decimal("800"), aliq_cofins=Decimal("7.6"),
+                            vl_cofins=Decimal("60.80"), cst_icms="000",
+                            bc_icms=Decimal("1000"), vl_icms=Decimal("220"))
+        entrada = LinhaFiscal(origem="PLANILHA", tipo="ENTRADA", doc="2", cfop="1102",
+                              ncm="21069030", vl_item=Decimal("500"), cst_pis="50",
+                              cst_cofins="50", bc_pis=Decimal("500"),
+                              aliq_pis=Decimal("1.65"), vl_pis=Decimal("8.25"),
+                              bc_cofins=Decimal("500"), aliq_cofins=Decimal("7.6"),
+                              vl_cofins=Decimal("38.00"), nat_bc_cred="01")
+        return [saida, entrada]
+
+    def _ctx(self):
+        return {"competencia": "2026-08", "cnpj": "", "cod_inc_trib": "1",
+                "aliq_pis": Decimal("1.65"), "aliq_cofins": Decimal("7.6")}
+
+    def test_demonstrativo_fecha(self):
+        from fiscal.analise_pis_cofins import apurar
+        a = apurar(self._linhas(), self._ctx())
+        self.assertEqual(a["receita_bruta"], Decimal("1000.00"))
+        self.assertEqual(a["icms_destacado"], Decimal("220.00"))
+        self.assertEqual(a["exclusao_aplicada"], Decimal("200.00"))
+        self.assertEqual(a["residuo_de_icms_na_base"], Decimal("20.00"))
+        esc = a["cenario_escriturado"]
+        self.assertEqual(esc["base"], Decimal("800.00"))
+        self.assertEqual(esc["pis"], Decimal("13.20"))
+        self.assertEqual(esc["cofins"], Decimal("60.80"))
+        # creditos da entrada entram na conta
+        self.assertEqual(a["creditos"]["pis"], Decimal("8.25"))
+        self.assertEqual(esc["pis_a_recolher"], Decimal("4.95"))
+        self.assertEqual(esc["cofins_a_recolher"], Decimal("22.80"))
+        self.assertEqual(esc["total_a_recolher"], Decimal("27.75"))
+
+    def test_cenario_com_icms_integral(self):
+        from fiscal.analise_pis_cofins import apurar
+        a = apurar(self._linhas(), self._ctx())
+        alt = a["cenario_icms_integral"]
+        self.assertEqual(alt["base"], Decimal("780.00"))   # 1000 - 220
+        self.assertEqual(a["diferenca_entre_cenarios"],
+                         a["cenario_escriturado"]["total_a_recolher"]
+                         - alt["total_a_recolher"])
+        self.assertGreater(a["diferenca_entre_cenarios"], Decimal("0"))
+
+    def test_credito_nao_fica_negativo(self):
+        from fiscal.analise_pis_cofins import apurar
+        from fiscal.modelo import LinhaFiscal
+        entrada = LinhaFiscal(origem="PLANILHA", tipo="ENTRADA", doc="2", cfop="1102",
+                              vl_item=Decimal("10000"), cst_pis="50", cst_cofins="50",
+                              bc_pis=Decimal("10000"), vl_pis=Decimal("165"),
+                              bc_cofins=Decimal("10000"), vl_cofins=Decimal("760"))
+        a = apurar([self._linhas()[0], entrada], self._ctx())
+        self.assertEqual(a["cenario_escriturado"]["pis_a_recolher"], Decimal("0.00"))
+        self.assertEqual(a["cenario_escriturado"]["total_a_recolher"], Decimal("0.00"))
+
+    def test_divergencia_entre_calculo_e_destaque(self):
+        from fiscal.analise_pis_cofins import apurar
+        linhas = self._linhas()
+        linhas[0].vl_pis = Decimal("99.00")     # destaque incompativel com a base
+        a = apurar(linhas, self._ctx())
+        self.assertEqual(a["divergencia_calculo_x_destaque"]["pis"],
+                         Decimal("13.20") - Decimal("99.00"))
+
+    def test_documento_sem_item_vira_linha_pelo_c190(self):
+        # C100 sem C170: o analitico C190 passa a ser a fonte, com PIS/COFINS
+        # rateados pelo valor da operacao
+        _garantir_amostras()
+        conteudo = "\n".join([
+            "|0000|020|0|01082026|31082026|TESTE LTDA|11222333000181||RJ|123|3305505|||A|0|",
+            "|C001|0|",
+            "|C100|1|0|CLI1|55|00|001|1||10082026|10082026|1000,00|1|0,00|0,00|1000,00|"
+            "3|0,00|0,00|0,00|1000,00|220,00|0,00|0,00|0,00|13,20|60,80|0,00|0,00|",
+            "|C190|000|5102|22,00|1000,00|1000,00|220,00|0,00|0,00|0,00|0,00||",
+            "|C990|4|",
+            "|9999|6|",
+        ])
+        destino = tempfile.mkdtemp()
+        try:
+            caminho = os.path.join(destino, "sped.txt")
+            with open(caminho, "w", encoding="latin-1") as fh:
+                fh.write(conteudo + "\n")
+            esc = parser.parse(caminho)
+            linhas = extrair_linhas(esc)
+            self.assertEqual(len(linhas), 1)
+            l = linhas[0]
+            self.assertEqual(l.origem, "C100/C190")
+            self.assertEqual(l.tipo, "SAIDA")
+            self.assertEqual(l.cfop, "5102")
+            self.assertEqual(l.vl_item, Decimal("1000.00"))
+            self.assertEqual(l.vl_icms, Decimal("220.00"))
+            self.assertEqual(l.vl_pis, Decimal("13.20"))
+            self.assertEqual(l.vl_cofins, Decimal("60.80"))
+        finally:
+            shutil.rmtree(destino)
