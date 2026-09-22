@@ -212,6 +212,53 @@ def ler(grade):
     return registros, diagnostico
 
 
+def para_linhas_fiscais(registros, estabelecimentos=None):
+    """Converte os registros da planilha em LinhaFiscal.
+
+    Permite aplicar a MESMA bateria de testes de item usada sobre o SPED quando so
+    a planilha chegou. Manter um catalogo unico de testes evita que a analise mude
+    de rigor conforme a origem do dado.
+    """
+    from .modelo import LinhaFiscal
+    estabelecimentos = estabelecimentos or {}
+    linhas = []
+    for r in registros:
+        dados = estabelecimentos.get(str(r.filial).strip(), {})
+        if r.secao == "ENTRADA":
+            tipo = "ENTRADA"
+        elif r.secao in ("SAIDA", "SERVICO"):
+            tipo = "SAIDA"
+        else:
+            tipo = "INDEFINIDO"
+        linhas.append(LinhaFiscal(
+            origem="PLANILHA", arquivo=r.secao, linha=r.linha, tipo=tipo,
+            doc=r.documento, data=r.data, cfop=r.cfop, cod_item=r.codigo,
+            ncm=r.ncm, descricao=r.descricao, qtd=r.quantidade,
+            vl_item=r.valor, vl_desc=ZERO,
+            estabelecimento=r.filial,
+            cnpj_estabelecimento=r.cnpj_estabelecimento or dados.get("cnpj", ""),
+            uf_estabelecimento=r.uf_estabelecimento or dados.get("uf", ""),
+            cst_pis=r.pis_cst, bc_pis=r.pis_base, vl_pis=r.pis_valor,
+            aliq_pis=_aliquota(r.pis_valor, r.pis_base),
+            cst_cofins=r.cofins_cst, bc_cofins=r.cofins_base, vl_cofins=r.cofins_valor,
+            aliq_cofins=_aliquota(r.cofins_valor, r.cofins_base),
+            cst_icms=r.icms_cst, bc_icms=r.icms_base, vl_icms=r.icms_valor,
+            aliq_icms=_aliquota(r.icms_valor, r.icms_base),
+            vl_icms_st=r.icms_st_valor,
+        ))
+    return linhas
+
+
+def _aliquota(valor, base):
+    """Aliquota efetiva a partir de valor e base, quando a planilha nao a traz."""
+    if not base:
+        return ZERO
+    try:
+        return (valor / base * Decimal("100")).quantize(Decimal("0.0001"))
+    except (ZeroDivisionError, ArithmeticError):
+        return ZERO
+
+
 def cruzar(registros, linhas_sped, ctx=None, estabelecimentos=None):
     """Confronta a planilha analitica com as linhas extraidas do SPED."""
     ctx = ctx or {}

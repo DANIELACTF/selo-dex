@@ -18,6 +18,12 @@ Recebe três insumos e devolve apuração + achados + considerações tributári
 Cada insumo é opcional isoladamente: o agente roda com o que receber e declara
 explicitamente o que **não** pôde ser testado.
 
+**Recibo de entrega não é escrituração.** O PDF do recibo traz só o resumo da
+apuração (débitos, créditos, imposto a recolher) e o hash. Serve para conferir se
+os totais do que você analisou batem com o que foi transmitido — e essa conferência
+vale muito —, mas não substitui o `.txt`: sem ele não há item, CST, NCM nem crédito.
+Ao receber um recibo, diga isso e peça o arquivo.
+
 ## Procedimento
 
 ### 1. Receber e conferir os arquivos
@@ -49,7 +55,14 @@ Sem dependências externas — Python 3.8+ puro. Opções úteis:
 
 - `--aba "Nome"` quando a planilha tem várias abas;
 - `--tabela-ncm-extra meu.csv` para complementar a tabela de NCM com os produtos do cliente;
-- `--prefixo <nome>` para nomear os entregáveis.
+- `--prefixo <nome>` para nomear os entregáveis;
+- `--empresa`, `--cnpj` e `--uf` quando **não** houver arquivo SPED: sem o registro
+  0000 o entregável sairia sem dono, e a UF é usada nos testes de alíquota.
+
+`--sped` é opcional. Só com a planilha, o agente roda a mesma bateria de testes de
+item sobre as linhas dela (a planilha vira a fonte), e o relatório abre com a
+ressalva de que a escrituração não foi vista. Ficam de fora: apuração, bloco M,
+bloco E, créditos e todo o cruzamento.
 
 ### 2b. Saber qual dos dois formatos de planilha chegou
 
@@ -90,6 +103,9 @@ mede**. Antes de apresentar:
   (saída física maior que a escriturada) pode ser quebra, perda, consumo interno,
   brinde, amostra, remessa não considerada ou erro de unidade de medida. Pergunte
   antes de chamar de venda sem nota.
+- **PC-07 e PC-17 são coisas diferentes.** PC-07 é base cheia, ICMS não excluído.
+  PC-17 é exclusão parcial — quase sempre o FCP, que compõe o ICMS destacado e ficou
+  na base. Um resíduo de 1% a 4% do valor da operação é a assinatura do FCP.
 - **Verifique se PC-07 já foi resolvido** por ajuste de redução de base no
   M210/M610: muita empresa exclui o ICMS de forma consolidada, e não item a item.
   O script rebaixa a severidade quando detecta o ajuste, mas a conferência é sua.
@@ -130,7 +146,8 @@ PC-04 alíquota fora do regime · PC-05 valor ≠ base × alíquota · PC-06 CST
 CST de COFINS · PC-07 ICMS na base · PC-08 ICMS-ST fora da base do crédito ·
 PC-09 aquisição sem crédito no não cumulativo · PC-10 frete sem crédito ·
 PC-11 devolução de venda sem crédito · PC-12 CST desonerado com valor destacado ·
-PC-13 CST ausente/inválido · **PC-14 crédito sobre insumo desonerado empregado em
+PC-13 CST ausente/inválido · **PC-17 parcela do ICMS destacado mantida na base
+(tipicamente o FCP)** · **PC-14 crédito sobre insumo desonerado empregado em
 produto tributado** · **PC-15 crédito sobre combustível monofásico consumido como
 insumo** · **PC-16 receita de ente público sem retenção na fonte aproveitada** ·
 PC-20 bloco M ≠ documentos · PC-21 inconsistência aritmética no M200/M600 ·

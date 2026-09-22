@@ -16,6 +16,13 @@ ALIQ_INTERESTADUAL_IMPORTADO = Decimal("4")
 ALIQ_INTERESTADUAL_GERAL = Decimal("12")
 ALIQ_INTERESTADUAL_REDUZIDA = Decimal("7")   # S/SE (exceto ES) -> N/NE/CO/ES
 UF_SUL_SUDESTE = {"RS", "SC", "PR", "SP", "RJ", "MG"}
+# Referencia para dimensionar exposicao, nao para apurar: a aliquota interna
+# efetiva depende do produto e dos adicionais de cada Estado.
+ALIQUOTA_INTERNA_REFERENCIA = {
+    "RJ": Decimal("20"), "SP": Decimal("18"), "MG": Decimal("18"),
+    "ES": Decimal("17"), "RS": Decimal("17"), "SC": Decimal("17"),
+    "PR": Decimal("19"), "BA": Decimal("20.5"), "DF": Decimal("20"),
+}
 ORIGENS_IMPORTADAS = {"1", "2", "3", "8"}
 
 
@@ -339,7 +346,82 @@ def testes(esc, linhas, apuracao, recomposicao, ctx):
                         "E116 total %s x E110 a recolher %s" % (_q(total_e116), _q(devido)))
     achados.append(i)
 
+    # IC-10 - saidas com CST 60, agrupadas por NCM, para conferencia do enquadramento
+    j = _ach("IC-10", "Saidas com CST 60 a confirmar no protocolo de ST", SEV_BAIXA,
+             "Relacao dos NCM vendidos como contribuinte substituido (CST de tributacao "
+             "60), em que nao ha debito de ICMS proprio. O enquadramento em substituicao "
+             "tributaria vale apenas para os produtos listados no Convenio ou Protocolo "
+             "aplicavel ao Estado; fora da lista, a operacao e tributada normalmente e a "
+             "falta de debito vira ICMS nao recolhido.",
+             "Convenio ICMS 142/2018 e os Protocolos por segmento; "
+             "legislacao interna do Estado de destino",
+             "Conferir cada NCM na lista de ST vigente na competencia. O valor ao lado e "
+             "o ICMS que seria devido se o produto NAO estivesse em ST - serve para "
+             "priorizar a conferencia, nao como apuracao.",
+             "AVALIAR", ctx)
+    por_ncm = {}
+    for l in linhas:
+        if not l.eh_saida or tabelas.tributacao_icms(l.cst_icms) != "60":
+            continue
+        d = por_ncm.setdefault(l.ncm or "(sem NCM)", {
+            "valor": ZERO, "qtd": 0, "linha": l, "descricoes": set()})
+        d["valor"] += l.vl_item - l.vl_desc
+        d["qtd"] += 1
+        if l.descricao:
+            d["descricoes"].add(l.descricao[:28])
+    for ncm_codigo, dados in sorted(por_ncm.items(), key=lambda x: -x[1]["valor"]):
+        # referencia de exposicao: aliquota interna do Estado, quando conhecida
+        aliquota = ALIQUOTA_INTERNA_REFERENCIA.get(uf, Decimal("18"))
+        j.adicionar(dados["linha"], _q(dados["valor"] * aliquota / Decimal("100")),
+                    "NCM %s - %d item(ns), R$ %s em saidas sem debito proprio (%s)" %
+                    (ncm_codigo, dados["qtd"], _q(dados["valor"]),
+                     ", ".join(sorted(dados["descricoes"])[:2])))
+    achados.append(j)
+
     return achados
+
+
+def analisar_linhas(linhas, ctx_base=None):
+    """Testes de item de ICMS sem a escrituracao (planilha do cliente como fonte)."""
+    ctx_base = ctx_base or {}
+    ctx = {"competencia": ctx_base.get("competencia", ""),
+           "cnpj": ctx_base.get("cnpj", ""), "uf": ctx_base.get("uf", "")}
+    apuracao = {"apuracao": None, "ajustes": [], "obrigacoes_a_recolher": [],
+                "substituicao_tributaria": [], "difal_fcp": [], "ciap": [],
+                "inventario": {"data": "", "valor": ZERO, "motivo": "", "qtd_itens": 0}}
+    recomposicao = {"debitos": ZERO, "creditos": ZERO, "debito_st": ZERO,
+                    "por_cfop": {}, "por_cst": {}}
+    for l in linhas:
+        trib = tabelas.tributacao_icms(l.cst_icms)
+        cfop = l.cfop
+        d = recomposicao["por_cfop"].setdefault(cfop, {
+            "cfop": cfop, "natureza": tabelas.classifica_cfop(cfop),
+            "sentido": "SAIDA" if l.eh_saida else "ENTRADA", "qtd": 0,
+            "valor_operacao": ZERO, "base_calculo": ZERO, "icms": ZERO, "icms_st": ZERO})
+        d["qtd"] += 1
+        d["valor_operacao"] += l.vl_item - l.vl_desc
+        d["base_calculo"] += l.bc_icms
+        d["icms"] += l.vl_icms
+        d["icms_st"] += l.vl_icms_st
+        c = recomposicao["por_cst"].setdefault(trib, {
+            "cst": trib, "descricao": tabelas.TRIBUTACAO_ICMS.get(trib, ""),
+            "qtd": 0, "valor_operacao": ZERO, "icms": ZERO})
+        c["qtd"] += 1
+        c["valor_operacao"] += l.vl_item - l.vl_desc
+        c["icms"] += l.vl_icms
+        if l.eh_saida:
+            recomposicao["debitos"] += l.vl_icms
+        elif l.eh_entrada:
+            recomposicao["creditos"] += l.vl_icms
+    achados = testes(None, linhas, apuracao, recomposicao, ctx)
+    return {
+        "identificacao": {"competencia": ctx["competencia"], "cnpj": ctx["cnpj"],
+                          "arquivo": "planilha do cliente", "tipo": "PLANILHA"},
+        "apuracao_escriturada": apuracao,
+        "recomposicao": recomposicao,
+        "achados": achados,
+        "qtd_linhas": len(linhas),
+    }
 
 
 def analisar(esc, linhas=None):

@@ -64,6 +64,28 @@ def coletar_arquivos(caminhos):
     return arquivos
 
 
+def _identificacao_da_planilha(grade):
+    """Le empresa e competencia do cabecalho do relatorio de movimentacao.
+
+    Sem arquivo SPED nao ha registro 0000, e o entregavel sairia sem dono. O
+    cabecalho do relatorio costuma trazer 'Empresa: <cod> - <nome>' e o periodo.
+    """
+    import re
+    nome, competencia = "", ""
+    for linha in grade[:8]:
+        for celula in linha:
+            texto = str(celula)
+            if not nome:
+                achado = re.search(r"Empresa\s*:\s*(?:\d+\s*-\s*)?(.+)", texto)
+                if achado:
+                    nome = achado.group(1).strip()
+            if not competencia:
+                achado = re.search(r"(\d{2})/(\d{2})/(\d{4})", texto)
+                if achado:
+                    competencia = "%s-%s" % (achado.group(3), achado.group(2))
+    return nome, competencia
+
+
 def _json_pronto(obj):
     if isinstance(obj, Decimal):
         return str(obj)
@@ -79,9 +101,22 @@ def _json_pronto(obj):
 
 
 def executar(args):
-    arquivos = coletar_arquivos(args.sped)
+    # chamadores programaticos (testes, outras skills) nao precisam conhecer cada
+    # flag nova: o que faltar assume o padrao
+    for campo, padrao in (("empresa", ""), ("cnpj", ""), ("uf", ""), ("aba", None),
+                          ("prefixo", "analise"), ("json", False),
+                          ("tabela_ncm", None), ("tabela_ncm_extra", None),
+                          ("movimentacao", None), ("sped", [])):
+        if not hasattr(args, campo):
+            setattr(args, campo, padrao)
+    arquivos = coletar_arquivos(args.sped) if args.sped else []
+    if not arquivos and not args.movimentacao:
+        raise SystemExit(
+            "Nada a analisar: informe --sped (arquivos da escrituracao) e/ou "
+            "--movimentacao (planilha de movimentacao de produtos).")
     if not arquivos:
-        raise SystemExit("Nenhum arquivo SPED encontrado em: %s" % ", ".join(args.sped))
+        print("Nenhum arquivo SPED informado: a planilha sera analisada sozinha, "
+              "com os testes de item. Apuracao e cruzamento ficam de fora.")
 
     tabela = ncm.carregar(args.tabela_ncm) if args.tabela_ncm else ncm.carregar()
     if args.tabela_ncm_extra:
@@ -154,13 +189,37 @@ def executar(args):
                 for cnpj, dados in esc.estabelecimentos.items():
                     if dados.get("cod_est"):
                         mapa_est[dados["cod_est"]] = {"cnpj": cnpj, "uf": dados.get("uf", "")}
-            cruz = movimentacao_analitica.cruzar(registros, todas_as_linhas, ctx, mapa_est)
             diagnostico.update({"arquivo": os.path.basename(args.movimentacao),
                                 "aba": nome_aba, "formato": "analitica por documento"})
-            resultado["cruzamento"] = {"resumo": diagnostico,
-                                       "comparativo": [],
-                                       "totais": cruz["resumo"]}
-            resultado["achados"].extend(cruz["achados"])
+            if arquivos:
+                cruz = movimentacao_analitica.cruzar(registros, todas_as_linhas, ctx,
+                                                     mapa_est)
+                resultado["cruzamento"] = {"resumo": diagnostico, "comparativo": [],
+                                           "totais": cruz["resumo"]}
+                resultado["achados"].extend(cruz["achados"])
+            else:
+                # sem SPED, a planilha vira a fonte dos testes de item: mesmo
+                # catalogo, origem diferente
+                linhas_planilha = movimentacao_analitica.para_linhas_fiscais(
+                    registros, mapa_est)
+                bloco = analise_pis_cofins.analisar_linhas(linhas_planilha, tabela, ctx)
+                resultado["pis_cofins"].append(bloco)
+                resultado["achados"].extend(bloco["achados"])
+                ctx["uf"] = args.uf
+                bloco_icms = analise_icms.analisar_linhas(linhas_planilha, ctx)
+                resultado["icms"].append(bloco_icms)
+                resultado["achados"].extend(bloco_icms["achados"])
+                diagnostico["origem_dos_testes"] = (
+                    "planilha do cliente (nenhum arquivo SPED foi entregue)")
+                resultado["cruzamento"] = {"resumo": diagnostico, "comparativo": []}
+                for l in linhas_planilha:
+                    if l.cnpj_estabelecimento:
+                        cnpjs.append(l.cnpj_estabelecimento)
+                resultado["ressalvas"].insert(0,
+                    "ATENCAO: nenhum arquivo SPED foi entregue. Os testes rodaram sobre "
+                    "a planilha do cliente, que nao e a escrituracao. Nao foi possivel "
+                    "recompor a apuracao, conferir o bloco M ou o bloco E, verificar "
+                    "creditos, nem confrontar a planilha com o que foi transmitido.")
         else:
             mov = ler_movimentacao(args.movimentacao, args.aba)
             cruz = cruzamento.cruzar(mov, linhas_por_item, inventario, ctx)
@@ -180,10 +239,16 @@ def executar(args):
             "documentos fiscais nao foi executado, entao omissao de receita por saida sem "
             "nota nao foi testada.")
 
+    if not arquivos and resultado.get("cruzamento"):
+        nome_planilha, competencia_planilha = _identificacao_da_planilha(grade)
+        if nome_planilha:
+            nomes.append(nome_planilha)
+        if competencia_planilha:
+            competencias.append(competencia_planilha)
     resultado["identificacao"] = {
-        "nome": next((n for n in nomes if n), ""),
-        "cnpj": next((c for c in cnpjs if c), ""),
-        "uf": next((u for u in ufs if u), ""),
+        "nome": args.empresa or next((n for n in nomes if n), ""),
+        "cnpj": args.cnpj or next((c for c in cnpjs if c), ""),
+        "uf": args.uf or next((u for u in ufs if u), ""),
         "competencias": sorted(set(c for c in competencias if c)),
         "arquivos": [os.path.basename(a) for a in arquivos],
         "movimentacao": os.path.basename(args.movimentacao) if args.movimentacao else "",
@@ -230,14 +295,23 @@ def executar(args):
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="Apuracao e auditoria de PIS/COFINS e ICMS a partir do SPED.")
-    ap.add_argument("--sped", nargs="+", required=True,
-                    help="arquivos SPED ou diretorios com eles (EFD ICMS/IPI e/ou EFD-Contribuicoes)")
+    ap.add_argument("--sped", nargs="+", default=[],
+                    help="arquivos SPED ou diretorios com eles (EFD ICMS/IPI e/ou "
+                         "EFD-Contribuicoes). Opcional: sem ele, a planilha de "
+                         "movimentacao e analisada sozinha")
     ap.add_argument("--movimentacao", help="planilha de movimentacao de produtos (.xlsx ou .csv)")
     ap.add_argument("--aba", help="nome da aba da planilha (padrao: a primeira)")
     ap.add_argument("--saida", default="./resultado", help="diretorio de saida")
     ap.add_argument("--prefixo", default="analise", help="prefixo dos arquivos gerados")
     ap.add_argument("--tabela-ncm", help="CSV de regimes por NCM substituindo o padrao")
     ap.add_argument("--tabela-ncm-extra", help="CSV adicional que complementa/sobrepoe o padrao")
+    ap.add_argument("--empresa", default="",
+                    help="razao social, quando nao ha arquivo SPED para informa-la")
+    ap.add_argument("--cnpj", default="",
+                    help="CNPJ do estabelecimento, quando nao ha arquivo SPED")
+    ap.add_argument("--uf", default="",
+                    help="UF do estabelecimento, quando nao ha arquivo SPED "
+                         "(usada nos testes de aliquota interestadual e de ST)")
     ap.add_argument("--json", action="store_true", help="grava tambem o resultado em JSON")
     args = ap.parse_args(argv)
     executar(args)

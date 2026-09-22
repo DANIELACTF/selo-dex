@@ -337,6 +337,21 @@ def testes_por_item(linhas, tabela, ctx):
                 "Corrigir a escrituracao: ou o CST esta errado, ou o valor foi destacado a maior.",
                 "RECUPERAR", ctx)
 
+    a17 = _novo("PC-17", "Parcela do ICMS destacado mantida na base de PIS/COFINS",
+                SEV_MEDIA,
+                "Itens de saida em que a base de PIS/COFINS e menor que o valor da "
+                "operacao - ou seja, houve exclusao do ICMS - mas a exclusao ficou "
+                "aquem do ICMS destacado. O residuo costuma ser o adicional de FCP "
+                "(Fundo de Combate a Pobreza), que e parte do ICMS destacado e vem "
+                "sendo mantido na base.",
+                "STF RE 574.706 (Tema 69) manda excluir o ICMS destacado na nota; "
+                "o adicional de FCP compoe o ICMS destacado (CF/1988 art. 82 do ADCT). "
+                "Conferir a posicao adotada e a jurisprudencia aplicavel ao Estado.",
+                "Quantificar o residuo por competencia e decidir com o cliente se o FCP "
+                "entra na exclusao. Havendo decisao pela exclusao, retificar a EFD e "
+                "avaliar PER/DCOMP dentro do prazo de 5 anos.",
+                "RECUPERAR", ctx)
+
     a13 = _novo("PC-13", "CST ausente ou invalido", SEV_MEDIA,
                 "Itens sem CST de PIS/COFINS ou com codigo fora das tabelas oficiais.",
                 "Tabelas I e II do ADE Cofis",
@@ -397,12 +412,23 @@ def testes_por_item(linhas, tabela, ctx):
                         tabelas.ALIQ_PIS_CUMULATIVO, tabelas.ALIQ_PIS_NAO_CUMULATIVO):
                     a4.adicionar(l, ZERO, "PIS: aliquota %s%% fora de 0,65%% e 1,65%%" % l.aliq_pis)
 
-            # PC-07 ICMS na base
+            # PC-07 / PC-17 - ICMS na base de calculo.
+            # PC-07: nada foi excluido. PC-17: excluiu-se menos que o destacado,
+            # o que quase sempre significa FCP mantido na base. Sao disjuntos.
             if tributado and l.vl_icms > TOL_ITEM and l.bc_pis > 0:
                 if abs(l.bc_pis - valor_liquido) <= TOL_ITEM:
                     a7.adicionar(l, _q(l.vl_icms * soma_aliq),
                                  "BC %s = valor da operacao, com ICMS de %s destacado" %
                                  (_q(l.bc_pis), _q(l.vl_icms)))
+                else:
+                    residuo = l.bc_pis - (valor_liquido - l.vl_icms)
+                    if residuo > TOL_ITEM:
+                        pct = (residuo / valor_liquido * Decimal("100")) if valor_liquido else ZERO
+                        a17.adicionar(l, _q(residuo * soma_aliq),
+                                      "ICMS destacado %s, excluido da base apenas %s; "
+                                      "residuo de %s (%.2f%% do valor)" %
+                                      (_q(l.vl_icms), _q(valor_liquido - l.bc_pis),
+                                       _q(residuo), pct))
 
         elif l.eh_entrada:
             com_credito = cst_p in tabelas.CST_COM_CREDITO or cst_c in tabelas.CST_COM_CREDITO
@@ -449,7 +475,7 @@ def testes_por_item(linhas, tabela, ctx):
                 a11.adicionar(l, _q(valor_liquido * soma_aliq),
                               "CFOP %s sem credito" % l.cfop)
 
-    return [a1, a2, a14, a15, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13]
+    return [a1, a2, a14, a15, a3, a4, a5, a6, a7, a17, a8, a9, a10, a11, a12, a13]
 
 
 def testes_de_base_x_aliquota(linhas, ctx, achado):
@@ -626,6 +652,46 @@ class _Ref(object):
 # ---------------------------------------------------------------------------
 # Orquestracao
 # ---------------------------------------------------------------------------
+def analisar_linhas(linhas, tabela=None, ctx_base=None):
+    """Roda so os testes de item, sem escrituracao por tras.
+
+    Serve quando a planilha do cliente chegou e o arquivo SPED nao: a bateria de
+    item e a mesma, o que muda e a fonte e o que deixa de ser testado (apuracao,
+    bloco M, creditos).
+    """
+    tabela = tabela or mod_ncm.carregar()
+    ctx_base = ctx_base or {}
+    cod_inc = ctx_base.get("cod_inc_trib") or "1"
+    aliq_pis, aliq_cofins = aliquotas_do_regime(cod_inc)
+    ctx = {
+        "competencia": ctx_base.get("competencia", ""),
+        "cnpj": ctx_base.get("cnpj", ""),
+        "cod_inc_trib": cod_inc,
+        "aliq_pis": aliq_pis,
+        "aliq_cofins": aliq_cofins,
+    }
+    achados = testes_por_item(linhas, tabela, ctx)
+    pc05 = next(a for a in achados if a.codigo == "PC-05")
+    testes_de_base_x_aliquota(linhas, ctx, pc05)
+    vazio = {"consolidacao": None, "detalhe_debito": [], "creditos": [],
+             "bases_credito": [], "receitas_nao_tributadas": []}
+    return {
+        "identificacao": {"competencia": ctx["competencia"], "cnpj": ctx["cnpj"],
+                          "arquivo": "planilha do cliente", "tipo": "PLANILHA"},
+        "regime": {
+            "cod_inc_trib": cod_inc,
+            "descricao": "regime presumido a partir das aliquotas da planilha "
+                         "(nao ha registro 0110 sem o arquivo SPED)",
+            "aliquota_pis": aliq_pis, "aliquota_cofins": aliq_cofins,
+        },
+        "apuracao_escriturada": {"pis": dict(vazio), "cofins": dict(vazio)},
+        "recomposicao": recompor(linhas),
+        "achados": achados,
+        "qtd_linhas": len(linhas),
+        "ajuste_reducao_bc_bloco_m": ZERO,
+    }
+
+
 def analisar(esc, tabela=None, linhas=None):
     tabela = tabela or mod_ncm.carregar()
     linhas = linhas if linhas is not None else extrair_linhas(esc)

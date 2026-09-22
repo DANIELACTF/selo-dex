@@ -738,3 +738,110 @@ class TestIdentificacaoDoEstabelecimento(unittest.TestCase):
                 self.assertIn(l[tipo], ("MATRIZ", "FILIAL"))
         finally:
             shutil.rmtree(destino)
+
+
+class TestPlanilhaSemSped(unittest.TestCase):
+    """Quando so a planilha do cliente chega, a bateria de item ainda roda."""
+
+    GRADE = [
+        ["Movimentacao de Produtos - de: 01/08/2026 ate 31/08/2026"],
+        ["Empresa: 1091 - EXEMPLO DISTRIBUIDORA LTDA"],
+        ["Saidas"],
+        ["", "", "", "", "", "", "", "", "", "",
+         "ICMS", "", "", "", "PIS", "", "", "", "COFINS", "", "", ""],
+        ["Codigo", "Numero", "Data", "Produto", "CFOP", "NCM", "Qtde",
+         "R$ Unit.", "R$ Produto", "",
+         "R$ Base", "Aliq.", "R$ ICMS", "CST",
+         "R$ Base", "Aliq.", "R$ PIS", "CST",
+         "R$ Base", "Aliq.", "R$ COFINS", "CST"],
+        # ICMS de 22% (20% + 2% de FCP) com exclusao de apenas 20% da base
+        ["1", "1", "31/08/2026", "P1 - EXTRATO", "5102", "21069030", "100",
+         "10,00", "1000,00", "",
+         "1000,00", "22", "220,00", "000",
+         "800,00", "1,65", "13,20", "01",
+         "800,00", "7,60", "60,80", "01"],
+        # CST 60: sem debito proprio
+        ["2", "2", "31/08/2026", "P2 - FILME", "5405", "39201099", "50",
+         "10,00", "500,00", "",
+         "0,00", "0", "0,00", "060",
+         "500,00", "1,65", "8,25", "01",
+         "500,00", "7,60", "38,00", "01"],
+    ]
+
+    def _linhas(self):
+        from fiscal import movimentacao_analitica as ma
+        registros, _ = ma.ler(self.GRADE)
+        return ma.para_linhas_fiscais(registros)
+
+    def test_converte_registros_em_linhas_fiscais(self):
+        linhas = self._linhas()
+        self.assertEqual(len(linhas), 2)
+        l = linhas[0]
+        self.assertEqual(l.tipo, "SAIDA")
+        self.assertEqual(l.ncm, "21069030")
+        self.assertEqual(l.vl_icms, Decimal("220.00"))
+        self.assertEqual(l.bc_pis, Decimal("800.00"))
+        self.assertEqual(l.aliq_pis.quantize(Decimal("0.01")), Decimal("1.65"))
+
+    def test_pc17_detecta_fcp_mantido_na_base(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        r = analisar_linhas(self._linhas(), ncm.carregar(),
+                            {"competencia": "2026-08", "cnpj": ""})
+        por = {a.codigo: a for a in r["achados"]}
+        self.assertTrue(por["PC-17"].relevante)
+        # residuo de 20,00 (o FCP) x 9,25% = 1,85
+        self.assertEqual(por["PC-17"].valor.quantize(Decimal("0.01")), Decimal("1.85"))
+        self.assertFalse(por["PC-07"].relevante,
+                         "PC-07 e PC-17 sao disjuntos: houve exclusao parcial, nao nula")
+
+    def test_pc07_e_pc17_nao_disparam_juntos(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        from fiscal.modelo import LinhaFiscal
+        # base igual ao valor da operacao: nada excluido -> so PC-07
+        linha = LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="1", cfop="5102",
+                            ncm="21069030", vl_item=Decimal("1000"),
+                            cst_pis="01", cst_cofins="01",
+                            bc_pis=Decimal("1000"), aliq_pis=Decimal("1.65"),
+                            vl_pis=Decimal("16.50"), bc_cofins=Decimal("1000"),
+                            aliq_cofins=Decimal("7.6"), vl_cofins=Decimal("76.00"),
+                            cst_icms="000", bc_icms=Decimal("1000"),
+                            vl_icms=Decimal("200"))
+        por = {a.codigo: a for a in analisar_linhas([linha], ncm.carregar())["achados"]}
+        self.assertTrue(por["PC-07"].relevante)
+        self.assertFalse(por["PC-17"].relevante)
+
+    def test_ic10_lista_os_ncm_em_st(self):
+        from fiscal.analise_icms import analisar_linhas
+        r = analisar_linhas(self._linhas(), {"competencia": "2026-08", "uf": "RJ"})
+        por = {a.codigo: a for a in r["achados"]}
+        self.assertTrue(por["IC-10"].relevante)
+        self.assertEqual(por["IC-10"].sentido, "AVALIAR")
+        # 500,00 a 20% (referencia RJ)
+        self.assertEqual(por["IC-10"].valor.quantize(Decimal("0.01")), Decimal("100.00"))
+        self.assertIn("39201099", por["IC-10"].amostras[0]["obs"])
+
+    def test_cli_roda_sem_sped(self):
+        import analisar
+        from fiscal import xlsx_validador
+        destino = tempfile.mkdtemp()
+        origem = os.path.join(destino, "mov.xlsx")
+        try:
+            xlsx.escrever(origem, [("Mov", [], self.GRADE)])
+            args = analisar.main.__globals__["argparse"].Namespace(
+                sped=[], movimentacao=origem, saida=destino, prefixo="p")
+            resultado = analisar.executar(args)
+            self.assertEqual(resultado["identificacao"]["nome"],
+                             "EXEMPLO DISTRIBUIDORA LTDA")
+            self.assertEqual(resultado["identificacao"]["competencias"], ["2026-08"])
+            self.assertTrue(any("nenhum arquivo sped" in r.lower()
+                                for r in resultado["ressalvas"]),
+                            "faltou a ressalva de que nao houve escrituracao")
+            self.assertEqual(xlsx_validador.validar(os.path.join(destino, "p.xlsx")), [])
+        finally:
+            shutil.rmtree(destino)
+
+    def test_cli_recusa_execucao_sem_nenhum_insumo(self):
+        import analisar
+        with self.assertRaises(SystemExit):
+            analisar.executar(
+                analisar.main.__globals__["argparse"].Namespace(sped=[], movimentacao=None))
