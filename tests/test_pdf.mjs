@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 /** Contexto com dublês do Drive/UrlFetch, para exercitar a conversão. */
-function contexto(resposta, textoDoDoc) {
+function contexto(resposta, textoDoDoc, respostaExport) {
   const chamadas = [];
   const lixeira = [];
   const ctx = {
@@ -12,6 +12,11 @@ function contexto(resposta, textoDoDoc) {
     UrlFetchApp: {
       fetch(url, opcoes) {
         chamadas.push({ url, opcoes });
+        // A exportação do texto é outra chamada, com outra resposta.
+        if (/\/export\?/.test(url)) {
+          const r = respostaExport || { codigo: 200, corpo: textoDoDoc };
+          return { getResponseCode: () => r.codigo, getContentText: () => r.corpo };
+        }
         return {
           getResponseCode: () => resposta.codigo,
           getContentText: () => resposta.corpo
@@ -24,7 +29,6 @@ function contexto(resposta, textoDoDoc) {
       newBlob: (x) => ({ getBytes: () => (typeof x === 'string' ? [...x].map((c) => c.charCodeAt(0)) : x) })
     },
     ScriptApp: { getOAuthToken: () => 'token-de-teste' },
-    DocumentApp: { openById: () => ({ getBody: () => ({ getText: () => textoDoDoc }) }) },
     DriveApp: { getFileById: (id) => ({ setTrashed: () => lixeira.push(id) }) },
     SpreadsheetApp: { getUi: () => ({}) }, Session: {}, HtmlService: {}
   };
@@ -43,12 +47,38 @@ test('converte sem exigir o serviço avançado do Drive', () => {
 
   assert.equal(r.erro, null);
   assert.equal(r.texto, 'TEXTO DO E-MAIL');
-  assert.equal(chamadas.length, 1);
+  assert.equal(chamadas.length, 2, 'uma para subir, outra para exportar o texto');
   assert.match(chamadas[0].url, /upload\/drive\/v3\/files/);
   assert.match(chamadas[0].url, /uploadType=multipart/);
   assert.match(chamadas[0].url, /ocrLanguage=pt/);
   assert.equal(chamadas[0].opcoes.headers.Authorization, 'Bearer token-de-teste');
   assert.match(chamadas[0].opcoes.contentType, /^multipart\/related; boundary=/);
+});
+
+test('o texto sai pelo Drive, não pelo DocumentApp', () => {
+  // O DocumentApp exigiria o escopo auth/documents e uma nova autorização.
+  const { ctx, chamadas } = contexto(OK, 'TEXTO EXPORTADO');
+  assert.equal(ctx.pdfParaTexto('base64', 'email.pdf').texto, 'TEXTO EXPORTADO');
+
+  const exportacao = chamadas.find((c) => /\/export\?/.test(c.url));
+  assert.ok(exportacao, 'deveria exportar pelo Drive');
+  assert.match(exportacao.url, /mimeType=text%2Fplain/);
+  assert.equal(exportacao.opcoes.headers.Authorization, 'Bearer token-de-teste');
+});
+
+test('o manifesto não pede escopo de Documentos', () => {
+  const manifesto = JSON.parse(fs.readFileSync('gas/appsscript.json', 'utf8'));
+  assert.ok(!manifesto.oauthScopes.some((e) => /auth\/documents/.test(e)),
+    'pedir auth/documents forçaria a pessoa a reautorizar o app');
+  assert.ok(manifesto.oauthScopes.some((e) => /auth\/drive$/.test(e)));
+});
+
+test('export recusado é reportado, e não passa por conversão vazia', () => {
+  const { ctx } = contexto(OK, '', { codigo: 403, corpo: '{"error":{"message":"No access"}}' });
+  const erro = ctx.pdfParaTexto('base64', 'email.pdf').erro;
+  assert.match(erro, /recusou devolver o texto/);
+  assert.match(erro, /HTTP 403/);
+  assert.match(erro, /No access/);
 });
 
 test('a conversão temporária vai para a lixeira', () => {
@@ -81,13 +111,16 @@ test('403 diz exatamente o que ligar, não só que falhou', () => {
   assert.match(erro, /Drive API/);
 });
 
-test('com o serviço avançado ligado, a API REST nem é chamada', () => {
+test('com o serviço avançado ligado, o upload não passa pela REST', () => {
   const { ctx, chamadas } = contexto(OK, 'TEXTO PELO SERVIÇO');
   ctx.Drive = { Files: { create: () => ({ id: 'doc-avancado' }) } };
 
   const r = ctx.pdfParaTexto('base64', 'email.pdf');
   assert.equal(r.texto, 'TEXTO PELO SERVIÇO');
-  assert.equal(chamadas.length, 0, 'não deveria cair no caminho REST');
+  assert.ok(!chamadas.some((c) => /upload\//.test(c.url)), 'o upload foi pelo serviço avançado');
+  // a exportação do texto continua pela REST, que é o que dispensa o
+  // escopo de Documentos
+  assert.equal(chamadas.filter((c) => /\/export\?/.test(c.url)).length, 1);
 });
 
 test('serviço avançado de versão antiga (insert) também serve', () => {

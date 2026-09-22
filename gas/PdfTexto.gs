@@ -14,6 +14,7 @@
  */
 
 var URL_DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+var URL_DRIVE_EXPORT = 'https://www.googleapis.com/drive/v3/files/';
 var MIME_DOC_GOOGLE = 'application/vnd.google-apps.document';
 var IDIOMA_OCR = 'pt';
 
@@ -113,6 +114,31 @@ function subirPelaApiRest_(bytes, mime, nome) {
   return id;
 }
 
+/**
+ * Lê o documento convertido como texto puro.
+ *
+ * Pelo próprio Drive, e não pelo DocumentApp: o DocumentApp exige o escopo
+ * `auth/documents`, que obrigaria a pessoa a autorizar o app de novo. A
+ * exportação usa o escopo de Drive que ela já concedeu.
+ */
+function exportarComoTexto_(id) {
+  var resposta = UrlFetchApp.fetch(
+    URL_DRIVE_EXPORT + encodeURIComponent(id) + '/export?mimeType=text%2Fplain',
+    {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    }
+  );
+
+  var codigo = resposta.getResponseCode();
+  if (codigo < 200 || codigo >= 300) {
+    throw new Error('o Drive converteu, mas recusou devolver o texto (HTTP ' + codigo + ')' +
+      detalheDoDrive_(resposta.getContentText()));
+  }
+  return resposta.getContentText();
+}
+
 function detalheDoDrive_(corpo) {
   try {
     var erro = JSON.parse(corpo).error;
@@ -137,7 +163,7 @@ function pdfParaTexto(base64, nome) {
   var id = null;
   try {
     id = subirParaConversao_(Utilities.base64Decode(base64), mime, nome);
-    var texto = DocumentApp.openById(id).getBody().getText();
+    var texto = exportarComoTexto_(id);
     if (!String(texto).trim()) {
       return { texto: null, erro: 'a conversão saiu vazia — o arquivo pode estar em branco, ' +
         'protegido por senha, ou com a imagem ilegível para o OCR' };

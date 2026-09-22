@@ -120,10 +120,17 @@ comprovantes de inscrição junto. Imagens (PNG, JPG, GIF, BMP, TIFF, WEBP)
 também servem, que é como o comprovante costuma vir. Não há mais campo de
 texto para colar.
 
-A conversão em texto, com OCR, é feita pelo Drive **sem nenhuma configuração**:
-o app chama a API REST com o token que a própria planilha já tem. Versões
-anteriores exigiam ligar o serviço avançado do Drive à mão em cada projeto, e
-esquecer disso derrubava a etapa 1 inteira.
+A conversão em texto, com OCR, é feita pelo Drive em dois passos: o arquivo
+é convertido em Documento Google e depois **exportado como texto puro pelo
+próprio Drive**. Não pelo `DocumentApp`, que exigiria o escopo
+`auth/documents` e obrigaria a pessoa a autorizar o app de novo — a
+exportação usa o escopo de Drive que ela já concedeu.
+
+**Ligue o serviço avançado do Drive** (Editor do Apps Script → Serviços → +
+→ Drive API). Além de ser o caminho preferido do upload, ligá-lo habilita a
+API do Drive no projeto do Google Cloud por trás da planilha, que é o que a
+chamada REST exige. Sem isso, o Google devolve 403 — e a mensagem de erro
+diz exatamente isso.
 
 A barra lateral conduz o trabalho em chamadas curtas, e é isso que move a
 barra de progresso:
