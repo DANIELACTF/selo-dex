@@ -1,0 +1,1264 @@
+<!-- Simulador IBS/CBS — tela no mesmo formato do Quadro de Férias.
+     Sem <html>, <head> ou <body> de propósito: quem monta o documento é o
+     HtmlService (título e viewport vêm do Codigo.gs). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+
+  --paper:#EFF1F6;
+  --surface:#FFFFFF;
+  --surface-2:#F5F6FA;
+  --sunken:#E4E7F0;
+  --line:#D5D9E4;
+  --line-strong:#B7BFD1;
+  --ink:#131826;
+  --ink-2:#4B5468;
+  --ink-3:#7B8399;
+  --pen:#2A3EA6;
+  --pen-ink:#FFFFFF;
+  --pen-soft:#E7EAFB;
+  --stamp:#AE3327;
+  --stamp-soft:#FBE9E6;
+  --ok:#1D6B47;
+  --ok-soft:#E2F1E9;
+  --warn:#8F5D0C;
+  --warn-soft:#FAEEDA;
+  --barra-txt:#FFFFFF;
+  --shadow:0 1px 2px rgba(19,24,38,.06),0 8px 24px -12px rgba(19,24,38,.18);
+  --radius:10px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E121C; --surface:#161B29; --surface-2:#1B2130; --sunken:#111624;
+    --line:#2A3143; --line-strong:#3B4356;
+    --ink:#E8EBF3; --ink-2:#A9B1C4; --ink-3:#7A8296;
+    --pen:#8D9CFF; --pen-ink:#0E121C; --pen-soft:#1E2540;
+    --stamp:#F0897A; --stamp-soft:#33201D;
+    --ok:#63C395; --ok-soft:#12271E;
+    --warn:#E2B463; --warn-soft:#2A2113;
+    --barra-txt:#0E121C;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E121C; --surface:#161B29; --surface-2:#1B2130; --sunken:#111624;
+  --line:#2A3143; --line-strong:#3B4356;
+  --ink:#E8EBF3; --ink-2:#A9B1C4; --ink-3:#7A8296;
+  --pen:#8D9CFF; --pen-ink:#0E121C; --pen-soft:#1E2540;
+  --stamp:#F0897A; --stamp-soft:#33201D;
+  --ok:#63C395; --ok-soft:#12271E;
+  --warn:#E2B463; --warn-soft:#2A2113;
+  --barra-txt:#0E121C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2{font-family:var(--f-display); margin:0; text-wrap:balance; letter-spacing:-.015em}
+h1{font-size:16px; font-weight:700}
+h2{font-size:17px; font-weight:600}
+p{margin:0}
+:focus-visible{outline:2px solid var(--pen); outline-offset:2px; border-radius:3px}
+
+.eyebrow{font-family:var(--f-mono); font-size:10.5px; font-weight:500; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+.num{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+
+.topbar{
+  position:sticky; top:0; z-index:40;
+  background:var(--surface);
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.topbar-in{max-width:1120px; margin:0 auto; padding:11px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.brand{display:flex; align-items:center; gap:10px; min-width:0}
+.brand svg{display:block; flex:none}
+.brand-txt{min-width:0}
+.brand-txt h1{line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.brand-txt .eyebrow{display:block; margin-top:1px}
+
+.tabs{display:flex; gap:2px; padding:2px; background:var(--sunken); border-radius:8px; margin-left:auto}
+.tab{appearance:none; border:0; background:transparent; cursor:pointer; font-family:var(--f-body); font-size:13.5px; font-weight:600; color:var(--ink-2); padding:7px 15px; border-radius:6px}
+.tab[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+.shell{max-width:1120px; margin:0 auto; padding:22px 20px 64px; display:flex; flex-direction:column; gap:18px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+.card-hd{padding:15px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.card-hd .grow{flex:1; min-width:0}
+.card-bd{padding:18px}
+.card-bd.tight{padding:14px 18px}
+.stack{display:flex; flex-direction:column; gap:14px}
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+
+.grid-form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px}
+.field{display:flex; flex-direction:column; gap:6px; min-width:0}
+.field > label:not(.check){font-family:var(--f-mono); font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-2)}
+.field .hint{font-size:12px; color:var(--ink-3)}
+input[type="text"],input[type="date"],input[type="number"],input[type="password"],select,textarea{
+  font-family:var(--f-body); font-size:14.5px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:7px;
+  padding:9px 11px; width:100%; min-width:0;
+}
+input.num-in{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+input:disabled,select:disabled,textarea:disabled{background:var(--surface-2); color:var(--ink-3); cursor:not-allowed}
+select{cursor:pointer}
+.sufixo{position:relative}
+.sufixo input{padding-right:30px}
+.sufixo span{position:absolute; right:11px; top:50%; transform:translateY(-50%); font-family:var(--f-mono); font-size:12.5px; color:var(--ink-3); pointer-events:none}
+.prefixo{position:relative}
+.prefixo input{padding-left:36px}
+.prefixo span{position:absolute; left:11px; top:50%; transform:translateY(-50%); font-family:var(--f-mono); font-size:12.5px; color:var(--ink-3); pointer-events:none}
+.check{display:flex; align-items:flex-start; gap:9px; cursor:pointer; font-size:14px}
+.check input{margin:2px 0 0; width:16px; height:16px; accent-color:var(--pen); flex:none; cursor:pointer}
+.check span b{display:block; font-weight:600; margin-bottom:1px}
+.check span i{display:block; font-style:normal; font-size:12.5px; color:var(--ink-3); line-height:1.4}
+
+.btn{appearance:none; cursor:pointer; font-family:var(--f-body); font-size:14px; font-weight:600; padding:9px 16px; border-radius:7px; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+.btn-primary{background:var(--pen); border-color:var(--pen); color:var(--pen-ink)}
+.btn-primary:hover{filter:brightness(1.08); border-color:var(--pen)}
+.btn-ok{background:var(--ok-soft); border-color:var(--ok); color:var(--ok)}
+.btn-no{background:var(--stamp-soft); border-color:var(--stamp); color:var(--stamp)}
+.btn-sm{padding:5px 10px; font-size:12.5px; border-radius:6px}
+.btn-ghost{border-color:transparent; background:transparent; color:var(--ink-2)}
+.btn-ghost:hover{background:var(--surface-2); border-color:transparent}
+
+.regras{background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; display:flex; flex-direction:column; gap:10px}
+.regra{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.45}
+.regra .mk{font-family:var(--f-mono); font-size:10px; font-weight:500; letter-spacing:.06em; padding:2px 6px; border-radius:4px; flex:none; margin-top:1px; text-transform:uppercase}
+.regra.err .mk{background:var(--stamp-soft); color:var(--stamp)}
+.regra.avi .mk{background:var(--warn-soft); color:var(--warn)}
+.regra.inf .mk{background:var(--pen-soft); color:var(--pen)}
+
+.resumo{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+.resumo > div{background:var(--surface); padding:12px 14px}
+.resumo .eyebrow{display:block; margin-bottom:3px}
+.resumo strong{font-family:var(--f-mono); font-size:20px; font-weight:500; font-variant-numeric:tabular-nums; letter-spacing:-.02em; display:block}
+.resumo em{font-style:normal; font-size:12.5px; color:var(--ink-3)}
+
+.selo{display:inline-block; font-family:var(--f-mono); font-size:10.5px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:4px; border:1px solid currentColor; white-space:nowrap}
+.selo.venda{color:var(--ok); background:var(--ok-soft)}
+.selo.compra{color:var(--pen); background:var(--pen-soft)}
+.selo.alerta{color:var(--warn); background:var(--warn-soft)}
+.selo.erro{color:var(--stamp); background:var(--stamp-soft)}
+.selo.neutro{color:var(--ink-3); background:var(--surface-2)}
+
+.tbl-wrap{overflow-x:auto; background:var(--surface); border-top:1px solid var(--line)}
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+thead th{text-align:left; font-family:var(--f-mono); font-size:10.5px; font-weight:500; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface-2); white-space:nowrap}
+thead th.n{text-align:right}
+tbody td{padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.destaque td{background:var(--surface-2); font-weight:600}
+td.n{font-family:var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right}
+td.neg{color:var(--ok)}
+td.pos{color:var(--stamp)}
+td .nome{font-weight:600}
+td .sub{font-size:12px; color:var(--ink-3)}
+td.acoes{white-space:nowrap; text-align:right}
+td.acoes .btn{margin-left:5px}
+td input[type="text"]{padding:6px 8px; font-size:13px; min-width:70px}
+.vazio{padding:34px 18px; text-align:center; color:var(--ink-3); font-size:13.5px}
+
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px}
+.tile{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow)}
+.tile strong{display:block; font-family:var(--f-mono); font-size:25px; font-weight:500; line-height:1.15; letter-spacing:-.03em; font-variant-numeric:tabular-nums; margin:5px 0 2px}
+.tile em{font-style:normal; font-size:12.5px; color:var(--ink-3)}
+.tile.alerta{border-color:var(--stamp)}
+.tile.alerta strong{color:var(--stamp)}
+.tile.bom{border-color:var(--ok)}
+.tile.bom strong{color:var(--ok)}
+
+/* ---------- gráfico de barras por cenário (mesmo desenho do quadro de férias) ---------- */
+.grafico{display:flex; flex-direction:column; min-width:560px}
+.g-linha{display:grid; grid-template-columns:90px 1fr 190px; align-items:center; border-top:1px solid var(--line); min-height:40px}
+.g-linha:first-child{border-top:0}
+.g-nome{font-family:var(--f-mono); font-size:13px; font-weight:500; padding-right:10px}
+.g-nome span{display:block; font-family:var(--f-body); font-size:11px; font-weight:400; color:var(--ink-3)}
+.g-faixa{position:relative; height:24px; background:var(--surface-2); border-left:1px solid var(--line); border-radius:0 4px 4px 0; display:flex; overflow:visible}
+.g-seg{height:100%}
+.g-seg:last-of-type{border-radius:0 3px 3px 0}
+.g-seg.atuais{background:var(--warn)}
+.g-seg.is{background:var(--stamp)}
+.g-seg.ibscbs{background:var(--pen)}
+.g-ref{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); opacity:.55; z-index:2}
+.g-valor{text-align:right; font-family:var(--f-mono); font-size:12.5px; font-variant-numeric:tabular-nums; padding-left:10px; white-space:nowrap}
+.g-valor span{display:block; font-size:11px; color:var(--ink-3)}
+.legenda{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-2); align-items:center}
+.legenda i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px}
+
+.modal-fundo{position:fixed; inset:0; background:rgba(10,13,22,.55); z-index:80; display:flex; align-items:flex-start; justify-content:center; padding:28px 16px; overflow-y:auto}
+.modal{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 24px 60px -20px rgba(0,0,0,.5); width:100%; max-width:720px}
+.modal-hd{padding:15px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px}
+.modal-hd h2{flex:1}
+.modal-bd{padding:18px}
+.modal-ft{padding:14px 18px; border-top:1px solid var(--line); display:flex; gap:9px; justify-content:flex-end; flex-wrap:wrap}
+
+.toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:11px 17px; border-radius:8px; font-size:13.5px; z-index:100; box-shadow:0 10px 30px -10px rgba(0,0,0,.6); max-width:calc(100% - 32px)}
+.toast.err{background:var(--stamp); color:#fff}
+
+.rodape{max-width:1120px; margin:0 auto; padding:0 20px 40px; font-size:12px; color:var(--ink-3); line-height:1.6}
+
+@media (max-width:640px){
+  .topbar-in{padding:10px 14px; gap:10px}
+  .tabs{width:100%; margin-left:0; order:3}
+  .tab{flex:1}
+  .shell{padding:16px 14px 48px}
+  .card-bd{padding:14px}
+  .g-linha{grid-template-columns:64px 1fr 120px}
+  .m-oculta{display:none}
+  .resumo strong{font-size:16px}
+  td.acoes .btn{margin:0 0 4px 4px}
+}
+.m-so{display:none}
+@media (max-width:640px){ .m-so{display:inline-block; margin-bottom:4px} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
+@media print{
+  .topbar,.nao-imprime,.toast,#modal-raiz,#confirma-raiz,.rodape{display:none!important}
+  body{background:#fff}
+  .card,.tile{box-shadow:none}
+  .shell{padding:0}
+}
+</style>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="29" height="29" rx="6" fill="var(--pen-soft)" stroke="var(--pen)" stroke-opacity=".35"/>
+        <g fill="var(--pen)" fill-opacity=".28">
+          <rect x="6" y="15" width="4" height="9" rx="1"/><rect x="13" y="11" width="4" height="13" rx="1"/>
+        </g>
+        <rect x="20" y="6" width="4" height="18" rx="1" fill="var(--pen)"/>
+      </svg>
+      <div class="brand-txt">
+        <h1 id="titulo-app">Simulador IBS/CBS</h1>
+        <span class="eyebrow" id="sub-app">Reforma tributária · regime regular</span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Seções">
+      <button class="tab" role="tab" id="tab-simular" aria-selected="true" aria-controls="aba-simular" data-aba="simular">Simular</button>
+      <button class="tab" role="tab" id="tab-resultado" aria-selected="false" aria-controls="aba-resultado" data-aba="resultado">Resultado</button>
+      <button class="tab" role="tab" id="tab-tabelas" aria-selected="false" aria-controls="aba-tabelas" data-aba="tabelas">Tabelas</button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+
+  <div class="card" id="falha-carga" hidden>
+    <div class="card-bd stack">
+      <div class="regras"><div class="regra avi"><span class="mk">Atenção</span><span id="falha-texto"></span></div></div>
+      <div class="row"><button class="btn" type="button" id="btn-tentar">Tentar de novo</button></div>
+    </div>
+  </div>
+
+  <!-- ================= SIMULAR ================= -->
+  <section id="aba-simular" role="tabpanel" aria-labelledby="tab-simular" class="stack">
+
+    <div class="card">
+      <div class="card-hd"><div class="grow"><span class="eyebrow">Passo 1</span><h2>Empresa e premissas</h2></div></div>
+      <div class="card-bd stack">
+        <div class="grid-form">
+          <div class="field">
+            <label for="p-empresa">Empresa</label>
+            <input type="text" id="p-empresa" maxlength="120" placeholder="Razão social">
+          </div>
+          <div class="field">
+            <label for="p-cnpj">CNPJ <span style="text-transform:none;letter-spacing:0">(opcional)</span></label>
+            <input type="text" id="p-cnpj" maxlength="20" placeholder="00.000.000/0000-00">
+          </div>
+          <div class="field">
+            <label for="p-regime">Regime de apuração</label>
+            <select id="p-regime">
+              <option value="real">Lucro Real (não cumulativo)</option>
+              <option value="presumido">Lucro Presumido (cumulativo)</option>
+            </select>
+            <span class="hint" id="p-regime-hint"></span>
+          </div>
+          <div class="field">
+            <label for="p-periodo">Os valores são</label>
+            <select id="p-periodo">
+              <option>Mensal</option><option>Trimestral</option><option>Anual</option>
+            </select>
+            <span class="hint">O resultado sai no mesmo período.</span>
+          </div>
+        </div>
+        <div class="grid-form">
+          <div class="field">
+            <label for="p-cbs">Alíquota de referência da CBS</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-cbs" inputmode="decimal"><span>%</span></div>
+            <span class="hint">Estimativa. Revise quando for publicada.</span>
+          </div>
+          <div class="field">
+            <label for="p-ibs">Alíquota de referência do IBS</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-ibs" inputmode="decimal"><span>%</span></div>
+            <span class="hint">Estado + município. Estimativa.</span>
+          </div>
+          <div class="field">
+            <label for="p-simples">Crédito de compras do Simples</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-simples" inputmode="decimal"><span>%</span></div>
+            <span class="hint">IBS+CBS pago no DAS, em % do valor.</span>
+          </div>
+          <div class="field">
+            <label for="p-rural">Crédito presumido do produtor rural</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-rural" inputmode="decimal"><span>%</span></div>
+            <span class="hint">Fixado por ato conjunto anual.</span>
+          </div>
+        </div>
+        <div class="grid-form">
+          <label class="check"><input type="checkbox" id="p-excl-icms">
+            <span><b>Excluir o ICMS da base do PIS/COFINS</b><i>Tema 69 do STF.</i></span></label>
+          <label class="check"><input type="checkbox" id="p-excl-base">
+            <span><b>Excluir ICMS, ISS, PIS e COFINS da base do IBS/CBS</b><i>Regra de transição da LC 214/2025 (2026 a 2032).</i></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <div class="grow"><span class="eyebrow">Passo 2</span><h2>Operações</h2></div>
+        <button class="btn btn-sm btn-ghost" type="button" id="btn-limpar-ops">Limpar</button>
+        <button class="btn btn-sm" type="button" id="btn-exemplo">Usar exemplo</button>
+        <button class="btn btn-sm" type="button" id="btn-nova-compra">+ Compra</button>
+        <button class="btn btn-sm btn-primary" type="button" id="btn-nova-venda">+ Venda</button>
+      </div>
+      <div class="card-bd tight">
+        <div class="resumo" id="resumo-ops"></div>
+      </div>
+      <div class="tbl-wrap" id="ops-tabela"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="grow"><span class="eyebrow">Passo 3</span><h2>Calcular</h2></div></div>
+      <div class="card-bd stack">
+        <div id="painel-conferencia"></div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn btn-primary" type="button" id="btn-calcular">Ver o resultado</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <div class="grow"><h2>Simulações salvas</h2></div>
+        <button class="btn btn-sm" type="button" id="btn-planilha">Abrir a planilha</button>
+        <button class="btn btn-sm btn-ghost" type="button" id="btn-nova-sim">Nova simulação</button>
+      </div>
+      <div class="card-bd tight">
+        <div class="row">
+          <div class="field" style="flex:1;min-width:220px">
+            <label for="sim-nome">Nome desta simulação</label>
+            <input type="text" id="sim-nome" maxlength="120" placeholder="Ex.: Cliente X — cenário base">
+          </div>
+          <button class="btn btn-primary" type="button" id="btn-salvar-sim" style="align-self:flex-end">Salvar na planilha</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="sims-tabela"></div>
+    </div>
+  </section>
+
+  <!-- ================= RESULTADO ================= -->
+  <section id="aba-resultado" role="tabpanel" aria-labelledby="tab-resultado" class="stack" hidden>
+    <div class="card" id="res-vazio">
+      <div class="vazio">Lance pelo menos uma operação em <b>Simular</b> para ver o resultado.</div>
+    </div>
+
+    <div id="res-conteudo" class="stack" hidden>
+      <div class="row nao-imprime" style="justify-content:space-between">
+        <p class="small muted" id="res-contexto"></p>
+        <div class="row">
+          <button class="btn btn-sm" type="button" id="btn-imprimir">Imprimir</button>
+          <button class="btn btn-sm btn-primary" type="button" id="btn-gravar">Gravar na planilha</button>
+        </div>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="card">
+        <div class="card-hd"><div class="grow"><h2>Carga tributária por cenário</h2></div></div>
+        <div class="card-bd" style="overflow-x:auto"><div id="grafico"></div></div>
+        <div class="card-bd tight" style="border-top:1px solid var(--line)">
+          <div class="legenda">
+            <span><i style="background:var(--warn)"></i>ICMS, ISS, IPI, PIS e COFINS</span>
+            <span><i style="background:var(--stamp)"></i>Imposto Seletivo</span>
+            <span><i style="background:var(--pen)"></i>IBS + CBS</span>
+            <span><i style="background:var(--ink);opacity:.55;width:3px"></i>Carga atual</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="grow"><h2>Detalhamento por tributo</h2></div></div>
+        <div class="tbl-wrap" id="tab-tributos"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="grow"><h2>Débitos e créditos de IBS/CBS</h2></div></div>
+        <div class="tbl-wrap" id="tab-ibscbs"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <div class="grow"><h2>IBS/CBS por tratamento</h2></div>
+          <div class="row">
+            <button class="btn btn-sm" type="button" id="trat-menos" aria-label="Ano anterior">←</button>
+            <strong class="num" id="trat-ano" style="font-size:15px">—</strong>
+            <button class="btn btn-sm" type="button" id="trat-mais" aria-label="Próximo ano">→</button>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="tab-trat"></div>
+      </div>
+
+      <div class="regras" id="res-premissas"></div>
+    </div>
+  </section>
+
+  <!-- ================= TABELAS ================= -->
+  <section id="aba-tabelas" role="tabpanel" aria-labelledby="tab-tabelas" class="stack" hidden>
+    <div class="card">
+      <div class="card-hd">
+        <div class="grow"><h2>Cronograma da transição</h2><p class="small muted" id="crono-estado"></p></div>
+        <button class="btn btn-sm" type="button" id="btn-crono-padrao">Restaurar padrão</button>
+      </div>
+      <div class="tbl-wrap" id="crono-tabela"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="grow"><h2>Tratamentos por atividade</h2><p class="small muted">LC 214/2025. Escolha o tratamento de cada operação ao lançá-la.</p></div></div>
+      <div class="card-bd tight">
+        <div class="grid-form">
+          <div class="field">
+            <label for="f-grupo">Grupo</label>
+            <select id="f-grupo"><option value="">Todos</option></select>
+          </div>
+          <div class="field">
+            <label for="f-busca">Buscar</label>
+            <input type="text" id="f-busca" placeholder="Ex.: advogado, aluguel, restaurante">
+          </div>
+        </div>
+      </div>
+      <div class="tbl-wrap" id="trat-tabela"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <p>Simulação estimativa da Reforma Tributária do consumo (EC 132/2023, LC 214/2025 e LC 227/2026) para empresas do Lucro Real e do Lucro Presumido. O preço de cada operação é mantido constante em todos os anos; ICMS, ISS, PIS e COFINS são tratados "por dentro" e IPI, Imposto Seletivo, IBS e CBS "por fora". As alíquotas de referência ainda não foram fixadas e o enquadramento de cada item nos anexos da lei deve ser conferido. Não substitui a análise de um contador.</p>
+</footer>
+
+<div id="modal-raiz"></div>
+<div id="confirma-raiz"></div>
+<div id="toast-raiz"></div>
+
+<?!= incluir('motor_js') ?>
+<script>
+(function(){
+'use strict';
+
+var M = motorIbsCbs();
+var $  = function(s,r){ return (r||document).querySelector(s); };
+var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+
+function esc(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+var toastTimer = null;
+function toast(msg, erro){
+  $('#toast-raiz').innerHTML = '<div class="toast' + (erro ? ' err' : '') + '" role="status">' + esc(msg) + '</div>';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ $('#toast-raiz').innerHTML = ''; }, erro ? 6000 : 3600);
+}
+/* Confirmação no estilo da tela. O confirm() do navegador pode ser bloqueado
+   dentro do quadro em que o Google mostra o app. */
+function confirmar(titulo, texto, botao){
+  return new Promise(function(ok){
+    var raiz = $('#confirma-raiz');
+    raiz.innerHTML = '<div class="modal-fundo" id="c-fundo"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="c-titulo" style="max-width:460px">' +
+      '<div class="modal-hd"><h2 id="c-titulo">' + esc(titulo) + '</h2></div>' +
+      '<div class="modal-bd"><p class="small muted">' + esc(texto) + '</p></div>' +
+      '<div class="modal-ft"><button class="btn" type="button" data-r="0">Cancelar</button>' +
+      '<button class="btn btn-no" type="button" data-r="1">' + esc(botao || 'Confirmar') + '</button></div></div></div>';
+    function fim(v){ raiz.innerHTML = ''; document.removeEventListener('keydown', tecla); ok(v); }
+    function tecla(ev){ if(ev.key === 'Escape'){ ev.stopPropagation(); fim(false); } }
+    document.addEventListener('keydown', tecla);
+    $('#c-fundo').addEventListener('click', function(ev){
+      var b = ev.target.closest('[data-r]');
+      if(b) fim(b.dataset.r === '1'); else if(ev.target.id === 'c-fundo') fim(false);
+    });
+    $('[data-r="1"]', raiz).focus();
+  });
+}
+function guardar(c,v){ try{ localStorage.setItem(c,v); }catch(e){} }
+function lembrar(c){ try{ return localStorage.getItem(c) || ''; }catch(e){ return ''; } }
+
+/* Percentual na tela: "18" ou "18,5". No estado: 0.18 ou 0.185. */
+function mostrarPct(v){
+  if(v === null || v === undefined || v === '') return '';
+  return String(Math.round(Number(v) * 1000000) / 10000).replace('.', ',');
+}
+function lerPct(texto){ var n = M.numero(texto); return isNaN(n) ? NaN : n / 100; }
+function mostrarMoeda(v){ return v ? M.moeda(v).replace('R$ ', '') : ''; }
+
+/* ------------------------------------------------------------ servidor */
+/* O bootstrap do Apps Script pode chegar depois deste script. Antes da
+   primeira chamada, espera o google.script.run aparecer. */
+function prontoGoogle(){
+  return new Promise(function(ok, falha){
+    var tentativas = 0;
+    (function ver(){
+      if(window.google && window.google.script && window.google.script.run) return ok();
+      if(++tentativas > 50) return falha(new Error('Sem ligação com a planilha. As simulações ficam só neste navegador.'));
+      setTimeout(ver, 100);
+    })();
+  });
+}
+async function chamar(nome, args){
+  await prontoGoogle();
+  return new Promise(function(ok, falha){
+    google.script.run
+      .withSuccessHandler(ok)
+      .withFailureHandler(function(e){ falha(new Error((e && e.message) || 'Não foi possível concluir a operação.')); })
+      [nome].apply(null, args || []);
+  });
+}
+
+/* --------------------------------------------------------------- estado */
+var E = {
+  parametros: M.parametrosPadrao(),
+  operacoes: [],
+  cronograma: null,
+  cronoEditado: false,
+  simId: '',
+  simNome: '',
+  simulacoes: [],
+  conectado: false
+};
+var S = { aba: 'simular', anoTrat: '2033', filtroGrupo: '', busca: '' };
+E.cronograma = M.cronogramaPadrao(E.parametros.cbsRef, E.parametros.ibsRef);
+
+function rascunho(){
+  guardar('ibscbs-rascunho', JSON.stringify({
+    parametros: E.parametros, operacoes: E.operacoes, cronograma: E.cronograma,
+    cronoEditado: E.cronoEditado, simId: E.simId, simNome: E.simNome
+  }));
+}
+function aplicarEstado(d){
+  var p = M.parametrosPadrao();
+  for(var k in (d.parametros || {})) if(k in p) p[k] = d.parametros[k];
+  E.parametros = p;
+  E.operacoes = (d.operacoes || []).map(function(o){ return Object.assign(M.novaOperacao(o.tipo), o); });
+  E.cronoEditado = !!d.cronoEditado && Array.isArray(d.cronograma) && d.cronograma.length > 0;
+  E.cronograma = E.cronoEditado ? d.cronograma : M.cronogramaPadrao(p.cbsRef, p.ibsRef);
+  E.simId = d.simId || '';
+  E.simNome = d.simNome || '';
+}
+function estadoParaSalvar(){
+  return { parametros: E.parametros, operacoes: E.operacoes, cronograma: E.cronograma, cronoEditado: E.cronoEditado };
+}
+function novoId(){ return 'op' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+/* ================================ ABAS ================================ */
+function irPara(aba){
+  S.aba = aba;
+  $$('.tab').forEach(function(t){ t.setAttribute('aria-selected', t.dataset.aba === aba ? 'true' : 'false'); });
+  ['simular', 'resultado', 'tabelas'].forEach(function(a){ $('#aba-' + a).hidden = a !== aba; });
+  if(aba === 'resultado') renderResultado();
+  if(aba === 'tabelas') renderTabelas();
+  window.scrollTo(0, 0);
+}
+
+/* ============================ PASSO 1 ============================ */
+function escreverParametros(){
+  var p = E.parametros;
+  $('#p-empresa').value = p.empresa;
+  $('#p-cnpj').value = p.cnpj;
+  $('#p-regime').value = p.regime;
+  $('#p-periodo').value = p.periodo;
+  $('#p-cbs').value = mostrarPct(p.cbsRef);
+  $('#p-ibs').value = mostrarPct(p.ibsRef);
+  $('#p-simples').value = mostrarPct(p.credSimples);
+  $('#p-rural').value = mostrarPct(p.credRural);
+  $('#p-excl-icms').checked = !!p.excluiIcmsPC;
+  $('#p-excl-base').checked = !!p.excluiTribBase;
+  renderCabecalho();
+}
+function renderCabecalho(){
+  var p = E.parametros, r = M.REGIMES[p.regime];
+  $('#p-regime-hint').textContent = 'PIS ' + M.pct(r.pis) + ' + COFINS ' + M.pct(r.cofins, 1) +
+    (p.regime === 'real' ? ', com créditos.' : ', sem créditos.');
+  $('#titulo-app').textContent = p.empresa ? p.empresa : 'Simulador IBS/CBS';
+  $('#sub-app').textContent = p.empresa ? 'Simulador IBS/CBS · ' + (p.regime === 'real' ? 'Lucro Real' : 'Lucro Presumido')
+    : 'Reforma tributária · regime regular';
+}
+function lerParametro(ev){
+  var p = E.parametros, id = ev.target.id;
+  if(id === 'p-empresa') p.empresa = ev.target.value.trim();
+  if(id === 'p-cnpj') p.cnpj = ev.target.value.trim();
+  if(id === 'p-regime') p.regime = ev.target.value;
+  if(id === 'p-periodo') p.periodo = ev.target.value;
+  if(id === 'p-excl-icms') p.excluiIcmsPC = ev.target.checked;
+  if(id === 'p-excl-base') p.excluiTribBase = ev.target.checked;
+  var pcts = { 'p-cbs': 'cbsRef', 'p-ibs': 'ibsRef', 'p-simples': 'credSimples', 'p-rural': 'credRural' };
+  if(pcts[id]){
+    var v = lerPct(ev.target.value);
+    if(isNaN(v) || v < 0 || v > 1){
+      if(ev.type === 'change'){ toast('Informe um percentual entre 0 e 100.', true); ev.target.value = mostrarPct(p[pcts[id]]); }
+      return;
+    }
+    p[pcts[id]] = v;
+    if((id === 'p-cbs' || id === 'p-ibs') && !E.cronoEditado) E.cronograma = M.cronogramaPadrao(p.cbsRef, p.ibsRef);
+  }
+  renderCabecalho();
+  renderConferencia();
+  rascunho();
+}
+
+/* ============================ PASSO 2 ============================ */
+function renderOperacoes(){
+  var ops = E.operacoes;
+  var vendas = ops.filter(function(o){ return o.tipo === 'venda'; });
+  var compras = ops.filter(function(o){ return o.tipo === 'compra'; });
+  var soma = function(l){ return l.reduce(function(s, o){ return s + (Number(o.valor) || 0); }, 0); };
+  $('#resumo-ops').innerHTML =
+    '<div><span class="eyebrow">Vendas</span><strong>' + esc(M.moeda(soma(vendas))) + '</strong><em>' + vendas.length + ' linha(s)</em></div>' +
+    '<div><span class="eyebrow">Compras</span><strong>' + esc(M.moeda(soma(compras))) + '</strong><em>' + compras.length + ' linha(s)</em></div>' +
+    '<div><span class="eyebrow">Período</span><strong style="font-size:17px">' + esc(E.parametros.periodo) + '</strong><em>como lançado</em></div>';
+
+  if(!ops.length){
+    $('#ops-tabela').innerHTML = '<div class="vazio">Nenhuma operação ainda. Use <b>+ Venda</b> e <b>+ Compra</b>, ou comece pelo exemplo.</div>';
+    renderConferencia();
+    return;
+  }
+  $('#ops-tabela').innerHTML = '<table><thead><tr>' +
+    '<th class="m-oculta">Tipo</th><th>Descrição e tratamento</th><th class="n m-oculta">Valor</th><th class="m-oculta">Hoje</th><th class="m-oculta">Crédito</th><th></th>' +
+    '</tr></thead><tbody>' + ops.map(function(o){
+      var t = M.tratamentoDe(o), avisos = M.conferirOperacao(o, E.parametros);
+      var erro = avisos.some(function(a){ return a.tipo === 'err'; });
+      var alerta = avisos.some(function(a){ return a.tipo === 'avi'; });
+      var hoje = [];
+      if(o.icms) hoje.push('ICMS ' + M.pct(o.icms, 1));
+      if(o.iss) hoje.push('ISS ' + M.pct(o.iss, 1));
+      if(o.ipi) hoje.push('IPI ' + M.pct(o.ipi, 1));
+      if(o.is) hoje.push('IS ' + M.pct(o.is, 1));
+      if(o.pisCofins !== 'padrao') hoje.push('PIS/COFINS: ' + M.PIS_COFINS[o.pisCofins].toLowerCase());
+      var cred = o.tipo === 'venda' ? '<span class="sub">—</span>'
+        : '<span>' + esc(M.FORNECEDORES[o.fornecedor]) + '</span><div class="sub">' +
+          esc(!o.credIbsCbs ? 'sem crédito de IBS/CBS' : (!t.credito && o.fornecedor === 'regular') ? 'crédito vedado' : 'IBS/CBS com crédito') + '</div>';
+      return '<tr>' +
+        '<td class="m-oculta"><span class="selo ' + o.tipo + '">' + (o.tipo === 'venda' ? 'Venda' : 'Compra') + '</span></td>' +
+        '<td><span class="selo m-so ' + o.tipo + '">' + (o.tipo === 'venda' ? 'Venda' : 'Compra') + '</span><br class="m-so"><span class="nome">' + esc(o.descricao || '(sem descrição)') + '</span>' +
+          '<div class="sub">' + esc(t.nome) + ' · ' + esc(M.rotuloReducao(t)) + '</div>' +
+          '<div class="m-so num" style="font-size:13px">' + esc(M.moeda(o.valor)) + '</div>' +
+          (erro ? '<div><span class="selo erro">Corrigir</span></div>' : alerta ? '<div><span class="selo alerta">Atenção</span></div>' : '') + '</td>' +
+        '<td class="n m-oculta">' + esc(M.moeda(o.valor)) + '</td>' +
+        '<td class="m-oculta"><span class="sub">' + esc(hoje.join(' · ') || 'sem ICMS/ISS/IPI') + '</span></td>' +
+        '<td class="m-oculta">' + cred + '</td>' +
+        '<td class="acoes">' +
+          '<button class="btn btn-sm" type="button" data-editar="' + esc(o.id) + '">Editar</button>' +
+          '<button class="btn btn-sm btn-ghost m-oculta" type="button" data-duplicar="' + esc(o.id) + '">Duplicar</button>' +
+          '<button class="btn btn-sm btn-ghost" type="button" data-excluir="' + esc(o.id) + '" aria-label="Excluir">✕</button>' +
+        '</td></tr>';
+    }).join('') + '</tbody></table>';
+  renderConferencia();
+}
+
+function opPorId(id){ return E.operacoes.filter(function(o){ return o.id === id; })[0] || null; }
+
+async function acaoOperacoes(ev){
+  var b = ev.target.closest('button');
+  if(!b) return;
+  if(b.dataset.editar) abrirOperacao(opPorId(b.dataset.editar));
+  if(b.dataset.duplicar){
+    var o = Object.assign({}, opPorId(b.dataset.duplicar));
+    o.id = novoId(); o.descricao = (o.descricao || '') + ' (cópia)';
+    E.operacoes.splice(E.operacoes.indexOf(opPorId(b.dataset.duplicar)) + 1, 0, o);
+    renderOperacoes(); rascunho();
+  }
+  if(b.dataset.excluir){
+    var alvo = opPorId(b.dataset.excluir);
+    if(!alvo || !(await confirmar('Excluir operação', 'Excluir "' + (alvo.descricao || 'operação') + '"?', 'Excluir'))) return;
+    E.operacoes = E.operacoes.filter(function(o){ return o !== alvo; });
+    renderOperacoes(); rascunho();
+  }
+}
+
+/* ----------------------------------------------------- formulário (modal) */
+function opcoesTratamento(sel){
+  var grupos = [];
+  M.TRATAMENTOS.forEach(function(t){ if(grupos.indexOf(t.grupo) < 0) grupos.push(t.grupo); });
+  return grupos.map(function(g){
+    return '<optgroup label="' + esc(g) + '">' + M.TRATAMENTOS.filter(function(t){ return t.grupo === g; }).map(function(t){
+      return '<option value="' + t.id + '"' + (t.id === sel ? ' selected' : '') + '>' + esc(t.nome) + ' — ' + esc(M.rotuloReducao(t)) + '</option>';
+    }).join('') + '</optgroup>';
+  }).join('') + '<optgroup label="Outro"><option value="personalizado"' + (sel === 'personalizado' ? ' selected' : '') +
+    '>Redução personalizada…</option></optgroup>';
+}
+function opcoesDe(mapa, sel){
+  return Object.keys(mapa).map(function(k){
+    return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(mapa[k]) + '</option>';
+  }).join('');
+}
+function campoPct(id, rotulo, valor, dica){
+  return '<div class="field"><label for="' + id + '">' + rotulo + '</label>' +
+    '<div class="sufixo"><input type="text" class="num-in" inputmode="decimal" id="' + id + '" value="' + esc(mostrarPct(valor)) + '"><span>%</span></div>' +
+    (dica ? '<span class="hint">' + dica + '</span>' : '') + '</div>';
+}
+
+var rascunhoOp = null;
+
+function abrirOperacao(op, tipo){
+  var nova = !op;
+  rascunhoOp = nova ? M.novaOperacao(tipo) : Object.assign({}, op);
+  var o = rascunhoOp;
+  $('#modal-raiz').innerHTML =
+    '<div class="modal-fundo" id="fundo"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-titulo">' +
+    '<div class="modal-hd"><h2 id="m-titulo">' + (nova ? 'Nova ' + (o.tipo === 'venda' ? 'venda' : 'compra') : 'Editar operação') + '</h2>' +
+      '<button class="btn btn-sm btn-ghost" type="button" data-fechar aria-label="Fechar">✕</button></div>' +
+    '<div class="modal-bd stack">' +
+      '<div class="grid-form">' +
+        '<div class="field"><label for="o-tipo">Tipo</label><select id="o-tipo">' +
+          '<option value="venda"' + (o.tipo === 'venda' ? ' selected' : '') + '>Venda (saída)</option>' +
+          '<option value="compra"' + (o.tipo === 'compra' ? ' selected' : '') + '>Compra (entrada)</option></select></div>' +
+        '<div class="field"><label for="o-valor" id="o-valor-rot">Valor</label>' +
+          '<div class="prefixo"><input type="text" class="num-in" inputmode="decimal" id="o-valor" value="' + esc(mostrarMoeda(o.valor)) + '" placeholder="0,00"><span>R$</span></div>' +
+          '<span class="hint" id="o-valor-hint"></span></div>' +
+      '</div>' +
+      '<div class="field"><label for="o-desc">Descrição</label>' +
+        '<input type="text" id="o-desc" maxlength="160" value="' + esc(o.descricao) + '" placeholder="Ex.: venda de mercadorias, aluguel, honorários"></div>' +
+      '<div class="field"><label for="o-trat">Tratamento de IBS/CBS (atividade)</label>' +
+        '<select id="o-trat">' + opcoesTratamento(o.tratamento) + '</select></div>' +
+      '<div class="field" id="o-red-campo"' + (o.tratamento === 'personalizado' ? '' : ' hidden') + '>' +
+        '<label for="o-red">Redução de alíquota</label>' +
+        '<div class="sufixo" style="max-width:200px"><input type="text" class="num-in" inputmode="decimal" id="o-red" value="' + esc(mostrarPct(o.reducao)) + '"><span>%</span></div></div>' +
+      '<div><span class="eyebrow">Tributos de hoje</span></div>' +
+      '<div class="grid-form">' +
+        campoPct('o-icms', 'ICMS', o.icms, 'Alíquota efetiva. Com ST, use 0.') +
+        campoPct('o-iss', 'ISS', o.iss) +
+        campoPct('o-ipi', 'IPI', o.ipi) +
+        campoPct('o-is', 'Imposto Seletivo', o.is, 'A partir de 2027.') +
+      '</div>' +
+      '<div class="field"><label for="o-pc">PIS/COFINS hoje</label><select id="o-pc">' + opcoesDe(M.PIS_COFINS, o.pisCofins) + '</select></div>' +
+      '<div id="o-compra" class="stack"' + (o.tipo === 'compra' ? '' : ' hidden') + '>' +
+        '<div><span class="eyebrow">Créditos da compra</span></div>' +
+        '<div class="grid-form">' +
+          '<div class="field"><label for="o-forn">Fornecedor</label><select id="o-forn">' + opcoesDe(M.FORNECEDORES, o.fornecedor) + '</select></div>' +
+          '<div id="o-credpct-campo"' + (o.fornecedor === 'simples' || o.fornecedor === 'rural' ? '' : ' hidden') + '>' +
+            campoPct('o-credpct', 'Crédito desta compra', o.credPct, 'Em branco = valor do Passo 1.') + '</div>' +
+        '</div>' +
+        '<label class="check"><input type="checkbox" id="o-cred-ibs"' + (o.credIbsCbs ? ' checked' : '') + '>' +
+          '<span><b>Gera crédito de IBS/CBS</b><i>Desmarque para uso e consumo pessoal e outros casos sem direito a crédito.</i></span></label>' +
+        '<label class="check"><input type="checkbox" id="o-cred-pc"' + (o.credPisCofins ? ' checked' : '') + '>' +
+          '<span><b>Gera crédito de PIS/COFINS hoje</b><i>Só vale no Lucro Real (não cumulativo).</i></span></label>' +
+        '<label class="check"><input type="checkbox" id="o-cred-icms"' + (o.credIcmsIpi ? ' checked' : '') + '>' +
+          '<span><b>Gera crédito de ICMS/IPI hoje</b></span></label>' +
+      '</div>' +
+      '<div id="o-regras"></div>' +
+    '</div>' +
+    '<div class="modal-ft">' +
+      '<button class="btn" type="button" data-fechar>Cancelar</button>' +
+      '<button class="btn btn-primary" type="button" id="o-salvar">' + (nova ? 'Adicionar' : 'Salvar') + '</button>' +
+    '</div></div></div>';
+
+  var fundo = $('#fundo');
+  fundo.addEventListener('input', lerOperacao);
+  fundo.addEventListener('change', lerOperacao);
+  fundo.addEventListener('click', function(ev){
+    if(ev.target === fundo || ev.target.closest('[data-fechar]')) fecharModal();
+  });
+  $('#o-salvar').addEventListener('click', function(){ salvarOperacao(nova); });
+  renderRegrasOperacao();
+  $('#o-desc').focus();
+}
+
+function lerOperacao(){
+  var o = rascunhoOp;
+  o.tipo = $('#o-tipo').value;
+  o.descricao = $('#o-desc').value.trim();
+  o.valor = M.numero($('#o-valor').value);
+  o.tratamento = $('#o-trat').value;
+  o.reducao = lerPct($('#o-red').value);
+  o.icms = lerPct($('#o-icms').value);
+  o.iss = lerPct($('#o-iss').value);
+  o.ipi = lerPct($('#o-ipi').value);
+  o.is = lerPct($('#o-is').value);
+  o.pisCofins = $('#o-pc').value;
+  o.fornecedor = $('#o-forn').value;
+  var cp = $('#o-credpct').value.trim();
+  o.credPct = cp === '' ? null : lerPct(cp);
+  o.credIbsCbs = $('#o-cred-ibs').checked;
+  o.credPisCofins = $('#o-cred-pc').checked;
+  o.credIcmsIpi = $('#o-cred-icms').checked;
+  $('#o-compra').hidden = o.tipo !== 'compra';
+  $('#o-red-campo').hidden = o.tratamento !== 'personalizado';
+  $('#o-credpct-campo').hidden = !(o.fornecedor === 'simples' || o.fornecedor === 'rural');
+  $('#m-titulo').textContent = $('#m-titulo').textContent.indexOf('Editar') === 0 ? 'Editar operação'
+    : 'Nova ' + (o.tipo === 'venda' ? 'venda' : 'compra');
+  renderRegrasOperacao();
+}
+
+function numerosInvalidos(o){
+  var ruins = [];
+  if(isNaN(o.valor)) ruins.push('valor');
+  [['icms', 'ICMS'], ['iss', 'ISS'], ['ipi', 'IPI'], ['is', 'Imposto Seletivo']].forEach(function(k){ if(isNaN(o[k[0]])) ruins.push(k[1]); });
+  if(o.tratamento === 'personalizado' && isNaN(o.reducao)) ruins.push('redução');
+  if(o.credPct !== null && isNaN(o.credPct)) ruins.push('crédito da compra');
+  return ruins;
+}
+
+function renderRegrasOperacao(){
+  var o = rascunhoOp, t = M.tratamentoDe(o);
+  $('#o-valor-rot').textContent = t.valor === 'Valor da operação' ? 'Valor' : 'Valor — ' + t.valor.toLowerCase();
+  $('#o-valor-hint').textContent = t.valor === 'Valor da operação' ? 'Preço cobrado, já com ICMS, ISS, PIS e COFINS.' : '';
+  var ruins = numerosInvalidos(o);
+  var itens = ruins.length ? [{ tipo: 'err', t: 'Número inválido em: ' + ruins.join(', ') + '.' }]
+    : M.conferirOperacao(o, E.parametros);
+  $('#o-regras').innerHTML = itens.length ? '<div class="regras">' + itens.map(function(x){
+    return '<div class="regra ' + x.tipo + '"><span class="mk">' + ({ err: 'Impede', avi: 'Atenção', inf: 'Nota' })[x.tipo] +
+      '</span><span>' + esc(x.t) + '</span></div>';
+  }).join('') + '</div>' : '';
+  $('#o-salvar').disabled = itens.some(function(x){ return x.tipo === 'err'; });
+}
+
+function salvarOperacao(nova){
+  lerOperacao();
+  var o = rascunhoOp;
+  if($('#o-salvar').disabled) return;
+  if(o.tipo === 'venda'){ o.fornecedor = 'regular'; o.credPct = null; }
+  if(nova){ o.id = novoId(); E.operacoes.push(o); }
+  else {
+    var i = E.operacoes.indexOf(opPorId(o.id));
+    if(i >= 0) E.operacoes[i] = o; else E.operacoes.push(o);
+  }
+  fecharModal();
+  renderOperacoes();
+  rascunho();
+  toast(nova ? 'Operação adicionada.' : 'Operação atualizada.');
+}
+function fecharModal(){ $('#modal-raiz').innerHTML = ''; rascunhoOp = null; }
+
+/* ============================ PASSO 3 ============================ */
+function renderConferencia(){
+  var ops = E.operacoes, painel = $('#painel-conferencia');
+  var comErro = ops.filter(function(o){ return M.conferirOperacao(o, E.parametros).some(function(a){ return a.tipo === 'err'; }); });
+  var vendas = ops.filter(function(o){ return o.tipo === 'venda'; }).length;
+  var itens = [];
+  if(!ops.length) itens.push(['inf', 'Falta', 'Lance as vendas e as compras do período no Passo 2.']);
+  else {
+    if(!vendas) itens.push(['avi', 'Atenção', 'Não há vendas: sem faturamento, a carga não tem como ser comparada em %.']);
+    if(comErro.length) itens.push(['err', 'Corrigir', comErro.length + ' operação(ões) com dados inválidos serão ignoradas no cálculo.']);
+    itens.push(['inf', 'Nota', ops.length + ' operação(ões), ' + E.cronograma.length + ' anos de transição. ' +
+      (E.cronoEditado ? 'Cronograma editado à mão.' : 'Cronograma padrão.')]);
+  }
+  painel.innerHTML = '<div class="regras">' + itens.map(function(x){
+    return '<div class="regra ' + x[0] + '"><span class="mk">' + x[1] + '</span><span>' + esc(x[2]) + '</span></div>';
+  }).join('') + '</div>';
+  $('#btn-calcular').disabled = !ops.length;
+}
+
+/* ======================== SIMULAÇÕES SALVAS ======================== */
+function renderSimulacoes(){
+  $('#sim-nome').value = E.simNome;
+  if(!E.conectado){
+    $('#sims-tabela').innerHTML = '<div class="vazio">Sem ligação com a planilha: o trabalho fica guardado só neste navegador.</div>';
+    $('#btn-salvar-sim').disabled = true; $('#btn-planilha').disabled = true;
+    return;
+  }
+  $('#btn-salvar-sim').disabled = false; $('#btn-planilha').disabled = false;
+  if(!E.simulacoes.length){
+    $('#sims-tabela').innerHTML = '<div class="vazio">Nenhuma simulação salva ainda.</div>';
+    return;
+  }
+  $('#sims-tabela').innerHTML = '<table><thead><tr><th>Nome</th><th>Empresa</th><th class="n">Operações</th><th>Salva em</th><th></th></tr></thead><tbody>' +
+    E.simulacoes.map(function(s){
+      return '<tr' + (s.id === E.simId ? ' class="destaque"' : '') + '><td><span class="nome">' + esc(s.nome) + '</span></td>' +
+        '<td>' + esc(s.empresa || '—') + '<div class="sub">' + esc(s.regime) + '</div></td>' +
+        '<td class="n">' + s.operacoes + '</td><td class="n">' + esc(dataHora(s.salvaEm)) + '</td>' +
+        '<td class="acoes"><button class="btn btn-sm" type="button" data-abrir="' + esc(s.id) + '">Abrir</button>' +
+        '<button class="btn btn-sm btn-ghost" type="button" data-apagar="' + esc(s.id) + '" aria-label="Excluir">✕</button></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function dataHora(s){
+  var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(s || '');
+  return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] : (s || '—');
+}
+
+async function salvarSimulacao(){
+  var nome = $('#sim-nome').value.trim();
+  if(!nome){ toast('Dê um nome à simulação.', true); $('#sim-nome').focus(); return; }
+  var b = $('#btn-salvar-sim'); b.disabled = true; b.textContent = 'Salvando…';
+  try{
+    var d = await chamar('salvarSimulacao', [{ id: E.simNome === nome ? E.simId : '', nome: nome, estado: estadoParaSalvar() }]);
+    E.simId = d.id; E.simNome = nome; E.simulacoes = d.simulacoes;
+    rascunho(); renderSimulacoes();
+    toast('Simulação salva na planilha.');
+  }catch(e){ toast(e.message, true); }
+  finally{ b.disabled = false; b.textContent = 'Salvar na planilha'; }
+}
+
+async function acaoSimulacoes(ev){
+  var b = ev.target.closest('button');
+  if(!b) return;
+  try{
+    if(b.dataset.abrir){
+      if(E.operacoes.length && !(await confirmar('Abrir simulação', 'O que está na tela agora será substituído pela simulação salva.', 'Abrir'))) return;
+      var d = await chamar('abrirSimulacao', [b.dataset.abrir]);
+      aplicarEstado(Object.assign({}, d.estado, { simId: d.id, simNome: d.nome }));
+      rascunho(); renderTudo();
+      toast('Simulação "' + d.nome + '" aberta.');
+    }
+    if(b.dataset.apagar){
+      var s = E.simulacoes.filter(function(x){ return x.id === b.dataset.apagar; })[0];
+      if(!s || !(await confirmar('Excluir simulação', 'Excluir "' + s.nome + '" da planilha? Não dá para desfazer.', 'Excluir'))) return;
+      var r = await chamar('excluirSimulacao', [s.id]);
+      E.simulacoes = r.simulacoes;
+      if(E.simId === s.id){ E.simId = ''; }
+      rascunho(); renderSimulacoes();
+      toast('Simulação excluída.');
+    }
+  }catch(e){ toast(e.message, true); }
+}
+
+async function novaSimulacao(){
+  if(E.operacoes.length && !(await confirmar('Nova simulação', 'As operações da tela serão apagadas. As simulações salvas na planilha continuam lá.', 'Começar do zero'))) return;
+  aplicarEstado({});
+  rascunho(); renderTudo();
+}
+
+async function abrirPlanilha(){
+  try{ var d = await chamar('linkDaPlanilha'); window.open(d.url, '_blank'); }
+  catch(e){ toast(e.message, true); }
+}
+
+/* ============================== RESULTADO ============================== */
+function opsValidas(){
+  return E.operacoes.filter(function(o){
+    return !numerosInvalidos(o).length && !M.conferirOperacao(o, E.parametros).some(function(a){ return a.tipo === 'err'; });
+  });
+}
+function calcular(){ return M.simular(opsValidas(), E.parametros, E.cronograma); }
+
+function classeVar(v){ return v > 0.005 ? 'pos' : v < -0.005 ? 'neg' : ''; }
+function sinalMoeda(v){ return (v > 0.005 ? '+' : '') + M.moeda(v); }
+function sinalPct(v){ return (v > 0.00005 ? '+' : '') + M.pct(v); }
+
+function renderResultado(){
+  var ops = opsValidas();
+  $('#res-vazio').hidden = ops.length > 0;
+  $('#res-conteudo').hidden = !ops.length;
+  if(!ops.length) return;
+  var res = calcular();
+  var atual = res[0], ultimo = res[res.length - 1];
+  var achar = function(a){ return res.filter(function(r){ return r.ano === a; })[0]; };
+  var p = E.parametros;
+
+  $('#res-contexto').textContent = (p.empresa || 'Empresa sem nome') + ' · ' + M.REGIMES[p.regime].nome + ' · valores ' +
+    p.periodo.toLowerCase() + 's · ' + ops.length + ' operação(ões)';
+
+  var r27 = achar('2027') || res[1];
+  var maior = res.slice(1).reduce(function(a, b){ return b.carga > a.carga ? b : a; }, res[1] || atual);
+  $('#tiles').innerHTML =
+    tile('Carga atual', M.moeda(atual.carga), M.pct(atual.cargaPct) + ' do faturamento', '') +
+    tile('Em ' + r27.ano, M.moeda(r27.carga), sinalMoeda(r27.variacao) + ' (' + sinalPct(r27.variacaoPct) + ')', r27.variacao) +
+    tile('Em ' + ultimo.ano + ' · modelo definitivo', M.moeda(ultimo.carga), sinalMoeda(ultimo.variacao) + ' (' + sinalPct(ultimo.variacaoPct) + ')', ultimo.variacao) +
+    tile('Ano de maior carga', maior.ano, M.moeda(maior.carga) + ' · ' + M.pct(maior.cargaPct), '');
+
+  desenharGrafico(res);
+
+  $('#tab-tributos').innerHTML = '<table><thead><tr><th>Cenário</th><th class="n">Carga total</th><th class="n">% fat.</th><th class="n">Variação</th>' +
+    '<th class="n">ICMS</th><th class="n">ISS</th><th class="n">IPI</th><th class="n">PIS</th><th class="n">COFINS</th><th class="n">Seletivo</th>' +
+    '<th class="n">CBS</th><th class="n">IBS</th><th class="n">Faturamento</th></tr></thead><tbody>' +
+    res.map(function(r, i){
+      var nota = r.ano === '2026' ? ' <span class="selo neutro" title="IBS/CBS destacados, compensáveis com PIS/COFINS">teste</span>' : '';
+      return '<tr' + (i === 0 ? ' class="destaque"' : '') + '><td class="n" style="text-align:left">' + esc(r.ano) + nota + '</td>' +
+        '<td class="n"><b>' + esc(M.moeda(r.carga)) + '</b></td><td class="n">' + esc(M.pct(r.cargaPct)) + '</td>' +
+        '<td class="n ' + classeVar(r.variacao) + '">' + (i === 0 ? '—' : esc(sinalMoeda(r.variacao))) + '</td>' +
+        [r.icms, r.iss, r.ipi, r.pis, r.cofins, r.is, r.cbs, r.ibs, r.faturamento].map(function(v){
+          return '<td class="n">' + esc(M.moeda(v)) + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody></table>';
+
+  $('#tab-ibscbs').innerHTML = '<table><thead><tr><th>Ano</th><th class="n">Débito CBS</th><th class="n">Crédito CBS</th><th class="n">Saldo CBS</th>' +
+    '<th class="n">Débito IBS</th><th class="n">Crédito IBS</th><th class="n">Saldo IBS</th><th class="n">IBS + CBS</th><th class="n">% fat.</th></tr></thead><tbody>' +
+    res.slice(1).map(function(r){
+      var s = r.cbs + r.ibs;
+      return '<tr><td class="n" style="text-align:left">' + esc(r.ano) + '</td>' +
+        [r.cbsDebito, r.cbsCredito, r.cbs, r.ibsDebito, r.ibsCredito, r.ibs].map(function(v){ return '<td class="n">' + esc(M.moeda(v)) + '</td>'; }).join('') +
+        '<td class="n"><b>' + esc(M.moeda(s)) + '</b></td><td class="n">' + esc(M.pct(r.faturamento ? s / r.faturamento : 0)) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+
+  var anos = res.slice(1).map(function(r){ return r.ano; });
+  if(anos.indexOf(S.anoTrat) < 0) S.anoTrat = anos[anos.length - 1];
+  renderPorTratamento(res);
+
+  var prem = [
+    ['inf', 'Preço constante: o valor de cada operação é o mesmo em todos os anos; a variação mostra só o efeito dos tributos.'],
+    ['inf', '2026 é ano-teste: IBS e CBS são destacados, mas compensados com o PIS/COFINS, e não entram na carga.'],
+    ['inf', 'Valores negativos indicam saldo credor (créditos maiores que débitos).'],
+    ['avi', 'Alíquotas de referência estimadas (CBS ' + M.pct(p.cbsRef, 1) + ', IBS ' + M.pct(p.ibsRef, 1) + '). Ajuste no Passo 1 e na aba Tabelas.'],
+    ['avi', 'Não simula: alíquotas ad rem de combustíveis, redutores de imóveis (informe a base líquida), estorno de créditos, split payment, ZFM nem IRPJ/CSLL.']
+  ];
+  $('#res-premissas').innerHTML = prem.map(function(x){
+    return '<div class="regra ' + x[0] + '"><span class="mk">' + (x[0] === 'avi' ? 'Atenção' : 'Nota') + '</span><span>' + esc(x[1]) + '</span></div>';
+  }).join('');
+}
+
+function tile(rotulo, valor, sub, variacao){
+  var cls = variacao > 0.005 ? ' alerta' : variacao < -0.005 ? ' bom' : '';
+  return '<div class="tile' + cls + '"><span class="eyebrow">' + esc(rotulo) + '</span><strong>' + esc(valor) + '</strong><em>' + esc(sub) + '</em></div>';
+}
+
+function desenharGrafico(res){
+  var max = res.reduce(function(m, r){ return Math.max(m, r.carga, 0); }, 0) || 1;
+  var ref = Math.max(res[0].carga, 0) / max * 100;
+  $('#grafico').innerHTML = '<div class="grafico">' + res.map(function(r){
+    var partes = [
+      ['atuais', Math.max(r.atuais, 0)],
+      ['is', Math.max(r.is, 0)],
+      ['ibscbs', r.efetivo ? Math.max(r.cbs + r.ibs, 0) : 0]
+    ];
+    var somaPos = partes.reduce(function(s, x){ return s + x[1]; }, 0);
+    var fator = somaPos ? Math.max(r.carga, 0) / somaPos : 0;
+    var titulo = r.ano + ': ' + M.moeda(r.carga) + ' (tributos atuais ' + M.moeda(r.atuais) + ', Seletivo ' + M.moeda(r.is) +
+      ', IBS+CBS ' + M.moeda(r.cbs + r.ibs) + (r.efetivo || r.ano === 'Atual' ? '' : ', só destacados') + ')';
+    return '<div class="g-linha" title="' + esc(titulo) + '">' +
+      '<div class="g-nome">' + esc(r.ano) + (r.ano === '2026' ? '<span>teste</span>' : r.ano === 'Atual' ? '<span>hoje</span>' : '') + '</div>' +
+      '<div class="g-faixa">' + partes.map(function(x){
+        var w = x[1] * fator / max * 100;
+        return w > 0 ? '<div class="g-seg ' + x[0] + '" style="width:' + w.toFixed(3) + '%"></div>' : '';
+      }).join('') + '<div class="g-ref" style="left:' + ref.toFixed(3) + '%"></div></div>' +
+      '<div class="g-valor">' + esc(M.moeda(r.carga)) + '<span>' + esc(M.pct(r.cargaPct)) +
+        (r.ano === 'Atual' ? '' : ' · ' + esc(sinalPct(r.variacaoPct))) + '</span></div></div>';
+  }).join('') + '</div>';
+}
+
+function renderPorTratamento(res){
+  var r = (res || calcular()).filter(function(x){ return x.ano === S.anoTrat; })[0];
+  $('#trat-ano').textContent = S.anoTrat;
+  if(!r){ $('#tab-trat').innerHTML = ''; return; }
+  var lista = Object.keys(r.porTratamento).map(function(k){ return r.porTratamento[k]; })
+    .sort(function(a, b){ return (b.vendas + b.compras) - (a.vendas + a.compras); });
+  $('#tab-trat').innerHTML = '<table><thead><tr><th>Tratamento</th><th>Alíquota</th><th class="n">Vendas</th><th class="n">Débito IBS+CBS</th>' +
+    '<th class="n">% vendas</th><th class="n">Compras</th><th class="n">Crédito IBS+CBS</th><th class="n">% compras</th></tr></thead><tbody>' +
+    lista.map(function(t){
+      return '<tr><td><span class="nome">' + esc(t.nome) + '</span></td><td><span class="selo neutro">' + esc(t.rotulo) + '</span></td>' +
+        '<td class="n">' + esc(M.moeda(t.vendas)) + '</td><td class="n">' + esc(M.moeda(t.debito)) + '</td>' +
+        '<td class="n">' + (t.vendas ? esc(M.pct(t.debito / t.vendas)) : '—') + '</td>' +
+        '<td class="n">' + esc(M.moeda(t.compras)) + '</td><td class="n">' + esc(M.moeda(t.credito)) + '</td>' +
+        '<td class="n">' + (t.compras ? esc(M.pct(t.credito / t.compras)) : '—') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function mudarAnoTrat(passo){
+  var anos = E.cronograma.map(function(c){ return String(c.ano); });
+  var i = anos.indexOf(S.anoTrat) + passo;
+  if(i < 0 || i >= anos.length) return;
+  S.anoTrat = anos[i];
+  renderPorTratamento();
+}
+
+async function gravarNaPlanilha(){
+  var res = calcular(), p = E.parametros;
+  var ultimo = res[res.length - 1];
+  var blocos = [
+    { titulo: 'Carga tributária por cenário',
+      cabecalho: ['Cenário', 'Faturamento', 'ICMS', 'ISS', 'IPI', 'PIS', 'COFINS', 'Imposto Seletivo', 'CBS', 'IBS', 'IBS/CBS na carga?', 'Carga total', 'Carga / faturamento', 'Variação (R$)', 'Variação (%)'],
+      formatos: ['texto', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'texto', 'moeda', 'pct', 'moeda', 'pct'],
+      linhas: res.map(function(r){
+        return [r.ano, r.faturamento, r.icms, r.iss, r.ipi, r.pis, r.cofins, r.is, r.cbs, r.ibs,
+          r.ano === 'Atual' ? '—' : (r.efetivo ? 'Sim' : 'Não (teste)'), r.carga, r.cargaPct, r.variacao, r.variacaoPct];
+      }) },
+    { titulo: 'Débitos e créditos de IBS/CBS',
+      cabecalho: ['Ano', 'Débito CBS', 'Crédito CBS', 'Saldo CBS', 'Débito IBS', 'Crédito IBS', 'Saldo IBS', 'IBS + CBS'],
+      formatos: ['texto', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda', 'moeda'],
+      linhas: res.slice(1).map(function(r){ return [r.ano, r.cbsDebito, r.cbsCredito, r.cbs, r.ibsDebito, r.ibsCredito, r.ibs, r.cbs + r.ibs]; }) },
+    { titulo: 'IBS/CBS por tratamento — ' + ultimo.ano,
+      cabecalho: ['Tratamento', 'Alíquota', 'Vendas', 'Débito IBS+CBS', 'Compras', 'Crédito IBS+CBS'],
+      formatos: ['texto', 'texto', 'moeda', 'moeda', 'moeda', 'moeda'],
+      linhas: Object.keys(ultimo.porTratamento).map(function(k){
+        var t = ultimo.porTratamento[k]; return [t.nome, t.rotulo, t.vendas, t.debito, t.compras, t.credito]; }) },
+    { titulo: 'Operações',
+      cabecalho: ['Tipo', 'Descrição', 'Valor', 'Tratamento', 'ICMS', 'ISS', 'IPI', 'Seletivo', 'PIS/COFINS hoje', 'Fornecedor', 'Crédito IBS/CBS'],
+      formatos: ['texto', 'texto', 'moeda', 'texto', 'pct', 'pct', 'pct', 'pct', 'texto', 'texto', 'texto'],
+      linhas: opsValidas().map(function(o){
+        return [o.tipo === 'venda' ? 'Venda' : 'Compra', o.descricao, o.valor, M.tratamentoDe(o).nome, o.icms, o.iss, o.ipi, o.is,
+          M.PIS_COFINS[o.pisCofins], o.tipo === 'compra' ? M.FORNECEDORES[o.fornecedor] : '', o.tipo === 'compra' ? (o.credIbsCbs ? 'Sim' : 'Não') : ''];
+      }) }
+  ];
+  var b = $('#btn-gravar'); b.disabled = true; b.textContent = 'Gravando…';
+  try{
+    var d = await chamar('gravarResultado', [{
+      titulo: 'Simulação IBS/CBS — ' + (p.empresa || 'empresa sem nome') + (p.cnpj ? ' (' + p.cnpj + ')' : ''),
+      subtitulo: M.REGIMES[p.regime].nome + ' · valores ' + p.periodo.toLowerCase() + 's · CBS ' + M.pct(p.cbsRef, 1) +
+        ' · IBS ' + M.pct(p.ibsRef, 1) + ' · gerado em ' + new Date().toLocaleString('pt-BR'),
+      blocos: blocos
+    }]);
+    toast('Resultado gravado na aba "Resultado" da planilha.');
+    if(d && d.url) window.open(d.url, '_blank');
+  }catch(e){ toast(e.message, true); }
+  finally{ b.disabled = !E.conectado; b.textContent = 'Gravar na planilha'; }
+}
+
+/* ================================ TABELAS ================================ */
+function renderTabelas(){ renderCronograma(); renderCatalogo(); }
+
+function renderCronograma(){
+  $('#crono-estado').textContent = E.cronoEditado
+    ? 'Editado à mão. Mudanças nas alíquotas de referência não o alteram mais.'
+    : 'Calculado a partir das alíquotas de referência do Passo 1.';
+  var chk = function(i, campo, v){
+    return '<td style="text-align:center"><input type="checkbox" data-i="' + i + '" data-campo="' + campo + '"' + (v ? ' checked' : '') + '></td>';
+  };
+  var txt = function(i, campo, v){
+    return '<td><div class="sufixo"><input type="text" class="num-in" inputmode="decimal" data-i="' + i + '" data-campo="' + campo +
+      '" value="' + esc(mostrarPct(v)) + '"><span>%</span></div></td>';
+  };
+  $('#crono-tabela').innerHTML = '<table><thead><tr><th>Ano</th><th>CBS</th><th>IBS</th><th>ICMS/ISS (fração)</th>' +
+    '<th>PIS/COFINS</th><th>IPI</th><th>Seletivo</th><th>IBS/CBS na carga</th><th>Serv. financeiros</th><th>Observação</th></tr></thead><tbody>' +
+    E.cronograma.map(function(c, i){
+      return '<tr><td class="n" style="text-align:left"><b>' + c.ano + '</b></td>' +
+        txt(i, 'cbs', c.cbs) + txt(i, 'ibs', c.ibs) + txt(i, 'fator', c.fator) +
+        chk(i, 'pisCofins', c.pisCofins) + chk(i, 'ipi', c.ipi) + chk(i, 'is', c.is) + chk(i, 'efetivo', c.efetivo) +
+        txt(i, 'financeiro', c.financeiro) +
+        '<td><span class="sub">' + esc(c.obs) + '</span></td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function editarCronograma(ev){
+  var el = ev.target, i = Number(el.dataset.i), campo = el.dataset.campo;
+  if(!campo || isNaN(i)) return;
+  var c = E.cronograma[i];
+  if(el.type === 'checkbox') c[campo] = el.checked;
+  else {
+    var v = lerPct(el.value);
+    if(isNaN(v) || v < 0 || v > 1){
+      if(ev.type === 'change'){ toast('Informe um percentual entre 0 e 100.', true); el.value = mostrarPct(c[campo]); }
+      return;
+    }
+    c[campo] = v;
+  }
+  if(!E.cronoEditado){
+    E.cronoEditado = true;
+    $('#crono-estado').textContent = 'Editado à mão. Mudanças nas alíquotas de referência não o alteram mais.';
+  }
+  rascunho();
+}
+function restaurarCronograma(){
+  E.cronograma = M.cronogramaPadrao(E.parametros.cbsRef, E.parametros.ibsRef);
+  E.cronoEditado = false;
+  renderCronograma(); rascunho();
+  toast('Cronograma restaurado.');
+}
+
+function renderCatalogo(){
+  var sel = $('#f-grupo');
+  if(sel.options.length <= 1){
+    var grupos = [];
+    M.TRATAMENTOS.forEach(function(t){ if(grupos.indexOf(t.grupo) < 0) grupos.push(t.grupo); });
+    sel.innerHTML = '<option value="">Todos</option>' + grupos.map(function(g){ return '<option>' + esc(g) + '</option>'; }).join('');
+  }
+  var q = S.busca.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  var lista = M.TRATAMENTOS.filter(function(t){
+    if(S.filtroGrupo && t.grupo !== S.filtroGrupo) return false;
+    if(!q) return true;
+    return (t.nome + ' ' + t.nota + ' ' + t.grupo).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').indexOf(q) >= 0;
+  });
+  $('#trat-tabela').innerHTML = lista.length ? '<table><thead><tr><th>Tratamento</th><th>Alíquota</th><th>Crédito a quem compra</th><th>O que informar em Valor</th></tr></thead><tbody>' +
+    lista.map(function(t){
+      return '<tr><td><span class="nome">' + esc(t.nome) + '</span><div class="sub">' + esc(t.grupo) + (t.nota ? ' · ' + esc(t.nota) : '') + '</div></td>' +
+        '<td><span class="selo neutro">' + esc(M.rotuloReducao(t)) + '</span></td>' +
+        '<td>' + (t.credito ? 'Sim' : '<span class="selo alerta">Não</span>') + '</td>' +
+        '<td><span class="sub">' + esc(t.valor) + '</span></td></tr>';
+    }).join('') + '</tbody></table>' : '<div class="vazio">Nenhum tratamento encontrado.</div>';
+}
+
+/* ================================ GERAL ================================ */
+function renderTudo(){
+  escreverParametros();
+  renderOperacoes();
+  renderSimulacoes();
+  if(S.aba === 'resultado') renderResultado();
+  if(S.aba === 'tabelas') renderTabelas();
+}
+
+async function conectar(){
+  try{
+    var d = await chamar('carregarEstado');
+    E.conectado = true;
+    E.simulacoes = d.simulacoes || [];
+    $('#falha-carga').hidden = true;
+  }catch(e){
+    E.conectado = false;
+    $('#falha-texto').textContent = e.message;
+    $('#falha-carga').hidden = false;
+  }
+  $('#btn-gravar').disabled = !E.conectado;
+  renderSimulacoes();
+}
+
+function iniciar(){
+  var salvo = lembrar('ibscbs-rascunho');
+  if(salvo){ try{ aplicarEstado(JSON.parse(salvo)); }catch(e){} }
+
+  $$('.tab').forEach(function(t){ t.addEventListener('click', function(){ irPara(t.dataset.aba); }); });
+  ['#p-empresa', '#p-cnpj', '#p-cbs', '#p-ibs', '#p-simples', '#p-rural'].forEach(function(s){
+    $(s).addEventListener('input', lerParametro);
+    $(s).addEventListener('change', lerParametro);
+  });
+  ['#p-regime', '#p-periodo', '#p-excl-icms', '#p-excl-base'].forEach(function(s){
+    $(s).addEventListener('change', function(ev){ lerParametro(ev); renderOperacoes(); });
+  });
+  $('#btn-nova-venda').addEventListener('click', function(){ abrirOperacao(null, 'venda'); });
+  $('#btn-nova-compra').addEventListener('click', function(){ abrirOperacao(null, 'compra'); });
+  $('#btn-exemplo').addEventListener('click', async function(){
+    if(E.operacoes.length && !(await confirmar('Usar exemplo', 'Trocar as operações da tela pelas do exemplo?', 'Trocar'))) return;
+    E.operacoes = M.exemplo().map(function(o){ o.id = novoId(); return o; });
+    if(!E.parametros.empresa){ E.parametros.empresa = 'Empresa exemplo'; escreverParametros(); }
+    renderOperacoes(); rascunho();
+  });
+  $('#btn-limpar-ops').addEventListener('click', async function(){
+    if(!E.operacoes.length || !(await confirmar('Limpar operações', 'Apagar todas as operações da tela?', 'Apagar'))) return;
+    E.operacoes = []; renderOperacoes(); rascunho();
+  });
+  $('#ops-tabela').addEventListener('click', acaoOperacoes);
+  $('#btn-calcular').addEventListener('click', function(){ irPara('resultado'); });
+  $('#btn-salvar-sim').addEventListener('click', salvarSimulacao);
+  $('#sims-tabela').addEventListener('click', acaoSimulacoes);
+  $('#btn-nova-sim').addEventListener('click', novaSimulacao);
+  $('#btn-planilha').addEventListener('click', abrirPlanilha);
+  $('#btn-tentar').addEventListener('click', conectar);
+  $('#btn-imprimir').addEventListener('click', function(){ window.print(); });
+  $('#btn-gravar').addEventListener('click', gravarNaPlanilha);
+  $('#trat-menos').addEventListener('click', function(){ mudarAnoTrat(-1); });
+  $('#trat-mais').addEventListener('click', function(){ mudarAnoTrat(1); });
+  $('#crono-tabela').addEventListener('input', editarCronograma);
+  $('#crono-tabela').addEventListener('change', editarCronograma);
+  $('#btn-crono-padrao').addEventListener('click', restaurarCronograma);
+  $('#f-grupo').addEventListener('change', function(ev){ S.filtroGrupo = ev.target.value; renderCatalogo(); });
+  $('#f-busca').addEventListener('input', function(ev){ S.busca = ev.target.value; renderCatalogo(); });
+  document.addEventListener('keydown', function(ev){
+    if(ev.key === 'Escape' && rascunhoOp && !$('#confirma-raiz').innerHTML) fecharModal();
+  });
+
+  renderTudo();
+  conectar();
+}
+
+iniciar();
+})();
+</script>

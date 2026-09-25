@@ -1,13 +1,46 @@
 # Simulador IBS/CBS para Google Planilhas (regime regular)
 
-Script do Google Apps Script que simula o impacto da Reforma Tributária do consumo
-(EC 132/2023, LC 214/2025 e LC 227/2026) para empresas do **Lucro Real** ou do
-**Lucro Presumido**. Ele compara a carga atual (ICMS, ISS, IPI, PIS e COFINS) com a
-carga de cada ano da transição, de 2026 a 2033, e calcula os débitos e créditos de IBS
-e CBS. Cada operação tem seu próprio tratamento: redução por atividade, regime
-específico, exportação, tipo de fornecedor e situação atual do PIS/COFINS.
+Simula o impacto da Reforma Tributária do consumo (EC 132/2023, LC 214/2025 e
+LC 227/2026) para empresas do **Lucro Real** ou do **Lucro Presumido**. Compara a
+carga atual (ICMS, ISS, IPI, PIS e COFINS) com a carga de cada ano da transição, de
+2026 a 2033, e calcula os débitos e créditos de IBS e CBS. Cada operação tem seu
+próprio tratamento: redução por atividade, regime específico, exportação, tipo de
+fornecedor e situação atual do PIS/COFINS.
 
-## Instalação
+## Qual versão usar
+
+**Versão app (recomendada)**, na pasta [`web-app/`](web-app/). Tem a mesma tela do
+Quadro de Férias: abas, cartões, formulário com avisos, gráfico e simulações salvas
+na planilha. Abre pelo menu da planilha ou por um link.
+
+→ **[web-app/COMO-PUBLICAR.md](web-app/COMO-PUBLICAR.md)** — roteiro passo a passo.
+
+```
+web-app/
+  Codigo.gs          serve a tela e guarda as simulações na planilha
+  pagina.html        a tela inteira (HTML, CSS e JS)
+  motor_js.html      o motor de cálculo, usado pela tela e pelos testes
+  COMO-PUBLICAR.md   roteiro de instalação
+  testes/
+    motor.test.js        cálculo: reduções, regimes, créditos, transição
+    codigo.test.js       Codigo.gs sobre uma planilha simulada
+    tela.test.js         a tela no Chromium, ligada ao Codigo.gs (Playwright)
+    montar-ensaio.js     monta a página completa para o ensaio da tela
+    planilha-falsa.js    imitação dos serviços do Apps Script
+```
+
+```bash
+node simulador-ibs-cbs/web-app/testes/motor.test.js
+node simulador-ibs-cbs/web-app/testes/codigo.test.js
+NODE_PATH=$(npm root -g) node simulador-ibs-cbs/web-app/testes/tela.test.js /tmp/ensaio
+```
+
+**Versão planilha (anterior)**, no arquivo [`SimuladorIBSCBS.gs`](SimuladorIBSCBS.gs).
+Funciona só com abas e menu, sem tela própria. As regras de cálculo são as mesmas.
+Não coloque as duas versões no mesmo projeto do Apps Script: as duas criam o menu.
+O restante deste documento descreve esta versão.
+
+## Instalação (versão planilha)
 
 1. Crie uma planilha no Google Planilhas.
 2. Abra **Extensões > Apps Script**, apague o conteúdo de `Código.gs` e cole o conteúdo de

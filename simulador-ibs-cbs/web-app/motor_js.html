@@ -1,0 +1,349 @@
+<!-- Motor de cálculo do Simulador IBS/CBS. Usado pela tela (pagina.html) e
+     pelos testes. Sem acesso à planilha: só recebe dados e devolve números. -->
+<script>
+function motorIbsCbs(){
+  'use strict';
+
+  /* Percentuais sempre em fração: 0.18 = 18%. */
+
+  var REGIMES = {
+    real:      { nome: 'Lucro Real (não cumulativo)',  pis: 0.0165, cofins: 0.076 },
+    presumido: { nome: 'Lucro Presumido (cumulativo)', pis: 0.0065, cofins: 0.03 }
+  };
+
+  var PIS_COFINS = {
+    padrao:     'Padrão do regime',
+    cumulativo: 'Cumulativo (0,65% + 3%)',
+    monofasico: 'Monofásico / alíquota zero',
+    isento:     'Isento / suspenso / não incide'
+  };
+
+  var FORNECEDORES = {
+    regular: 'Regime regular',
+    simples: 'Simples Nacional',
+    rural:   'Produtor rural não contribuinte',
+    sem:     'Sem crédito (PF / não contribuinte)'
+  };
+
+  /* Catálogo de tratamentos de IBS/CBS (LC 214/2025). O id é o que fica
+     gravado nas simulações; o nome pode mudar sem quebrar nada. */
+  function T(id, grupo, nome, reducao, extra){
+    var t = { id: id, grupo: grupo, nome: nome, reducao: reducao, especial: '',
+              credito: true, exportacao: false, valor: 'Valor da operação', nota: '' };
+    for(var k in (extra || {})) t[k] = extra[k];
+    return t;
+  }
+  var R60 = 'Redução de 60%', ZERO = 'Alíquota zero', ESP = 'Regimes específicos';
+  var TRATAMENTOS = [
+    T('padrao', 'Geral', 'Padrão (tributação integral)', 0,
+      { nota: 'Alíquota de referência. Inclui bebidas alcoólicas vendidas por bares e restaurantes.' }),
+    T('prof30', 'Redução de 30%', 'Profissões intelectuais regulamentadas', 0.3,
+      { valor: 'Valor do serviço',
+        nota: 'LC 214/2025, art. 127: administradores, advogados, arquitetos e urbanistas, assistentes sociais, ' +
+          'bibliotecários, biólogos, contabilistas, economistas, economistas domésticos, profissionais de educação ' +
+          'física, engenheiros e agrônomos, estatísticos, médicos veterinários e zootecnistas, museólogos, químicos, ' +
+          'profissionais de relações públicas, técnicos industriais e técnicos agrícolas. Prestado por PF ou ' +
+          'sociedade de profissionais habilitados e fiscalizados por conselho.' }),
+    T('edu60', R60, 'Serviços de educação', 0.6, { valor: 'Valor do serviço', nota: 'Serviços de ensino listados em anexo da LC 214/2025.' }),
+    T('saude60', R60, 'Serviços de saúde humana', 0.6, { valor: 'Valor do serviço', nota: 'Serviços de saúde listados em anexo da LC 214/2025.' }),
+    T('dispmed60', R60, 'Dispositivos médicos', 0.6, { nota: 'Itens listados em anexo. Alguns têm alíquota zero.' }),
+    T('acess60', R60, 'Dispositivos de acessibilidade para PcD', 0.6, { nota: 'Itens listados em anexo. Alguns têm alíquota zero.' }),
+    T('med60', R60, 'Medicamentos', 0.6, { nota: 'Registrados na Anvisa ou manipulados. Os da lista específica têm alíquota zero.' }),
+    T('alim60', R60, 'Alimentos para consumo humano', 0.6, { nota: 'Alimentos listados em anexo que não estão na Cesta Básica Nacional.' }),
+    T('hig60', R60, 'Higiene pessoal e limpeza', 0.6, { nota: 'Produtos majoritariamente consumidos por famílias de baixa renda, listados em anexo.' }),
+    T('agro60', R60, 'Produtos agropecuários, pesqueiros e florestais in natura', 0.6,
+      { nota: 'Agropecuários, aquícolas, pesqueiros, florestais e extrativistas vegetais in natura.' }),
+    T('insagro60', R60, 'Insumos agropecuários e aquícolas', 0.6, { nota: 'Insumos listados em anexo da LC 214/2025.' }),
+    T('cult60', R60, 'Produções artísticas, culturais, jornalísticas e audiovisuais nacionais', 0.6,
+      { nota: 'Inclui eventos culturais conforme a LC 214/2025.' }),
+    T('comun60', R60, 'Comunicação institucional', 0.6, { valor: 'Valor do serviço' }),
+    T('desp60', R60, 'Atividades desportivas', 0.6),
+    T('sober60', R60, 'Soberania, segurança nacional, da informação e cibernética', 0.6),
+    T('cesta0', ZERO, 'Cesta Básica Nacional', 1, { nota: 'Produtos listados em anexo da LC 214/2025.' }),
+    T('horti0', ZERO, 'Hortícolas, frutas e ovos', 1),
+    T('medzero', ZERO, 'Medicamentos e dispositivos da lista de alíquota zero', 1,
+      { nota: 'Somente os itens listados nos anexos de alíquota zero.' }),
+    T('transpurb0', ZERO, 'Transporte público coletivo urbano e metropolitano', 1,
+      { valor: 'Valor do serviço', nota: 'Rodoviário e metroviário urbano, semiurbano e metropolitano.' }),
+    T('bares40', ESP, 'Bares e restaurantes', 0.4,
+      { credito: false, valor: 'Valor da alimentação, sem gorjeta',
+        nota: 'Alimentação e bebidas não alcoólicas preparadas no local. Bebidas alcoólicas: use Padrão. ' +
+          'O adquirente não se credita.' }),
+    T('hotel40', ESP, 'Hotelaria, parques de diversão e temáticos', 0.4,
+      { credito: false, nota: 'O adquirente não se credita.' }),
+    T('turismo40', ESP, 'Agências de turismo', 0.4,
+      { valor: 'Valor da intermediação', nota: 'A base é o valor da intermediação, não o total do pacote.' }),
+    T('transpinter40', ESP, 'Transporte coletivo intermunicipal/interestadual de passageiros', 0.4,
+      { valor: 'Valor do serviço', nota: 'Rodoviário, ferroviário e hidroviário. Confira o direito de crédito do adquirente.' }),
+    T('imovel50', ESP, 'Operações com bens imóveis', 0.5,
+      { valor: 'Valor da operação menos o redutor de ajuste',
+        nota: 'Alienação, construção e demais operações com imóveis. Informe a base já líquida do redutor de ' +
+          'ajuste (e do redutor social, se houver).' }),
+    T('locacao70', ESP, 'Locação, cessão onerosa e arrendamento de imóveis', 0.7,
+      { valor: 'Aluguel menos o redutor social', nota: 'Na locação residencial, desconte o redutor social por imóvel.' }),
+    T('planosaude60', ESP, 'Planos de assistência à saúde', 0.6,
+      { credito: false, valor: 'Receitas menos indenizações',
+        nota: 'Base: receitas dos planos menos as indenizações pagas. Planos contratados para empregados podem ' +
+          'gerar crédito ao empregador; confira.' }),
+    T('financeiro', ESP, 'Serviços financeiros', 0,
+      { especial: 'financeiro', credito: false, valor: 'Base do regime (spread: receitas menos deduções)',
+        nota: 'Alíquota total de IBS+CBS própria, por ano (10,85% em 2027 até 12,5% em 2033), na aba Tabelas. ' +
+          'Serviços sujeitos a ISS têm redução em pontos percentuais na transição, não simulada.' }),
+    T('combust', ESP, 'Combustíveis — revenda (monofásico)', 1,
+      { credito: false, nota: 'IBS/CBS monofásicos, com alíquota por unidade (ad rem) cobrada na produção ou ' +
+          'importação. Revenda sem débito. A cobrança ad rem não é simulada.' }),
+    T('export', 'Imunidade', 'Exportação (imune, mantém créditos)', 1,
+      { credito: false, exportacao: true,
+        nota: 'Sem ICMS, ISS, IPI, PIS/COFINS, IBS e CBS. Os créditos das aquisições são mantidos.' }),
+    T('isento', 'Não tributado', 'Isento / imune / não incidência', 1,
+      { credito: false, nota: 'Pode exigir estorno de créditos das aquisições relacionadas (não simulado).' })
+  ];
+  var POR_ID = {};
+  TRATAMENTOS.forEach(function(t){ POR_ID[t.id] = t; });
+
+  function rotuloReducao(t){
+    if(t.especial === 'financeiro') return 'Alíquota específica';
+    if(t.exportacao) return 'Imune';
+    if(t.reducao >= 1) return 'Zero';
+    if(!t.reducao) return 'Integral';
+    return '−' + Math.round(t.reducao * 100) + '%';
+  }
+
+  /* ------------------------------------------------------------ premissas */
+
+  function parametrosPadrao(){
+    return {
+      empresa: '', cnpj: '', regime: 'real', periodo: 'Mensal',
+      cbsRef: 0.088, ibsRef: 0.177,
+      excluiIcmsPC: true, excluiTribBase: true,
+      credSimples: 0.03, credRural: 0
+    };
+  }
+
+  /* Cronograma de transição (EC 132/2023, LC 214/2025 e LC 227/2026). */
+  function cronogramaPadrao(cbsRef, ibsRef){
+    function ano(a, cbs, ibs, fator, pc, ipi, is, efetivo, fin, obs){
+      return { ano: a, cbs: cbs, ibs: ibs, fator: fator, pisCofins: pc, ipi: ipi, is: is,
+               efetivo: efetivo, financeiro: fin, obs: obs };
+    }
+    return [
+      ano(2026, 0.009, 0.001, 1, true, true, false, false, 0.01,
+        'Ano-teste: CBS 0,9% e IBS 0,1% destacados, compensáveis com PIS/COFINS (sem custo adicional).'),
+      ano(2027, cbsRef - 0.001, 0.001, 1, false, false, true, true, 0.1085,
+        'CBS plena (−0,1 p.p.); fim do PIS/COFINS; IPI zerado (exceto ZFM); IBS 0,1%; início do Imposto Seletivo.'),
+      ano(2028, cbsRef - 0.001, 0.001, 1, false, false, true, true, 0.1085, 'Mesmas regras de 2027.'),
+      ano(2029, cbsRef, ibsRef * 0.1, 0.9, false, false, true, true, 0.11, 'ICMS/ISS a 90%; IBS a 10% (estimativa).'),
+      ano(2030, cbsRef, ibsRef * 0.2, 0.8, false, false, true, true, 0.1115, 'ICMS/ISS a 80%; IBS a 20% (estimativa).'),
+      ano(2031, cbsRef, ibsRef * 0.3, 0.7, false, false, true, true, 0.113, 'ICMS/ISS a 70%; IBS a 30% (estimativa).'),
+      ano(2032, cbsRef, ibsRef * 0.4, 0.6, false, false, true, true, 0.115, 'ICMS/ISS a 60%; IBS a 40% (estimativa).'),
+      ano(2033, cbsRef, ibsRef, 0, false, false, true, true, 0.125, 'Modelo definitivo: ICMS e ISS extintos.')
+    ];
+  }
+
+  function cenarioAtual(){
+    return { ano: 'Atual', cbs: 0, ibs: 0, fator: 1, pisCofins: true, ipi: true, is: false,
+             efetivo: false, financeiro: 0 };
+  }
+
+  /* ------------------------------------------------------------ operações */
+
+  function novaOperacao(tipo){
+    return {
+      id: '', tipo: tipo === 'compra' ? 'compra' : 'venda', descricao: '', valor: 0,
+      tratamento: 'padrao', reducao: 0,
+      icms: 0, iss: 0, ipi: 0, is: 0, pisCofins: 'padrao',
+      fornecedor: 'regular', credIbsCbs: true, credPisCofins: true, credIcmsIpi: true, credPct: null
+    };
+  }
+
+  function tratamentoDe(op){
+    if(op.tratamento === 'personalizado'){
+      var r = Math.min(Math.max(Number(op.reducao) || 0, 0), 1);
+      return { id: 'personalizado', grupo: 'Personalizado', nome: 'Redução personalizada de ' +
+        (Math.round(r * 10000) / 100).toString().replace('.', ',') + '%', reducao: r, especial: '',
+        credito: true, exportacao: false, valor: 'Valor da operação', nota: '' };
+    }
+    return POR_ID[op.tratamento] || POR_ID.padrao;
+  }
+
+  function exemplo(){
+    function op(tipo, descricao, valor, trat, x){
+      var o = novaOperacao(tipo);
+      o.descricao = descricao; o.valor = valor; o.tratamento = trat;
+      for(var k in (x || {})) o[k] = x[k];
+      return o;
+    }
+    return [
+      op('venda', 'Mercadorias em geral', 100000, 'padrao', { icms: 0.18 }),
+      op('venda', 'Alimentos (fora da cesta básica)', 20000, 'alim60', { icms: 0.12 }),
+      op('venda', 'Produtos da Cesta Básica Nacional', 10000, 'cesta0', { icms: 0.07, pisCofins: 'monofasico' }),
+      op('venda', 'Consultoria de engenharia', 30000, 'prof30', { iss: 0.05, pisCofins: 'cumulativo' }),
+      op('venda', 'Exportação de mercadorias', 40000, 'export'),
+      op('venda', 'Locação de sala comercial', 6000, 'locacao70'),
+      op('compra', 'Mercadorias para revenda', 60000, 'padrao', { icms: 0.18 }),
+      op('compra', 'Mercadorias de fornecedor do Simples', 15000, 'padrao', { fornecedor: 'simples', credIcmsIpi: false }),
+      op('compra', 'Energia elétrica', 5000, 'padrao', { icms: 0.18 }),
+      op('compra', 'Serviços contábeis e jurídicos', 8000, 'prof30', { iss: 0.05, credIcmsIpi: false }),
+      op('compra', 'Refeições de clientes em restaurante', 2000, 'bares40', { icms: 0.035, credPisCofins: false, credIcmsIpi: false }),
+      op('compra', 'Tarifas bancárias', 1000, 'financeiro', { iss: 0.05, pisCofins: 'cumulativo', credPisCofins: false, credIcmsIpi: false })
+    ].map(function(o, i){ o.id = 'ex' + (i + 1); return o; });
+  }
+
+  /** Avisos de uma operação, no formato da tela: err impede, avi alerta, inf informa. */
+  function conferirOperacao(op, p){
+    var t = tratamentoDe(op), v = [];
+    function add(tipo, texto){ v.push({ tipo: tipo, t: texto }); }
+    if(!(Number(op.valor) > 0)) add('err', 'Informe um valor maior que zero.');
+    if(op.tratamento === 'personalizado' && !(op.reducao >= 0 && op.reducao <= 1)) {
+      add('err', 'A redução precisa ficar entre 0% e 100%.');
+    }
+    ['icms', 'iss', 'ipi', 'is'].forEach(function(k){
+      if(op[k] < 0 || op[k] > 1) add('err', 'Alíquota de ' + k.toUpperCase() + ' fora do intervalo de 0% a 100%.');
+    });
+    if(t.valor !== 'Valor da operação') add('inf', 'Em "Valor", informe: ' + t.valor + '.');
+    if(t.exportacao && (op.icms || op.iss || op.ipi || op.is)) {
+      add('inf', 'Na exportação, as alíquotas informadas são ignoradas: não há ICMS, ISS, IPI, IBS nem CBS.');
+    }
+    if(op.icms > 0 && op.iss > 0) add('avi', 'ICMS e ISS na mesma operação. Confira se não é o caso de separar em duas linhas.');
+    if(op.tipo === 'compra'){
+      if(op.credIbsCbs && !t.credito && op.fornecedor === 'regular') {
+        add('avi', 'Este tratamento não dá crédito de IBS/CBS a quem compra. O crédito será zero.');
+      }
+      if(op.fornecedor === 'simples') add('inf', 'Fornecedor do Simples: o crédito fica limitado ao IBS/CBS pago no DAS.');
+      if(op.fornecedor === 'rural' && !(op.credPct !== null ? op.credPct : p.credRural)) {
+        add('avi', 'O crédito presumido do produtor rural está em 0%. Informe o percentual quando for publicado.');
+      }
+      if(op.credPisCofins && p.regime === 'presumido') add('inf', 'No Lucro Presumido não há crédito de PIS/COFINS.');
+    }
+    if(op.is > 0) add('inf', 'O Imposto Seletivo começa em 2027 e entra na base do IBS/CBS.');
+    if(t.nota) add('inf', t.nota);
+    return v;
+  }
+
+  /* ------------------------------------------------------------ cálculo */
+
+  function aliquotasPisCofins(op, t, p){
+    if(t.exportacao || op.pisCofins === 'monofasico' || op.pisCofins === 'isento') return { pis: 0, cofins: 0 };
+    // Os créditos do não cumulativo usam sempre as alíquotas do regime.
+    if(op.pisCofins === 'cumulativo' && op.tipo === 'venda') return { pis: 0.0065, cofins: 0.03 };
+    var r = REGIMES[p.regime] || REGIMES.real;
+    return { pis: r.pis, cofins: r.cofins };
+  }
+
+  function aliquotasIbsCbs(t, c){
+    if(t.exportacao) return { cbs: 0, ibs: 0 };
+    if(t.especial === 'financeiro'){
+      // Alíquota total do regime financeiro, repartida na proporção CBS/IBS do ano.
+      var soma = c.cbs + c.ibs, parte = soma ? c.cbs / soma : 0;
+      return { cbs: c.financeiro * parte, ibs: c.financeiro * (1 - parte) };
+    }
+    return { cbs: c.cbs * (1 - t.reducao), ibs: c.ibs * (1 - t.reducao) };
+  }
+
+  /* Crédito de compra do Simples ou de produtor rural: percentual do modelo
+     definitivo, escalonado pela alíquota de IBS+CBS do ano. */
+  function creditoPercentual(op, p, c, padrao){
+    var pct = op.credPct !== null && op.credPct !== undefined && op.credPct !== '' ? Number(op.credPct) : padrao;
+    var ref = p.cbsRef + p.ibsRef, soma = c.cbs + c.ibs;
+    if(!pct || !ref || !soma) return { cbs: 0, ibs: 0 };
+    var total = op.valor * pct * Math.min(soma / ref, 1);
+    return { cbs: total * c.cbs / soma, ibs: total * c.ibs / soma };
+  }
+
+  function calcularCenario(ops, p, c){
+    var r = { ano: String(c.ano), faturamento: 0, compras: 0, icms: 0, iss: 0, ipi: 0, pis: 0, cofins: 0, is: 0,
+              cbsDebito: 0, cbsCredito: 0, ibsDebito: 0, ibsCredito: 0, porTratamento: {} };
+    var naoCumulativo = p.regime !== 'presumido';
+
+    ops.forEach(function(op){
+      var t = tratamentoDe(op), valor = Number(op.valor) || 0;
+      if(!(valor > 0)) return;
+      var exp = t.exportacao;
+      var icms = exp ? 0 : valor * op.icms * c.fator;
+      var iss = exp ? 0 : valor * op.iss * c.fator;
+      var ipi = c.ipi && !exp ? valor * op.ipi : 0;
+      var isv = c.is && !exp ? valor * op.is : 0;
+      var apc = aliquotasPisCofins(op, t, p);
+      var basePC = valor - (p.excluiIcmsPC ? icms : 0);
+      var pis = c.pisCofins ? basePC * apc.pis : 0;
+      var cofins = c.pisCofins ? basePC * apc.cofins : 0;
+      var base = valor - (p.excluiTribBase ? icms + iss + pis + cofins : 0) + isv;
+      var aliq = aliquotasIbsCbs(t, c);
+      var cbs = base * aliq.cbs, ibs = base * aliq.ibs;
+
+      var pt = r.porTratamento[t.id] || (r.porTratamento[t.id] = {
+        id: t.id, nome: t.nome, rotulo: rotuloReducao(t), vendas: 0, debito: 0, compras: 0, credito: 0 });
+
+      if(op.tipo === 'venda'){
+        r.faturamento += valor;
+        r.icms += icms; r.iss += iss; r.ipi += ipi; r.is += isv; r.pis += pis; r.cofins += cofins;
+        r.cbsDebito += cbs; r.ibsDebito += ibs;
+        pt.vendas += valor; pt.debito += cbs + ibs;
+        return;
+      }
+
+      r.compras += valor;
+      if(op.credIcmsIpi){ r.icms -= icms; r.ipi -= ipi; }
+      if(op.credPisCofins && naoCumulativo){ r.pis -= pis; r.cofins -= cofins; }
+      var cred = { cbs: 0, ibs: 0 };
+      if(op.credIbsCbs && op.fornecedor !== 'sem'){
+        if(op.fornecedor === 'simples') cred = creditoPercentual(op, p, c, p.credSimples);
+        else if(op.fornecedor === 'rural') cred = creditoPercentual(op, p, c, p.credRural);
+        else if(t.credito) cred = { cbs: cbs, ibs: ibs };
+      }
+      r.cbsCredito += cred.cbs; r.ibsCredito += cred.ibs;
+      pt.compras += valor; pt.credito += cred.cbs + cred.ibs;
+    });
+
+    r.cbs = r.cbsDebito - r.cbsCredito;
+    r.ibs = r.ibsDebito - r.ibsCredito;
+    r.efetivo = !!c.efetivo;
+    r.atuais = r.icms + r.iss + r.ipi + r.pis + r.cofins;
+    r.carga = r.atuais + r.is + (c.efetivo ? r.cbs + r.ibs : 0);
+    r.cargaPct = r.faturamento ? r.carga / r.faturamento : 0;
+    return r;
+  }
+
+  /** Cenário atual seguido de cada ano do cronograma, com a variação sobre o atual. */
+  function simular(ops, p, cronograma){
+    var res = [cenarioAtual()].concat(cronograma).map(function(c){ return calcularCenario(ops, p, c); });
+    var base = res[0].carga;
+    res.forEach(function(r){
+      r.variacao = r.carga - base;
+      r.variacaoPct = base ? r.variacao / Math.abs(base) : 0;
+    });
+    return res;
+  }
+
+  /* ------------------------------------------------------------ formatação */
+
+  function moeda(v){
+    var n = Number(v) || 0;
+    return (n < 0 ? '−' : '') + 'R$ ' + Math.abs(n).toFixed(2)
+      .replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  function pct(v, casas){
+    var n = (Number(v) || 0) * 100;
+    return (n < 0 ? '−' : '') + Math.abs(n).toFixed(casas === undefined ? 2 : casas).replace('.', ',') + '%';
+  }
+  /** Lê "1.234,56", "1234.56", "18" ou "18%". */
+  function numero(texto){
+    if(typeof texto === 'number') return texto;
+    var s = String(texto == null ? '' : texto).trim().replace(/\s|R\$|%/g, '');
+    if(!s) return 0;
+    if(s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+    var n = Number(s);
+    return isNaN(n) ? NaN : n;
+  }
+
+  return {
+    REGIMES: REGIMES, PIS_COFINS: PIS_COFINS, FORNECEDORES: FORNECEDORES,
+    TRATAMENTOS: TRATAMENTOS, tratamento: function(id){ return POR_ID[id] || null; },
+    tratamentoDe: tratamentoDe, rotuloReducao: rotuloReducao,
+    parametrosPadrao: parametrosPadrao, cronogramaPadrao: cronogramaPadrao, cenarioAtual: cenarioAtual,
+    novaOperacao: novaOperacao, exemplo: exemplo, conferirOperacao: conferirOperacao,
+    calcularCenario: calcularCenario, simular: simular,
+    moeda: moeda, pct: pct, numero: numero
+  };
+}
+</script>
