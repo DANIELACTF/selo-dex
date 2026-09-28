@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '2.3';
+var VERSAO_APP = '2.4';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'O texto do PDF sai pelo próprio Drive — sem escopo novo e sem precisar reautorizar o app.';
+var NOVIDADES_DA_VERSAO = 'Erro de arquivo faltando passa a dizer qual arquivo colar, em vez de "X is not defined".';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
@@ -200,3 +200,33 @@ var CUSTO_SEGUNDA_FONTE_MS = 25000;
 /** Teto de arquivos convertidos por execução — OCR é caro. */
 var MAX_PDFS_POR_EXECUCAO = 6;
 var URL_SIMPLES_RFB = 'https://www8.receita.fazenda.gov.br/simplesnacional/aplicacoes.aspx?id=21';
+
+/**
+ * De qual arquivo vem cada função e constante do app.
+ *
+ * O app é instalado copiando arquivo por arquivo para o Apps Script, e
+ * esquecer um produz um erro cru — "pastaRaiz_ is not defined" — que não
+ * diz o que fazer. Com este mapa, o erro vira "falta colar o arquivo
+ * Pastas.gs".
+ *
+ * Mantido em dia por teste: tests/test_gas.mjs confere que todo símbolo de
+ * topo dos .gs está aqui.
+ */
+var DONO_DO_SIMBOLO = {
+  Carteira: ['alimentarCarteira', 'situacaoCarencia'],
+  Competencia: ['_FORMATO_COMPETENCIA', 'carenciaLiberada', 'competenciaAtual', 'competenciaComoNumero', 'competenciaLiberacao', 'competenciasRestantes', 'pad2_', 'somarMeses', 'validarCompetencia'],
+  Comprovante: ['MARCAS_COMPROVANTE', 'PORTES', 'RE_CEP', 'RE_CNAE_OCR', 'RE_DATA_BR', 'RE_MUNICIPIO_UF', 'RE_NATUREZA', 'RE_ROTULO_DO_DOC', 'RE_SITUACAO', 'UFS', 'acharCnaes_', 'acharMunicipioUf_', 'acharPorte_', 'cnpjValido', 'lerComprovante', 'limparValor_', 'temComprovante'],
+  Config: ['ABAS', 'ANALISTAS', 'COLS_BAIXADOS', 'COLS_IDENTIFICACAO', 'COLS_MOVIMENTACOES', 'COLS_PARTICULARIDADES', 'COL_COMPETENCIA', 'COL_LIBERA', 'CORES', 'CUSTO_SEGUNDA_FONTE_MS', 'DONO_DO_SIMBOLO', 'MAX_PDFS_POR_EXECUCAO', 'MEI_EXIGE_CERTIFICADO', 'MESES_CARENCIA', 'MESES_PASTA', 'MOTIVOS_BAIXA', 'MOTIVOS_TROCA', 'NIVEIS', 'NOVIDADES_DA_VERSAO', 'ORCAMENTO_CONSULTAS_MS', 'ORIGEM_ONBOARDING', 'PASTA_RAIZ_NOME', 'PAUSA_RECEITAWS_MS', 'PROCURACAO', 'REGIMES', 'SEGMENTOS', 'SENHA_STATUS', 'SIM_PENDENTE', 'SITUACOES', 'STATUS_NOVO', 'URL_BRASILAPI', 'URL_RECEITAWS', 'URL_SIMPLES_RFB', 'USAR_RECEITAWS', 'VERSAO_APP'],
+  Consultas: ['consultarBrasilApi_', 'consultarCnpj', 'consultarOptanteSimples', 'consultarReceitaWs_', 'dadosCadastraisVazios_', 'descobrirBotao_', 'descobrirCampoCnpj_', 'detalheDaResposta_', 'extrairInputs_', 'formatarDataIso_', 'interpretarResultadoSimples_', 'montarEnderecoReceitaWs_', 'montarEndereco_'],
+  Etapa1: ['abrirLote', 'competenciaDoEmail_', 'consultarEmpresaDoLote', 'entrarEmPendentes_', 'gravarLote', 'montarTextoCobranca_', 'numerosJaCadastrados_', 'observacaoDaTriagem_'],
+  Fichas: ['enquadramentoDaFicha_', 'escapar_', 'gerarFichasPdf', 'marca_', 'montarFichaHtml_', 'situacaoRfbDaFicha_'],
+  Gestao: ['acharEmQualquerAba_', 'acharLinha_', 'baixarCliente', 'carregarGestao', 'diagnosticarAbas_', 'distribuirCliente', 'montarBaixados_', 'montarMovimentacoes_', 'quemEsta_', 'registrarMovimentacao_', 'trocarResponsavel'],
+  Instalar: ['instalarAbas', 'montarInstrucoes_', 'montarListas_'],
+  Menu: ['abrirBaixar', 'abrirBarraTriagem', 'abrirDistribuir', 'abrirPainelGestao_', 'abrirTrocar', 'baixarDoPainel', 'bloco_', 'distribuirDoPainel', 'explicarErro_', 'menuAlimentarCarteira', 'menuConferirInstalacao', 'menuCriarPastas', 'menuExportarCsv', 'menuGerarFichas', 'menuInstalar', 'menuSobre', 'menuStatusCarencia', 'onOpen', 'trocarDoPainel'],
+  Parser: ['ANEXOS_BLOCO_RE', 'BLOCO_HEADER_RE', 'CELULAR_RE', 'DATA_EMAIL_ISO_RE', 'DATA_EMAIL_RE', 'EMAIL_RE', 'GRUPO_RE', 'OBS_RE', 'REGIME_PATTERNS', 'RE_NOME_ARQUIVO', 'SENHA_RE', 'extrairAnexos', 'extrairDataEmail', 'limparNome_', 'parseEmail'],
+  Particularidades: ['aplicarFormatoParticularidades_', 'montarCabecalhoParticularidades_', 'regimeParaLista_'],
+  Pastas: ['criarPastasDrive', 'exportarCsvPastas', 'pastaDoCliente_', 'pastaRaiz_', 'subpasta_'],
+  PdfTexto: ['IDIOMA_OCR', 'MIME_DOC_GOOGLE', 'TIPOS_CONVERSIVEIS', 'URL_DRIVE_EXPORT', 'URL_DRIVE_UPLOAD', 'detalheDoDrive_', 'exportarComoTexto_', 'pdfParaTexto', 'pdfsParaTexto', 'subirParaConversao_', 'subirPelaApiRest_', 'subirPeloServicoAvancado_', 'tipoDoArquivo_'],
+  Planilha: ['LINHAS_PROCURA_CABECALHO', 'ROTULOS_CONHECIDOS', 'abaObrigatoria_', 'aba_', 'acrescentarLinhas_', 'agoraIso_', 'alerta_', 'competenciaDaCaixa_', 'escreverCabecalho_', 'formatarCabecalho_', 'garantirColunas_', 'hojeBr_', 'indices_', 'lerObjetos_', 'linhaDoCabecalho_', 'registrarLog_', 'ss_', 'toast_', 'valoresColuna_'],
+  Regras: ['PALAVRAS_GENERICAS', 'PALAVRAS_SERVICO_FATOR_R', 'SUFIXOS_SOCIETARIOS', 'SUFIXO_REGIME', 'anexosNaoIdentificados', 'apenasDigitos_', 'certificadoPresente', 'checarDivergencia', 'detectarGrupoEconomico', 'formatarCnaePrincipal', 'formatarCnaesSecundarios', 'formatarCodigoCnae', 'nomeGrupoDaObservacao_', 'nomePasta', 'normalizarLivre_', 'normalizar_', 'optanteSimplesResolvido', 'particularidades', 'raizCnpj_', 'regimeEnquadramento', 'slugFicha', 'tipoEstabelecimento']
+};

@@ -58,7 +58,7 @@ function menuGerarFichas() {
       '\n\nEstão na pasta de cada cliente, em Fichas/. O link ficou na coluna ' +
       '"Ficha (PDF)" da aba Triagem.');
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
 }
 
@@ -82,7 +82,7 @@ function menuCriarPastas() {
       'Rodar de novo não duplica nada: pasta que já existe é mantida.\n\n' +
       'Para as pastas do drive de REDE, use "Exportar CSV das pastas da rede".');
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
 }
 
@@ -111,7 +111,7 @@ function menuAlimentarCarteira() {
     partes.push('\nO "Resumo Equipe" recalcula sozinho: é COUNTIF sobre a Carteira Completa.');
     alerta_('Carteira atualizada', partes.filter(String).join('\n'));
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
 }
 
@@ -154,7 +154,7 @@ function menuStatusCarencia() {
     }
     alerta_('Status da carência', partes.filter(String).join('\n'));
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
 }
 
@@ -167,8 +167,31 @@ function menuExportarCsv() {
       'Está na pasta "' + PASTA_RAIZ_NOME + '" do seu Drive:\n' + r.url + '\n\n' +
       'Baixe, coloque junto do script e rode no PowerShell do servidor:\n\n' + r.comando);
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
+}
+
+/**
+ * Transforma erro de arquivo faltando em instrução.
+ *
+ * O Apps Script diz só "pastaRaiz_ is not defined" quando um dos arquivos
+ * não foi colado. Com o mapa de Config.gs, dizemos qual arquivo é.
+ */
+function explicarErro_(e) {
+  var mensagem = String(e && e.message ? e.message : e);
+  var m = /(\w+) is not defined/.exec(mensagem);
+  if (!m) return mensagem;
+
+  var simbolo = m[1];
+  var arquivo = null;
+  Object.keys(DONO_DO_SIMBOLO).forEach(function (nome) {
+    if (DONO_DO_SIMBOLO[nome].indexOf(simbolo) !== -1) arquivo = nome;
+  });
+
+  if (!arquivo) return mensagem;
+  return 'Falta colar o arquivo "' + arquivo + '" no Apps Script — é dele que vem ' +
+    '"' + simbolo + '". Copie-o do guia, salve e recarregue a planilha. ' +
+    'Configurar → Conferir instalação lista tudo que estiver faltando de uma vez.';
 }
 
 // --------------------------------------------------- gestão de carteira
@@ -189,7 +212,7 @@ function distribuirDoPainel(numero, analista, nivel, antecipar) {
   try {
     return distribuirCliente(numero, analista, nivel, antecipar);
   } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
+    return { erro: explicarErro_(e) };
   }
 }
 
@@ -197,7 +220,7 @@ function trocarDoPainel(numero, analista, nivel, motivo, observacao) {
   try {
     return trocarResponsavel(numero, analista, nivel, motivo, observacao);
   } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
+    return { erro: explicarErro_(e) };
   }
 }
 
@@ -205,7 +228,7 @@ function baixarDoPainel(numero, motivo, observacao) {
   try {
     return baixarCliente(numero, motivo, observacao);
   } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
+    return { erro: explicarErro_(e) };
   }
 }
 
@@ -320,6 +343,6 @@ function menuInstalar() {
       (r.jaExistiam.length ? 'Já existiam: ' + r.jaExistiam.join(', ') : '') +
       '\n\nA planilha está pronta para o menu Onboarding Fiscal.');
   } catch (e) {
-    alerta_('Erro', String(e && e.message ? e.message : e));
+    alerta_('Erro', explicarErro_(e));
   }
 }

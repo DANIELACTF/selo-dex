@@ -288,6 +288,11 @@ velho convivendo com os novos. Duas regras evitam quase tudo:
 2. **Recarregue a planilha (F5) depois de colar.** `onOpen()` só roda quando
    a planilha abre; colar código no editor não mexe no menu da aba aberta.
 
+Se um arquivo faltar, o erro não vem mais cru. Em vez de
+`pastaRaiz_ is not defined`, o app diz **"Falta colar o arquivo Pastas no
+Apps Script"** — `DONO_DO_SIMBOLO`, em `Config.gs`, sabe de qual arquivo vem
+cada função, e um teste confere que o mapa cobre todos os símbolos.
+
 Para conferir: **Configurar · v&lt;versão&gt; → Conferir instalação**. Ele
 percorre arquivo por arquivo e diz qual não foi colado, além de listar as
 abas que ainda faltam. A versão aparece no próprio rótulo do submenu, então

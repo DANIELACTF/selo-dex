@@ -90,7 +90,7 @@ function abrirLote(arquivos) {
       pdfsComFalha: conversao.falharam
     };
   } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
+    return { erro: explicarErro_(e) };
   }
 }
 
@@ -258,7 +258,7 @@ function gravarLote(lote, resultados) {
     registrarLog_('Etapa 1', registros.length + ' empresa(s) do e-mail de ' + lote.recebidoEm);
     return resumo;
   } catch (e) {
-    return { erro: String(e && e.message ? e.message : e) };
+    return { erro: explicarErro_(e) };
   }
 }
 

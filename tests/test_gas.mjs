@@ -617,3 +617,57 @@ test('o conferidor de instalação cobre todo arquivo .gs do projeto', () => {
       `"Conferir instalação" não checa ${arquivo}.gs — um arquivo velho passaria batido`);
   }
 });
+
+// ------------------------------- erro de arquivo faltando vira instrução
+
+test('o mapa de símbolos cobre todo símbolo de topo dos .gs', () => {
+  // Sem isto, um arquivo novo produziria de novo o erro cru
+  // "pastaRaiz_ is not defined", que não diz o que fazer.
+  const noMapa = new Set();
+  for (const lista of Object.values(gas.DONO_DO_SIMBOLO)) {
+    for (const nome of lista) noMapa.add(nome);
+  }
+
+  const faltando = [];
+  for (const arquivo of fs.readdirSync('gas').filter((f) => f.endsWith('.gs'))) {
+    const codigo = fs.readFileSync(`gas/${arquivo}`, 'utf8');
+    const simbolos = [
+      ...[...codigo.matchAll(/^function\s+([A-Za-z_][\w]*)\s*\(/gm)].map((m) => m[1]),
+      ...[...codigo.matchAll(/^var\s+([A-Z_][A-Z0-9_]*)\s*=/gm)].map((m) => m[1])
+    ];
+    for (const simbolo of simbolos) {
+      if (!noMapa.has(simbolo)) faltando.push(`${simbolo} (${arquivo})`);
+    }
+  }
+  assert.deepEqual(planos(faltando), [],
+    'regenere DONO_DO_SIMBOLO em Config.gs — veja o comentário lá');
+});
+
+test('o mapa aponta o arquivo certo de cada símbolo', () => {
+  for (const [arquivo, simbolos] of Object.entries(gas.DONO_DO_SIMBOLO)) {
+    const codigo = fs.readFileSync(`gas/${arquivo}.gs`, 'utf8');
+    for (const simbolo of simbolos) {
+      assert.ok(new RegExp(`^(function|var)\\s+${simbolo}\\b`, 'm').test(codigo),
+        `o mapa diz que ${simbolo} está em ${arquivo}.gs, mas não está`);
+    }
+  }
+});
+
+test('"X is not defined" vira instrução com o nome do arquivo', () => {
+  const { ctx } = carregarProjetoCompleto();
+  const explicacao = ctx.explicarErro_(new ReferenceError('pastaRaiz_ is not defined'));
+  assert.match(explicacao, /Pastas/);
+  assert.match(explicacao, /Conferir instalação/);
+  assert.doesNotMatch(explicacao, /is not defined/, 'o erro cru não deve sobrar');
+});
+
+test('erro que não é de arquivo faltando passa inteiro', () => {
+  const { ctx } = carregarProjetoCompleto();
+  assert.equal(ctx.explicarErro_(new Error('A aba "X" não existe')), 'A aba "X" não existe');
+});
+
+test('símbolo desconhecido não inventa arquivo', () => {
+  const { ctx } = carregarProjetoCompleto();
+  const explicacao = ctx.explicarErro_(new ReferenceError('coisaQualquer is not defined'));
+  assert.equal(explicacao, 'coisaQualquer is not defined');
+});
