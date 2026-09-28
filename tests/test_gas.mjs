@@ -671,3 +671,22 @@ test('símbolo desconhecido não inventa arquivo', () => {
   const explicacao = ctx.explicarErro_(new ReferenceError('coisaQualquer is not defined'));
   assert.equal(explicacao, 'coisaQualquer is not defined');
 });
+
+// ------------------------------------------- o guia acompanha o código
+
+test('o guia lista exatamente os arquivos que existem em gas/', () => {
+  // O guia é o que a pessoa usa para instalar. Arquivo em gas/ que ele não
+  // lista nunca é colado — e vira "X is not defined" no primeiro clique.
+  const gerador = fs.readFileSync('ferramentas/gerar_guia.py', 'utf8');
+  const listados = new Set([...gerador.matchAll(/^\s*\("([\w.]+)", "(?:script|html)"/gm)]
+    .map((m) => m[1]));
+  const noDisco = fs.readdirSync('gas').filter((f) => /\.(gs|html)$/.test(f));
+
+  for (const arquivo of noDisco) {
+    assert.ok(listados.has(arquivo),
+      `gas/${arquivo} existe mas o guia não manda copiar — acrescente em ferramentas/gerar_guia.py`);
+  }
+  for (const arquivo of listados) {
+    assert.ok(noDisco.includes(arquivo), `o guia lista ${arquivo}, que não existe em gas/`);
+  }
+});
