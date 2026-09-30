@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --navy:#1B3A5C; --linha:#C9CFD6; --apagado:#5A6470; --alerta:#A32020;
+          --alerta-fundo:#FBEEEC; --ok:#1C6340; --ok-fundo:#EAF4EE;
+          --atencao:#7A5510; --atencao-fundo:#FBF4E4; --campo:#F5F7F9; }
+  * { box-sizing:border-box; }
+  body { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#111; margin:0; padding:16px; }
+  h2 { font-size:14px; margin:0 0 4px; color:var(--navy); }
+  p.ajuda { color:var(--apagado); font-size:12px; margin:0 0 12px; line-height:1.5; }
+
+  input[type=file] { width:100%; font-size:12px; border:1px solid var(--linha);
+                     border-radius:3px; padding:8px; background:var(--campo); }
+  label.linha { display:flex; align-items:flex-start; gap:7px; margin:12px 0 0; font-size:12px; color:var(--apagado); }
+  label.linha input { margin-top:2px; }
+
+  button.acao { width:100%; margin-top:16px; background:var(--navy); color:#fff; border:0;
+                border-radius:3px; padding:10px; font-size:13px; font-weight:bold;
+                cursor:pointer; font-family:inherit; }
+  button.acao:disabled { background:#8B98A5; cursor:default; }
+
+  /* ---- progresso ---- */
+  #progresso { margin-top:16px; display:none; }
+  #progresso.ativo { display:block; }
+  .barra { height:8px; background:var(--campo); border:1px solid var(--linha);
+           border-radius:4px; overflow:hidden; }
+  .barra i { display:block; height:100%; width:0; background:var(--navy); transition:width .25s ease; }
+  .passo { display:flex; justify-content:space-between; gap:10px; font-size:12px;
+           color:var(--apagado); margin-top:6px; }
+  .passo b { color:#111; font-weight:normal; }
+  ol.andamento { list-style:none; margin:10px 0 0; padding:0; font-size:12px;
+                 max-height:190px; overflow-y:auto; border:1px solid var(--linha);
+                 border-radius:3px; }
+  ol.andamento li { padding:5px 9px; border-bottom:1px solid var(--linha); display:flex; gap:7px; }
+  ol.andamento li:last-child { border-bottom:none; }
+  .marca { width:14px; flex:none; text-align:center; }
+  .marca.ok { color:var(--ok); }
+  .marca.ruim { color:var(--alerta); }
+  .marca.agora { color:var(--navy); }
+
+  #saida { margin-top:14px; font-size:12px; line-height:1.55; }
+  .bloco { border:1px solid var(--linha); border-radius:3px; padding:9px 10px; margin-bottom:9px; }
+  .bloco h3 { font-size:12px; margin:0 0 5px; text-transform:uppercase; letter-spacing:.05em; color:var(--apagado); }
+  .bloco ul { margin:0; padding-left:16px; }
+  .bloco li { margin-bottom:3px; }
+  .bloco.alerta { border-left:3px solid var(--alerta); background:var(--alerta-fundo); }
+  .bloco.alerta h3 { color:var(--alerta); }
+  .bloco.bom { border-left:3px solid var(--ok); background:var(--ok-fundo); }
+  pre.cobranca { background:var(--campo); border:1px solid var(--linha); padding:8px; font-size:11px;
+                 white-space:pre-wrap; word-wrap:break-word; margin:6px 0 0; font-family:inherit; }
+  .erro { color:var(--alerta); font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h2>Processar e-mail "EMPRESA NOVA"</h2>
+<p class="ajuda">
+  Salve o e-mail inteiro como PDF — no Outlook, <strong>Imprimir → Salvar como
+  PDF</strong> — com os comprovantes de inscrição junto, e anexe aqui. Imagens
+  (PNG, JPG) também servem: o app faz OCR. Ele extrai as empresas e consulta o
+  que faltar.
+</p>
+
+<input type="file" id="pdfs" accept="application/pdf,image/*" multiple>
+
+<label class="linha">
+  <input type="checkbox" id="consultar" checked>
+  <span>Consultar a Receita. Os dados cadastrais saem do comprovante quando ele
+  está no PDF; a consulta cobre a opção pelo Simples e quem não tiver
+  comprovante.</span>
+</label>
+
+<button class="acao" type="button" id="botao" onclick="comecar()">Processar</button>
+
+<div id="progresso">
+  <div class="barra"><i id="barraFill"></i></div>
+  <div class="passo"><span id="passoTexto">Preparando…</span><b id="passoContador"></b></div>
+  <ol class="andamento" id="andamento"></ol>
+</div>
+
+<div id="saida"></div>
+
+<script>
+var LOTE = null;
+var RESULTADOS = [];
+var POSICAO = 0;
+
+function esc(t) {
+  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function elem(id) { return document.getElementById(id); }
+
+function pintarBarra(feitos, total, texto) {
+  elem('progresso').className = 'ativo';
+  elem('barraFill').style.width = (total ? Math.round(feitos / total * 100) : 5) + '%';
+  elem('passoTexto').textContent = texto;
+  elem('passoContador').textContent = total ? feitos + ' de ' + total : '';
+}
+
+function linhaAndamento(item, marca, classe) {
+  var li = document.createElement('li');
+  li.id = 'and-' + item.indice;
+  li.innerHTML = '<span class="marca ' + classe + '">' + marca + '</span>' +
+    '<span>N°' + esc(item.numero) + ' ' + esc(item.nome) + '</span>';
+  return li;
+}
+
+function falhar(titulo, mensagem, extra) {
+  elem('botao').disabled = false;
+  elem('progresso').className = '';
+  var html = '<div class="bloco alerta"><h3>' + esc(titulo) + '</h3>' + esc(mensagem) + '</div>';
+  if (extra && extra.length) {
+    html += '<div class="bloco"><h3>Detalhe</h3><ul>' +
+      extra.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  }
+  elem('saida').innerHTML = html;
+}
+
+// ------------------------------------------------- passo 1: abrir o lote
+
+function comecar() {
+  var campo = elem('pdfs');
+  var escolhidos = campo && campo.files ? Array.prototype.slice.call(campo.files) : [];
+  if (!escolhidos.length) {
+    elem('saida').innerHTML = '<p class="erro">Anexe o PDF do e-mail antes de processar.</p>';
+    return;
+  }
+
+  elem('botao').disabled = true;
+  elem('saida').innerHTML = '';
+  elem('andamento').innerHTML = '';
+  RESULTADOS = [];
+  POSICAO = 0;
+  pintarBarra(0, 0, 'Lendo ' + escolhidos.length + ' PDF(s)… a conversão leva alguns segundos.');
+
+  lerArquivos(escolhidos, function (arquivos) {
+    google.script.run
+      .withSuccessHandler(loteAberto)
+      .withFailureHandler(function (e) {
+        falhar('O servidor recusou a leitura', e && e.message ? e.message : e);
+      })
+      .abrirLote(arquivos);
+  });
+}
+
+function lerArquivos(escolhidos, pronto) {
+  var arquivos = [];
+  var restantes = escolhidos.length;
+  escolhidos.forEach(function (arquivo) {
+    var leitor = new FileReader();
+    leitor.onload = function () {
+      arquivos.push({ nome: arquivo.name, base64: String(leitor.result).split(',')[1] });
+      if (--restantes === 0) pronto(arquivos);
+    };
+    leitor.onerror = function () { if (--restantes === 0) pronto(arquivos); };
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+function loteAberto(r) {
+  if (!r || r.erro) {
+    falhar('Não deu para ler o PDF', (r && r.erro) || 'resposta vazia do servidor',
+      (r && (r.pdfsComFalha || [])).concat(r && r.amostraDoTexto
+        ? ['Começo do texto lido: ' + r.amostraDoTexto.slice(0, 200)] : []));
+    return;
+  }
+
+  LOTE = r;
+  var lista = elem('andamento');
+  r.empresas.forEach(function (item) {
+    lista.appendChild(linhaAndamento(item, '·', ''));
+  });
+  pintarBarra(0, r.empresas.length, 'Consultando a Receita…');
+  proxima();
+}
+
+// --------------------------------------- passo 2: uma empresa por chamada
+
+function proxima() {
+  if (POSICAO >= LOTE.empresas.length) {
+    gravar();
+    return;
+  }
+
+  var item = LOTE.empresas[POSICAO];
+  var li = elem('and-' + item.indice);
+  if (li) li.firstChild.textContent = '◗';
+  if (li) li.firstChild.className = 'marca agora';
+  pintarBarra(POSICAO, LOTE.empresas.length, 'Consultando N°' + item.numero + ' ' + item.nome);
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      RESULTADOS.push(r);
+      var marca = r && r.ok ? (r.erroConsulta ? '!' : '✓') : '✕';
+      var classe = r && r.ok ? (r.erroConsulta ? 'ruim' : 'ok') : 'ruim';
+      if (li) { li.firstChild.textContent = marca; li.firstChild.className = 'marca ' + classe; }
+      POSICAO++;
+      pintarBarra(POSICAO, LOTE.empresas.length, 'Consultando a Receita…');
+      proxima();
+    })
+    .withFailureHandler(function (e) {
+      // Uma empresa que falha não derruba o lote: segue e grava o resto.
+      RESULTADOS.push({ ok: false, indice: item.indice, numero: item.numero,
+        nome: item.nome, erro: e && e.message ? e.message : String(e) });
+      if (li) { li.firstChild.textContent = '✕'; li.firstChild.className = 'marca ruim'; }
+      POSICAO++;
+      proxima();
+    })
+    .consultarEmpresaDoLote(item, elem('consultar').checked);
+}
+
+// ------------------------------------------------ passo 3: gravar o lote
+
+function gravar() {
+  pintarBarra(LOTE.empresas.length, LOTE.empresas.length, 'Gravando nas abas…');
+  google.script.run
+    .withSuccessHandler(mostrar)
+    .withFailureHandler(function (e) {
+      falhar('Consultei tudo, mas a gravação falhou', e && e.message ? e.message : e);
+    })
+    .gravarLote(LOTE, RESULTADOS);
+}
+
+function lista(titulo, itens, classe) {
+  if (!itens || !itens.length) return '';
+  return '<div class="bloco ' + (classe || '') + '"><h3>' + titulo + ' (' + itens.length + ')</h3><ul>' +
+    itens.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul></div>';
+}
+
+function mostrar(r) {
+  elem('botao').disabled = false;
+  if (!r || r.erro) {
+    falhar('A gravação não completou', (r && r.erro) || 'resposta vazia do servidor');
+    return;
+  }
+
+  pintarBarra(1, 1, 'Concluído.');
+  var html = '';
+
+  if (r.gravadas.length) {
+    html += '<div class="bloco bom"><h3>Gravadas (' + r.gravadas.length + ')</h3><ul>' +
+      r.gravadas.map(function (e) {
+        return '<li>N°' + esc(e.numero) + ' ' + esc(e.nome) +
+          (e.certificado ? '' : ' — <span class="erro">sem certificado</span>') + '</li>';
+      }).join('') + '</ul>' +
+      '<p class="ajuda" style="margin:8px 0 0">Estão na aba <strong>Particularidades</strong> e em ' +
+      '<strong>Pendentes Daniela</strong>, competência <strong>' + esc(r.competencia) +
+      '</strong> — liberam para distribuição em <strong>' + esc(r.liberaEm) + '</strong>.</p></div>';
+  }
+
+  html += lista('CNPJ que não passou no dígito verificador — confira no PDF', r.cnpjSuspeito, 'alerta');
+  html += lista('Já estavam cadastradas', r.jaExistiam);
+  html += lista('Dados lidos do comprovante de inscrição', r.viaComprovante);
+  html += lista('Certificado a cobrar da Thays', r.alertasCertificado, 'alerta');
+  html += lista('Anexo sem dono identificado', r.anexosSemDono, 'alerta');
+  html += lista('Sem comprovante legível no PDF — dados só da consulta', r.semComprovante);
+  html += lista('Divergência de regime (informado × Receita)', r.divergencias, 'alerta');
+  html += lista('Consulta que falhou — conferir à mão', r.consultasFalhas);
+  if (r.avisoPendentes) {
+    html += '<div class="bloco alerta"><h3>Não entraram em pendentes</h3>' + esc(r.avisoPendentes) + '</div>';
+  }
+
+  if (r.textoCobranca) {
+    html += '<div class="bloco"><h3>Texto pronto para a Thays</h3>' +
+      '<pre class="cobranca">' + esc(r.textoCobranca) + '</pre>' +
+      '<p class="ajuda" style="margin:8px 0 0">Copie e envie você — o app não manda e-mail ' +
+      'por conta própria.</p></div>';
+  }
+
+  if (r.gravadas.length) {
+    html += '<div class="bloco"><h3>Próximo passo</h3>' +
+      'Abra a aba <strong>Particularidades</strong>. As colunas amarelas são as que você ' +
+      'preenche, inclusive as quatro "Particularidade (Paulo)" da reunião.</div>';
+  }
+
+  elem('saida').innerHTML = html;
+}
+</script>
+</body>
+</html>

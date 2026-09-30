@@ -1,0 +1,487 @@
+<title>Onboarding Fiscal no Sheets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  /* Paleta ancorada no azul-marinho do cabeçalho da Ficha de Abertura do
+     Departamento Fiscal (#1B3A5C) — a mesma cor dos documentos impressos.
+     Os neutros puxam para o azul para conversar com ele. */
+  :root {
+    --navy: #1B3A5C;
+    --navy-claro: #2E5A85;
+    --capa-tinta: #FFFFFF;
+    --ground: #F2F4F7;
+    --surface: #FFFFFF;
+    --surface-2: #E9EDF2;
+    --ink: #15202C;
+    --ink-suave: #55606E;
+    --linha: #CFD6DE;
+    --linha-forte: #A9B4C0;
+    --alerta: #9A2A22;
+    --alerta-fundo: #FBEEEC;
+    --atencao: #7A5510;
+    --atencao-fundo: #FBF4E4;
+    --ok: #1C6340;
+    --codigo-fundo: #F5F7F9;
+    --sombra: 0 1px 2px rgba(21, 32, 44, .07), 0 6px 18px rgba(21, 32, 44, .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --navy: #8FB8DE; --navy-claro: #B4D2EE; --capa-tinta: #0E141B;
+      --ground: #121820; --surface: #1A222C; --surface-2: #222C38;
+      --ink: #E3E9EF; --ink-suave: #9BA7B4; --linha: #313C49; --linha-forte: #46535F;
+      --alerta: #F09A90; --alerta-fundo: #31201E; --atencao: #E3BE72;
+      --atencao-fundo: #2C2519; --ok: #7BC79C; --codigo-fundo: #10161D;
+      --sombra: 0 1px 2px rgba(0, 0, 0, .4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --navy: #8FB8DE; --navy-claro: #B4D2EE; --capa-tinta: #0E141B;
+    --ground: #121820; --surface: #1A222C; --surface-2: #222C38;
+    --ink: #E3E9EF; --ink-suave: #9BA7B4; --linha: #313C49; --linha-forte: #46535F;
+    --alerta: #F09A90; --alerta-fundo: #31201E; --atencao: #E3BE72;
+    --atencao-fundo: #2C2519; --ok: #7BC79C; --codigo-fundo: #10161D;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .envelope { max-width: 860px; margin: 0 auto; padding-inline: 20px; padding-block: 0 72px; }
+
+  .capa { background: var(--navy); color: var(--capa-tinta); margin-inline: -20px; padding: 40px 20px 34px; }
+  .capa-interno { max-width: 820px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+    opacity: .82; margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+    font-size: clamp(30px, 6vw, 42px); line-height: 1.1; font-weight: 700;
+    letter-spacing: -.01em; text-wrap: balance; margin: 0 0 12px;
+  }
+  .capa p { margin: 0; max-width: 62ch; opacity: .93; }
+  .capa-meta {
+    display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 22px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px;
+  }
+  .capa-meta span { border: 1px solid currentColor; border-radius: 2px; padding: 3px 9px; opacity: .9; }
+
+  .progresso {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--linha);
+    margin-inline: -20px; padding: 10px 20px;
+    display: flex; align-items: center; gap: 14px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px;
+  }
+  .barra { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .barra i { display: block; height: 100%; width: 0%; background: var(--navy); transition: width .25s ease; }
+  .progresso button {
+    background: none; border: 1px solid var(--linha-forte); border-radius: 3px;
+    color: var(--ink-suave); font: inherit; font-size: 12px; padding: 3px 9px; cursor: pointer;
+  }
+  .progresso button:hover { color: var(--ink); border-color: var(--ink-suave); }
+
+  section { margin-top: 48px; }
+  .passo-cab {
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 2px solid var(--navy); padding-bottom: 10px; margin-bottom: 20px;
+  }
+  .passo-n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600;
+    color: var(--navy); letter-spacing: .08em; white-space: nowrap;
+  }
+  h2 {
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+    font-size: clamp(21px, 4vw, 26px); font-weight: 700; line-height: 1.2;
+    text-wrap: balance; margin: 0;
+  }
+  h3 { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif; font-size: 17px; font-weight: 700; margin: 0; }
+  p { margin: 0 0 14px; max-width: 68ch; }
+  section > p:last-child { margin-bottom: 0; }
+
+  ol.etapas { margin: 0; padding: 0; list-style: none; counter-reset: etapa; }
+  ol.etapas > li {
+    counter-increment: etapa; display: grid; grid-template-columns: 30px 1fr;
+    gap: 4px 14px; padding: 14px 0; border-bottom: 1px solid var(--linha);
+  }
+  ol.etapas > li:last-child { border-bottom: none; }
+  ol.etapas > li::before {
+    content: counter(etapa);
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600;
+    color: var(--ink-suave); background: var(--surface-2); border-radius: 2px;
+    width: 26px; height: 26px; display: grid; place-items: center; margin-top: 2px;
+  }
+  ol.etapas > li > * { grid-column: 2; margin-bottom: 0; }
+  ol.etapas > li > * + * { margin-top: 8px; }
+
+  .rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 460px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--linha); }
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: .07em; color: var(--ink-suave);
+    border-bottom: 1px solid var(--linha-forte); font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { white-space: nowrap; }
+
+  .nota {
+    border-left: 3px solid var(--linha-forte); background: var(--surface);
+    padding: 13px 16px; margin: 16px 0; font-size: 15px;
+  }
+  .nota p { margin: 0; }
+  .nota p + p { margin-top: 10px; }
+  .nota.atencao { border-left-color: var(--atencao); background: var(--atencao-fundo); }
+  .nota strong { color: var(--ink); }
+
+  .arquivos { display: flex; flex-direction: column; gap: 12px; }
+  .arquivo {
+    background: var(--surface); border: 1px solid var(--linha); border-radius: 4px;
+    padding: 14px 16px; box-shadow: var(--sombra);
+  }
+  .arquivo.pronto { border-color: var(--ok); }
+  .arquivo.manifesto { border: 2px solid var(--atencao); background: var(--atencao-fundo); }
+  .arquivo.manifesto .arquivo-n { background: var(--atencao); color: var(--atencao-fundo); }
+  .perigo { color: var(--alerta); }
+  .arquivo-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .arquivo-id { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+  .arquivo-n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; font-weight: 600;
+    color: var(--navy); background: var(--surface-2); border-radius: 2px; padding: 4px 7px; margin-top: 1px;
+  }
+  .arquivo h3 { font-size: 16px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; }
+  .arquivo-como { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-suave); }
+  .arquivo-desc { margin: 10px 0 0; font-size: 14.5px; color: var(--ink-suave); }
+  .arquivo details { margin-top: 10px; }
+  .arquivo summary {
+    cursor: pointer; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px; color: var(--ink-suave); padding: 3px 0;
+  }
+  .arquivo summary:hover { color: var(--ink); }
+
+  button.copiar {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; font-weight: 600;
+    background: var(--navy); color: var(--capa-tinta); border: 0; border-radius: 3px;
+    padding: 7px 16px; cursor: pointer; white-space: nowrap;
+  }
+  button.copiar:hover { background: var(--navy-claro); }
+  button.copiar.feito { background: var(--ok); color: var(--capa-tinta); }
+
+  pre {
+    background: var(--codigo-fundo); border: 1px solid var(--linha); border-radius: 3px;
+    padding: 12px 14px; overflow-x: auto; margin: 8px 0 0;
+    font-size: 12.5px; line-height: 1.55; max-height: 380px;
+  }
+  pre, code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; }
+  code { font-size: .92em; }
+  p code, li code, td code { background: var(--surface-2); border-radius: 2px; padding: 1px 5px; }
+  pre code { background: none; padding: 0; }
+
+  :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 560px) {
+    .arquivo-topo { flex-direction: column; align-items: stretch; }
+    button.copiar { width: 100%; padding: 9px 16px; }
+  }
+</style>
+
+<div class="capa">
+  <div class="capa-interno">
+    <p class="eyebrow">Moraex · Departamento Fiscal</p>
+    <h1>Onboarding Fiscal dentro da planilha</h1>
+    <p>A rotina de cliente novo — o e-mail da Thays, as fichas, as pastas e a
+    carteira — hospedada numa planilha do Google. Sem Python, sem instalar nada
+    na máquina: o código mora no Apps Script da própria planilha e você dispara
+    pelo menu.</p>
+    <div class="capa-meta">
+      <span>app v{{VERSAO}}</span>
+      <span>1 manifesto + {{N_ARQUIVOS}} arquivos</span>
+      <span>~10 minutos</span>
+    </div>
+  </div>
+</div>
+
+<div class="envelope">
+
+  <div class="progresso">
+    <span id="contador">0 / {{TOTAL}}</span>
+    <div class="barra"><i id="barra"></i></div>
+    <button type="button" id="zerar">Recomeçar</button>
+  </div>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">O QUE É</span>
+      <h2>O menu que você vai ter no fim</h2>
+    </div>
+    <p>Nada roda sozinho — cada item é disparado por você, e tudo que o app
+    faz fica registrado numa aba de <code>Log</code>, com data e usuário.</p>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>Item do menu</th><th>O que faz</th><th>Onde escreve</th></tr></thead>
+        <tbody>
+          <tr><td>1 · Processar e-mail “EMPRESA NOVA” (PDF)</td><td>Lê o PDF do e-mail, extrai as empresas, consulta a Receita e grava — com barra de progresso</td><td>abas <code>Particularidades</code> e <code>Pendentes Daniela</code></td></tr>
+          <tr><td>2 · Emitir Fichas de Abertura</td><td>Ficha no padrão do Dep. Fiscal, uma por página A4</td><td>Drive, em <code>&lt;cliente&gt;/Fichas/</code></td></tr>
+          <tr><td>3 · Criar pastas do cliente</td><td><code>Apuracao/&lt;ano&gt;/&lt;meses&gt;</code>, <code>Certificado/</code>, <code>Fichas/</code></td><td>Drive</td></tr>
+          <tr><td>4 · Alimentar a Carteira</td><td>Distribuição de quem já venceu a carência</td><td><code>Pendentes Daniela</code> e <code>Carteira Completa</code></td></tr>
+          <tr><td>📊 Status da carência</td><td>Quem já liberou, quem ainda espera e até quando</td><td>nada — só lê</td></tr>
+          <tr><td>👤 Distribuir cliente</td><td>Diz para qual analista o pendente vai</td><td><code>Pendentes</code> → <code>Carteira</code></td></tr>
+          <tr><td>🔁 Trocar responsável</td><td>Passa o cliente de um analista para outro</td><td>a aba em que ele estiver</td></tr>
+          <tr><td>📕 Dar baixa no cliente</td><td>Tira da carteira guardando o motivo</td><td>aba <code>Baixados</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="nota">
+      <p><strong>A carência continua valendo.</strong> Empresa nova não vai
+      direto para a carteira do analista: cumpre três competências sob a
+      Gestão Fiscal, em <code>Pendentes Daniela</code>, contadas da data do
+      e-mail. Entrou em 08/2026 → libera em 11/2026.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">PASSO 1</span>
+      <h2>A planilha</h2>
+    </div>
+    <p>Comece pela carteira que já existe, para não refazer nada.</p>
+    <ol class="etapas">
+      <li><p>No Drive: <strong>Novo → Upload de arquivo</strong> →
+      <code>Carteira_Tributaria_Fiscal.xlsx</code>.</p></li>
+      <li>
+        <p>Abra o arquivo enviado → <strong>Arquivo → Salvar como Planilhas
+        Google</strong>. É o formato que o Apps Script consegue editar.</p>
+        <p>As fórmulas <code>COUNTIF</code> do “Resumo Equipe” sobrevivem à
+        conversão — continuam recalculando sozinhas.</p>
+      </li>
+      <li><p>Renomeie para algo como <strong>Onboarding Fiscal — Moraex</strong>.</p></li>
+    </ol>
+    <div class="nota atencao">
+      <p>Não dá para rodar no <code>.xlsx</code> direto: o Apps Script só edita
+      planilhas no formato do Google. A conversão é obrigatória.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">PASSO 2</span>
+      <h2>O código</h2>
+    </div>
+    <p>Na planilha: <strong>Extensões → Apps Script</strong>. Apague o
+    <code>Código.gs</code> de exemplo que vem junto.</p>
+
+    <p>São duas coisas diferentes, e confundir as duas é o erro mais comum:
+    o <strong>manifesto</strong>, que já existe e você só substitui, e os
+    <strong>{{N_ARQUIVOS}} arquivos de código</strong>, que você cria.</p>
+
+    <h3 style="margin-top:28px">Primeiro: o manifesto</h3>
+    <div class="nota atencao">
+      <p><strong>Não crie um arquivo novo para ele.</strong> Se você criar um
+      Script chamado <code>appsscript.json</code>, o editor vira isso em
+      <code>appsscript..gs</code> e tenta ler JSON como JavaScript — dá
+      <code>SyntaxError: Unexpected token &#39;:&#39;</code> na linha 2. Se já
+      aconteceu: apague esse arquivo (⋮ → Excluir) e siga os passos abaixo.</p>
+    </div>
+    <ol class="etapas">
+      <li><p>Menu da esquerda → <strong>⚙️ Configurações do projeto</strong>.</p></li>
+      <li><p>Marque <em>“Mostrar arquivo de manifesto appsscript.json no editor”</em>.</p></li>
+      <li><p>Volte para <strong>Editor</strong>. O <code>appsscript.json</code>
+      agora aparece na lista — ele sempre esteve lá. Abra, apague o conteúdo e
+      cole o de baixo.</p></li>
+    </ol>
+    <div class="arquivos">{{CARD_MANIFESTO}}
+    </div>
+
+    <h3 style="margin-top:32px">Depois: os {{N_ARQUIVOS}} arquivos de código</h3>
+    <div class="nota atencao">
+      <p><strong>Atualizando o app?</strong> Quando um item novo aparece no menu,
+      o <code>Menu.gs</code> mudou junto — ele é quem monta o menu, e é o arquivo
+      mais esquecido nas atualizações. Depois de colar, <strong>recarregue a
+      planilha (F5)</strong>: colar código no editor não atualiza o menu da aba
+      que já está aberta.</p>
+      <p>Faltou um arquivo? O app diz qual — “Falta colar o arquivo Pastas no
+      Apps Script”. Para ver tudo de uma vez: menu <strong>Configurar ·
+      v{{VERSAO}} → Conferir instalação</strong>.</p>
+    </div>
+    <p>Para cada um, clique no <strong>+</strong> ao lado de “Arquivos”,
+    escolha o tipo indicado, dê o nome exato <strong>sem a extensão</strong>
+    (o editor põe o <code>.gs</code> ou <code>.html</code> sozinho) e cole o
+    conteúdo. A ordem não importa — o Apps Script carrega todos antes de
+    executar qualquer coisa. Marque conforme for fazendo; a marcação fica
+    salva neste navegador se você precisar parar no meio.</p>
+    <div class="arquivos">{{CARDS}}
+    </div>
+    <p style="margin-top:20px">Terminou? <strong>Salvar</strong> (💾) no Apps Script.</p>
+  </section>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">PASSO 3</span>
+      <h2>Primeira execução</h2>
+    </div>
+    <ol class="etapas">
+      <li><p>No editor do Apps Script, menu da esquerda → <strong>Serviços</strong>
+      → <strong>+</strong> → escolha <strong>Drive API</strong> → Adicionar.
+      É ele que converte o PDF do e-mail em texto.</p></li>
+      <li><p>Volte para a planilha e <strong>recarregue a página</strong>. O menu
+      <strong>🏢 Onboarding Fiscal</strong> aparece na barra de cima.</p></li>
+      <li>
+        <p><strong>Configurar → Criar/conferir abas.</strong> O Google vai
+        pedir autorização — é a primeira execução.</p>
+        <p>Vai aparecer “Este app não foi verificado”. Clique em
+        <strong>Avançado → Acessar (não seguro)</strong>. “Não verificado”
+        aqui significa que o app é seu e não passou pela revisão pública do
+        Google — não que tenha algo errado com ele.</p>
+      </li>
+      <li><p>Teste com <strong>1 · Processar e-mail</strong>, anexando o e-mail
+      salvo em PDF.</p></li>
+    </ol>
+
+    <h3 style="margin-top:26px">As permissões que ele pede</h3>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>Permissão</th><th>Para quê</th></tr></thead>
+        <tbody>
+          <tr><td>Ver e gerenciar esta planilha</td><td>escrever nas abas Particularidades, Pendentes e Carteira</td></tr>
+          <tr><td>Ver e gerenciar arquivos do Drive</td><td>converter o PDF do e-mail em texto, criar as pastas de cliente e gravar as fichas</td></tr>
+          <tr><td>Conectar a um serviço externo</td><td>consultar CNPJ e opção pelo Simples na Receita</td></tr>
+          <tr><td>Exibir e executar conteúdo de terceiros</td><td>as barras laterais</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">DEPOIS</span>
+      <h2>Manutenção</h2>
+    </div>
+    <p>Tudo que o escritório muda no dia a dia está em <code>Config.gs</code>,
+    no topo do arquivo. Edite, salve, e a planilha pega a mudança na próxima
+    execução do menu.</p>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>Mudou</th><th>Ajuste</th></tr></thead>
+        <tbody>
+          <tr><td>Equipe do Dep. Fiscal</td><td><code>ANALISTAS</code></td></tr>
+          <tr><td>Níveis, situações, segmentos, regimes</td><td>as listas de mesmo nome</td></tr>
+          <tr><td>Motivos de baixa e de troca</td><td><code>MOTIVOS_BAIXA</code>, <code>MOTIVOS_TROCA</code></td></tr>
+          <tr><td>Nome de alguma aba</td><td><code>ABAS</code></td></tr>
+          <tr><td>Pasta raiz no Drive</td><td><code>PASTA_RAIZ_NOME</code></td></tr>
+          <tr><td>A carência de três competências</td><td><code>MESES_CARENCIA</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="nota atencao">
+      <p>Se mexer na <strong>carência</strong>, avise: ela também vive no
+      repositório, em <code>onboarding/competencia.py</code>. Há um teste que
+      quebra se as duas divergirem — mas ele só roda no repositório.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="passo-cab">
+      <span class="passo-n">HONESTIDADE</span>
+      <h2>O que ainda não foi testado ao vivo</h2>
+    </div>
+    <p>A lógica do app tem testes automatizados rodando contra os e-mails
+    reais da Thays — inclusive o OCR de verdade das páginas do PDF. O que
+    segue abaixo está escrito e revisado, mas só se prova na sua execução:</p>
+    <ol class="etapas">
+      <li><p><strong>A conversão do PDF pelo Drive.</strong> O que é testado
+      aqui é tudo em volta: a montagem da chamada, o descarte da conversão
+      temporária, os formatos aceitos e cada caminho de erro.</p></li>
+      <li><p><strong>As consultas à Receita.</strong> O ambiente de
+      desenvolvimento bloqueia <code>receita.fazenda.gov.br</code> e
+      <code>brasilapi.com.br</code>.</p></li>
+      <li><p><strong>O OCR do comprovante rende pouco.</strong> Medido no seu
+      PDF de 27/08: CNAE aproveitável em 2 das 7 empresas. Por isso o CNPJ e a
+      razão social nunca saem dele — vêm da linha do e-mail — e a consulta tem
+      precedência.</p></li>
+      <li><p><strong>O drive de rede continua fora do alcance.</strong> As
+      pastas no Google Drive o app cria; as da rede saem pelo CSV mais o
+      script do PowerShell, rodado no servidor.</p></li>
+    </ol>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var TOTAL = {{TOTAL}};
+  var CHAVE = 'moraex-instalacao-v1';
+  var feitos = {};
+
+  try { feitos = JSON.parse(localStorage.getItem(CHAVE) || '{}') || {}; } catch (e) { feitos = {}; }
+  function salvar() {
+    try { localStorage.setItem(CHAVE, JSON.stringify(feitos)); } catch (e) { /* aba anônima */ }
+  }
+
+  function pintar() {
+    var n = 0;
+    document.querySelectorAll('button.copiar').forEach(function (botao) {
+      var alvo = botao.dataset.alvo;
+      var cartao = botao.closest('.arquivo');
+      if (feitos[alvo]) {
+        n++;
+        botao.classList.add('feito');
+        botao.textContent = 'Copiado ✓';
+        cartao.classList.add('pronto');
+      } else {
+        botao.classList.remove('feito');
+        botao.textContent = 'Copiar';
+        cartao.classList.remove('pronto');
+      }
+    });
+    document.getElementById('contador').textContent = n + ' / ' + TOTAL;
+    document.getElementById('barra').style.width = (n / TOTAL * 100) + '%';
+  }
+
+  document.querySelectorAll('button.copiar').forEach(function (botao) {
+    botao.addEventListener('click', function () {
+      var alvo = botao.dataset.alvo;
+      var texto = document.getElementById(alvo).textContent;
+
+      function marcar() { feitos[alvo] = true; salvar(); pintar(); }
+
+      function selecionar() {
+        // Sem permissão de área de transferência: seleciona o código para a
+        // pessoa copiar com Ctrl+C, e abre o bloco se estiver fechado.
+        var pre = document.getElementById(alvo);
+        var detalhe = pre.closest('details');
+        if (detalhe) detalhe.open = true;
+        var faixa = document.createRange();
+        faixa.selectNodeContents(pre);
+        var selecao = window.getSelection();
+        selecao.removeAllRanges();
+        selecao.addRange(faixa);
+        botao.textContent = 'Copie com Ctrl+C';
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(marcar, selecionar);
+      } else {
+        selecionar();
+      }
+    });
+  });
+
+  document.getElementById('zerar').addEventListener('click', function () {
+    feitos = {};
+    salvar();
+    pintar();
+  });
+
+  pintar();
+})();
+</script>
