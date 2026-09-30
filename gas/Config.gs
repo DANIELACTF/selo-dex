@@ -14,10 +14,10 @@
  * bater com a do guia, algum arquivo ficou para trás. Suba este número
  * sempre que mudar qualquer .gs ou .html.
  */
-var VERSAO_APP = '2.4';
+var VERSAO_APP = '2.5';
 
 /** O que esta versão trouxe — mostrado em "Conferir instalação". */
-var NOVIDADES_DA_VERSAO = 'Erro de arquivo faltando passa a dizer qual arquivo colar, em vez de "X is not defined".';
+var NOVIDADES_DA_VERSAO = 'A baixa move o cliente para a aba de inativos que já existe, em vez de criar uma paralela.';
 
 /** Carência antes de distribuir a empresa para um analista. */
 var MESES_CARENCIA = 3;
@@ -30,7 +30,7 @@ var ABAS = {
   carteira: 'Carteira Completa',
   resumo: 'Resumo Equipe',
   listas: 'Listas',
-  baixados: 'Baixados',
+  inativos: 'Clientes Inativos',
   movimentacoes: 'Movimentações',
   log: 'Log'
 };
@@ -70,11 +70,27 @@ var MOTIVOS_TROCA = [
   'Outro (descrever na observação)'
 ];
 
-/** Registro de quem saiu da carteira — estado, não histórico. */
-var COLS_BAIXADOS = [
-  'N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Segmento',
-  'Último responsável', 'Saiu de', 'Motivo', 'Observação',
-  'Competência da baixa', 'Baixado em', 'Baixado por'
+/**
+ * Nomes possíveis da aba de clientes inativos.
+ *
+ * O app NÃO cria essa aba: ela já existe na carteira do escritório, e criar
+ * uma paralela só espalha a informação. Procuramos pelos nomes abaixo, sem
+ * diferenciar maiúsculas nem acento, e usamos a primeira que existir.
+ * Se a sua tiver outro nome, acrescente aqui — na frente da lista.
+ */
+var ALIASES_INATIVOS = [
+  'Clientes Inativos', 'Clientes inativos', 'Inativos', 'Inativas',
+  'Clientes Baixados', 'Baixados', 'Encerrados', 'Clientes Encerrados'
+];
+
+/**
+ * Colunas que a baixa preenche na aba de inativos, quando existirem lá.
+ * Coluna que a aba do escritório não tem é simplesmente ignorada — o app
+ * não reescreve o layout dela.
+ */
+var COLS_BAIXA = [
+  'Motivo', 'Motivo da baixa', 'Observação', 'Competência da baixa',
+  'Baixado em', 'Baixado por', 'Último responsável', 'Saiu de'
 ];
 
 /** Histórico de todas as movimentações de carteira — eventos, não estado. */
@@ -216,17 +232,17 @@ var DONO_DO_SIMBOLO = {
   Carteira: ['alimentarCarteira', 'situacaoCarencia'],
   Competencia: ['_FORMATO_COMPETENCIA', 'carenciaLiberada', 'competenciaAtual', 'competenciaComoNumero', 'competenciaLiberacao', 'competenciasRestantes', 'pad2_', 'somarMeses', 'validarCompetencia'],
   Comprovante: ['MARCAS_COMPROVANTE', 'PORTES', 'RE_CEP', 'RE_CNAE_OCR', 'RE_DATA_BR', 'RE_MUNICIPIO_UF', 'RE_NATUREZA', 'RE_ROTULO_DO_DOC', 'RE_SITUACAO', 'UFS', 'acharCnaes_', 'acharMunicipioUf_', 'acharPorte_', 'cnpjValido', 'lerComprovante', 'limparValor_', 'temComprovante'],
-  Config: ['ABAS', 'ANALISTAS', 'COLS_BAIXADOS', 'COLS_IDENTIFICACAO', 'COLS_MOVIMENTACOES', 'COLS_PARTICULARIDADES', 'COL_COMPETENCIA', 'COL_LIBERA', 'CORES', 'CUSTO_SEGUNDA_FONTE_MS', 'DONO_DO_SIMBOLO', 'MAX_PDFS_POR_EXECUCAO', 'MEI_EXIGE_CERTIFICADO', 'MESES_CARENCIA', 'MESES_PASTA', 'MOTIVOS_BAIXA', 'MOTIVOS_TROCA', 'NIVEIS', 'NOVIDADES_DA_VERSAO', 'ORCAMENTO_CONSULTAS_MS', 'ORIGEM_ONBOARDING', 'PASTA_RAIZ_NOME', 'PAUSA_RECEITAWS_MS', 'PROCURACAO', 'REGIMES', 'SEGMENTOS', 'SENHA_STATUS', 'SIM_PENDENTE', 'SITUACOES', 'STATUS_NOVO', 'URL_BRASILAPI', 'URL_RECEITAWS', 'URL_SIMPLES_RFB', 'USAR_RECEITAWS', 'VERSAO_APP'],
+  Config: ['ABAS', 'ALIASES_INATIVOS', 'ANALISTAS', 'COLS_BAIXA', 'COLS_IDENTIFICACAO', 'COLS_MOVIMENTACOES', 'COLS_PARTICULARIDADES', 'COL_COMPETENCIA', 'COL_LIBERA', 'CORES', 'CUSTO_SEGUNDA_FONTE_MS', 'DONO_DO_SIMBOLO', 'MAX_PDFS_POR_EXECUCAO', 'MEI_EXIGE_CERTIFICADO', 'MESES_CARENCIA', 'MESES_PASTA', 'MOTIVOS_BAIXA', 'MOTIVOS_TROCA', 'NIVEIS', 'NOVIDADES_DA_VERSAO', 'ORCAMENTO_CONSULTAS_MS', 'ORIGEM_ONBOARDING', 'PASTA_RAIZ_NOME', 'PAUSA_RECEITAWS_MS', 'PROCURACAO', 'REGIMES', 'SEGMENTOS', 'SENHA_STATUS', 'SIM_PENDENTE', 'SITUACOES', 'STATUS_NOVO', 'URL_BRASILAPI', 'URL_RECEITAWS', 'URL_SIMPLES_RFB', 'USAR_RECEITAWS', 'VERSAO_APP'],
   Consultas: ['consultarBrasilApi_', 'consultarCnpj', 'consultarOptanteSimples', 'consultarReceitaWs_', 'dadosCadastraisVazios_', 'descobrirBotao_', 'descobrirCampoCnpj_', 'detalheDaResposta_', 'extrairInputs_', 'formatarDataIso_', 'interpretarResultadoSimples_', 'montarEnderecoReceitaWs_', 'montarEndereco_'],
   Etapa1: ['abrirLote', 'competenciaDoEmail_', 'consultarEmpresaDoLote', 'entrarEmPendentes_', 'gravarLote', 'montarTextoCobranca_', 'numerosJaCadastrados_', 'observacaoDaTriagem_'],
   Fichas: ['enquadramentoDaFicha_', 'escapar_', 'gerarFichasPdf', 'marca_', 'montarFichaHtml_', 'situacaoRfbDaFicha_'],
-  Gestao: ['acharEmQualquerAba_', 'acharLinha_', 'baixarCliente', 'carregarGestao', 'diagnosticarAbas_', 'distribuirCliente', 'montarBaixados_', 'montarMovimentacoes_', 'quemEsta_', 'registrarMovimentacao_', 'trocarResponsavel'],
+  Gestao: ['acharEmQualquerAba_', 'acharLinha_', 'baixarCliente', 'carregarGestao', 'diagnosticarAbas_', 'distribuirCliente', 'montarMovimentacoes_', 'quemEsta_', 'registrarMovimentacao_', 'trocarResponsavel'],
   Instalar: ['instalarAbas', 'montarInstrucoes_', 'montarListas_'],
   Menu: ['abrirBaixar', 'abrirBarraTriagem', 'abrirDistribuir', 'abrirPainelGestao_', 'abrirTrocar', 'baixarDoPainel', 'bloco_', 'distribuirDoPainel', 'explicarErro_', 'menuAlimentarCarteira', 'menuConferirInstalacao', 'menuCriarPastas', 'menuExportarCsv', 'menuGerarFichas', 'menuInstalar', 'menuSobre', 'menuStatusCarencia', 'onOpen', 'trocarDoPainel'],
   Parser: ['ANEXOS_BLOCO_RE', 'BLOCO_HEADER_RE', 'CELULAR_RE', 'DATA_EMAIL_ISO_RE', 'DATA_EMAIL_RE', 'EMAIL_RE', 'GRUPO_RE', 'OBS_RE', 'REGIME_PATTERNS', 'RE_NOME_ARQUIVO', 'SENHA_RE', 'extrairAnexos', 'extrairDataEmail', 'limparNome_', 'parseEmail'],
   Particularidades: ['aplicarFormatoParticularidades_', 'montarCabecalhoParticularidades_', 'regimeParaLista_'],
   Pastas: ['criarPastasDrive', 'exportarCsvPastas', 'pastaDoCliente_', 'pastaRaiz_', 'subpasta_'],
   PdfTexto: ['IDIOMA_OCR', 'MIME_DOC_GOOGLE', 'TIPOS_CONVERSIVEIS', 'URL_DRIVE_EXPORT', 'URL_DRIVE_UPLOAD', 'detalheDoDrive_', 'exportarComoTexto_', 'pdfParaTexto', 'pdfsParaTexto', 'subirParaConversao_', 'subirPelaApiRest_', 'subirPeloServicoAvancado_', 'tipoDoArquivo_'],
-  Planilha: ['LINHAS_PROCURA_CABECALHO', 'ROTULOS_CONHECIDOS', 'abaObrigatoria_', 'aba_', 'acrescentarLinhas_', 'agoraIso_', 'alerta_', 'competenciaDaCaixa_', 'escreverCabecalho_', 'formatarCabecalho_', 'garantirColunas_', 'hojeBr_', 'indices_', 'lerObjetos_', 'linhaDoCabecalho_', 'registrarLog_', 'ss_', 'toast_', 'valoresColuna_'],
+  Planilha: ['LINHAS_PROCURA_CABECALHO', 'ROTULOS_CONHECIDOS', 'abaObrigatoria_', 'aba_', 'acharAbaPorAliases_', 'acrescentarLinhas_', 'agoraIso_', 'alerta_', 'competenciaDaCaixa_', 'escreverCabecalho_', 'formatarCabecalho_', 'garantirColunas_', 'hojeBr_', 'indices_', 'lerObjetos_', 'linhaDoCabecalho_', 'nomesDasAbas_', 'registrarLog_', 'ss_', 'toast_', 'valoresColuna_'],
   Regras: ['PALAVRAS_GENERICAS', 'PALAVRAS_SERVICO_FATOR_R', 'SUFIXOS_SOCIETARIOS', 'SUFIXO_REGIME', 'anexosNaoIdentificados', 'apenasDigitos_', 'certificadoPresente', 'checarDivergencia', 'detectarGrupoEconomico', 'formatarCnaePrincipal', 'formatarCnaesSecundarios', 'formatarCodigoCnae', 'nomeGrupoDaObservacao_', 'nomePasta', 'normalizarLivre_', 'normalizar_', 'optanteSimplesResolvido', 'particularidades', 'raizCnpj_', 'regimeEnquadramento', 'slugFicha', 'tipoEstabelecimento']
 };

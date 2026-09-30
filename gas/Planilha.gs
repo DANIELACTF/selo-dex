@@ -16,6 +16,34 @@ function aba_(nome, criarSeFaltar) {
   return aba;
 }
 
+/**
+ * Acha a primeira aba cujo nome bate com um dos aliases, ignorando
+ * maiúsculas, acento e espaço sobrando.
+ *
+ * Existe porque a carteira do escritório já tem as abas — a de clientes
+ * inativos, por exemplo — e criar uma paralela só espalharia a informação.
+ * Devolve null se nenhuma existir: quem chama decide o que fazer, e não
+ * saímos criando aba.
+ */
+function acharAbaPorAliases_(aliases) {
+  var existentes = ss_().getSheets();
+  var porChave = {};
+  existentes.forEach(function (aba) {
+    porChave[normalizarLivre_(aba.getName()).replace(/\s+/g, ' ').trim()] = aba;
+  });
+
+  for (var i = 0; i < aliases.length; i++) {
+    var chave = normalizarLivre_(aliases[i]).replace(/\s+/g, ' ').trim();
+    if (porChave[chave]) return porChave[chave];
+  }
+  return null;
+}
+
+/** Nomes das abas desta planilha, para mensagens de erro úteis. */
+function nomesDasAbas_() {
+  return ss_().getSheets().map(function (aba) { return aba.getName(); });
+}
+
 function abaObrigatoria_(nome) {
   var aba = aba_(nome, false);
   if (!aba) {

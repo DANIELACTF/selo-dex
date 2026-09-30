@@ -207,38 +207,61 @@ function baixarCliente(numero, motivo, observacao) {
       '" nem em "' + ABAS.pendentes + '".' };
   }
 
+  // A aba de inativos é a do escritório — o app não cria uma paralela.
+  var abaInativos = acharAbaPorAliases_(ALIASES_INATIVOS);
+  if (!abaInativos) {
+    return { erro: 'Não achei a aba de clientes inativos nesta planilha. Procurei por: ' +
+      ALIASES_INATIVOS.join(', ') + '. As abas existentes são: ' + nomesDasAbas_().join(', ') +
+      '. Nada foi movido — me diga o nome certo para eu acrescentar à lista.' };
+  }
+
   var linha = encontrado.linha;
   var referencia = competenciaAtual();
   var responsavel = linha['Analista Responsável'] || linha['Sugestão Analista'] ||
     '(sem responsável — estava em carência)';
 
-  var abaBaixados = aba_(ABAS.baixados, true);
-  if (abaBaixados.getLastRow() === 0) montarBaixados_(abaBaixados);
-  var idx = garantirColunas_(abaBaixados, COLS_BAIXADOS);
+  // Leva para a aba de inativos o que ela souber receber: as colunas dela
+  // mandam, e o que não existir lá é simplesmente deixado de fora.
+  var idxInativos = indices_(abaInativos);
+  var valores = {};
+  Object.keys(linha).forEach(function (coluna) {
+    if (coluna !== '_linha') valores[coluna] = linha[coluna];
+  });
+  valores['Motivo'] = motivo;
+  valores['Motivo da baixa'] = motivo;
+  valores['Observação'] = observacao || '';
+  valores['Competência da baixa'] = referencia;
+  valores['Baixado em'] = hojeBr_();
+  valores['Baixado por'] = quemEsta_();
+  valores['Último responsável'] = responsavel;
+  valores['Saiu de'] = encontrado.aba;
+  valores['Status'] = 'Inativo';
 
-  var registro = {};
-  registro['N° Cliente'] = numero;
-  registro['Nome'] = linha['Nome'] || '';
-  registro['CNPJ'] = linha['CNPJ'] || '';
-  registro['Regime Tributário'] = linha['Regime Tributário'] || '';
-  registro['Segmento'] = linha['Segmento'] || '';
-  registro['Último responsável'] = responsavel;
-  registro['Saiu de'] = encontrado.aba;
-  registro['Motivo'] = motivo;
-  registro['Observação'] = observacao || '';
-  registro['Competência da baixa'] = referencia;
-  registro['Baixado em'] = hojeBr_();
-  registro['Baixado por'] = quemEsta_();
-  acrescentarLinhas_(abaBaixados, idx, [registro]);
+  var aproveitadas = Object.keys(valores).filter(function (c) { return idxInativos[c]; });
+  if (!aproveitadas.length) {
+    return { erro: 'A aba "' + abaInativos.getName() + '" não tem nenhuma coluna em comum ' +
+      'com a carteira — não daria para levar o cliente sem inventar layout. Nada foi movido.' };
+  }
 
+  acrescentarLinhas_(abaInativos, idxInativos, [valores]);
   encontrado.aba_obj.deleteRow(linha._linha);
 
-  registrarMovimentacao_('Baixa', numero, linha['Nome'], responsavel, ABAS.baixados,
+  // Conferir em vez de supor: se a linha continuar lá, o cliente ficaria em
+  // dois lugares, e isso precisa aparecer em vez de passar por sucesso.
+  var aindaLa = acharLinha_(encontrado.aba_obj, numero);
+  if (aindaLa) {
+    return { erro: 'Levei N°' + numero + ' para "' + abaInativos.getName() + '", mas não ' +
+      'consegui remover de "' + encontrado.aba + '" — ele está nas duas abas agora. ' +
+      'Apague a linha à mão e me avise.' };
+  }
+
+  registrarMovimentacao_('Baixa', numero, linha['Nome'], encontrado.aba, abaInativos.getName(),
     motivo + (observacao ? ' — ' + observacao : ''), referencia);
 
   return {
     baixado: true, numero: numero, nome: linha['Nome'], de: encontrado.aba,
-    responsavel: responsavel, motivo: motivo, competencia: referencia
+    para: abaInativos.getName(), responsavel: responsavel, motivo: motivo,
+    competencia: referencia, colunasLevadas: aproveitadas.length
   };
 }
 
@@ -347,15 +370,6 @@ function registrarMovimentacao_(operacao, numero, nome, de, para, motivo, compet
   registro['Motivo / observação'] = motivo || '';
   registro['Competência'] = competencia || '';
   acrescentarLinhas_(aba, idx, [registro]);
-}
-
-function montarBaixados_(aba) {
-  escreverCabecalho_(aba, COLS_BAIXADOS);
-  aba.setColumnWidth(1, 80);
-  aba.setColumnWidth(2, 260);
-  aba.setColumnWidth(3, 140);
-  aba.setColumnWidth(8, 240);
-  aba.setColumnWidth(9, 280);
 }
 
 function montarMovimentacoes_(aba) {

@@ -190,8 +190,9 @@ function telaBaixar() {
       'nas abas:</p>' + tabelaDiagnostico(DADOS.diagnostico || []);
   }
   return '<h2>Dar baixa no cliente</h2>' +
-    '<p class="ajuda">Tira o cliente da carteira. A linha não some: vai para a aba ' +
-    '<strong>Baixados</strong> com motivo, data e quem deu baixa.</p>' +
+    '<p class="ajuda">Tira o cliente da carteira e leva para a aba de <strong>clientes ' +
+    'inativos</strong> que já existe, com motivo, data e quem deu baixa. A baixa fica ' +
+    'registrada em <strong>Movimentações</strong>.</p>' +
     '<label for="cliente">Cliente</label>' +
     '<select id="cliente" onchange="mostrarCliente()"><option value="">Escolha…</option>' + clientesTodos() + '</select>' +
     '<div id="ficha"></div>' +
@@ -310,8 +311,8 @@ function mostrar(r) {
     saida.innerHTML = '<div class="caixa bom">' + texto + '</div>';
   } else if (r.baixado) {
     texto = '<strong>Baixado.</strong> N°' + esc(r.numero) + ' ' + esc(r.nome) +
-      ' saiu de "' + esc(r.de) + '" na competência ' + esc(r.competencia) +
-      '. Motivo: ' + esc(r.motivo) + '. A linha está na aba Baixados.';
+      ' saiu de "' + esc(r.de) + '" e está em "' + esc(r.para) + '", na competência ' +
+      esc(r.competencia) + '. Motivo: ' + esc(r.motivo) + '.';
     saida.innerHTML = '<div class="caixa bom">' + texto + '</div>';
   }
 

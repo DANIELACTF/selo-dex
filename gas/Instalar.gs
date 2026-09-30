@@ -32,7 +32,6 @@ function instalarAbas() {
       'Segmento', 'Sugestão Analista', 'Origem', 'Observação',
       COL_COMPETENCIA, COL_LIBERA]);
   });
-  garantir(ABAS.baixados, montarBaixados_);
   garantir(ABAS.movimentacoes, montarMovimentacoes_);
   garantir(ABAS.listas, montarListas_);
   garantir(ABAS.log, function (aba) {
@@ -99,8 +98,8 @@ function montarInstrucoes_(aba) {
     ['   correndo, o destino fica anotado como sugestão e a empresa não sai do lugar;', false],
     ['   dá para antecipar marcando a opção, e a antecipação fica registrada.', false],
     ['🔁 Trocar responsável — passa o cliente de um analista para outro, com motivo.', false],
-    ['📕 Dar baixa — tira o cliente da carteira. A linha não some: vai para a aba', false],
-    ['   "Baixados" com motivo, data e quem deu baixa.', false],
+    ['📕 Dar baixa — tira o cliente da carteira e leva para a aba de clientes', false],
+    ['   inativos que já existe, com motivo, data e quem deu baixa.', false],
     ['', false],
     ['As três ficam registradas na aba "Movimentações", uma linha por operação,', false],
     ['com quem fez, de quem para quem e por quê.', false],

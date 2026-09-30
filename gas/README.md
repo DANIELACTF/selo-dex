@@ -35,9 +35,22 @@ há uma caixa para **antecipar**, e a antecipação fica registrada como tal.
 Responsável". Para quem ainda está em carência, troca a **sugestão** — nesse
 período quem responde pela empresa é a Gestão Fiscal, não o analista.
 
-**📕 Dar baixa.** Tira o cliente da carteira (ou dos pendentes). A linha não
-é apagada: vai para a aba **`Baixados`** com o último responsável, de onde
-saiu, motivo, observação, competência, data e quem deu baixa.
+**📕 Dar baixa.** Move o cliente da carteira (ou dos pendentes) para a aba de
+**clientes inativos que já existe na planilha** — o app não cria uma aba
+paralela. Ele a encontra pelo nome, ignorando maiúsculas e acento, entre os
+apelidos de `ALIASES_INATIVOS` em `Config.gs`: *Clientes Inativos*,
+*Inativos*, *Clientes Baixados*, *Encerrados* e variações. Se a sua tiver
+outro nome, acrescente na frente dessa lista.
+
+A linha leva o que a aba de inativos souber receber: as colunas dela mandam,
+e o app preenche as que existirem — `Motivo`, `Observação`, `Competência da
+baixa`, `Baixado em`, `Baixado por`, `Último responsável`, `Saiu de`,
+`Status`. Coluna que não existe lá é ignorada, sem reescrever o layout.
+
+Depois de mover, o app **confere que a linha saiu da origem**. Se ela
+continuar lá, o cliente estaria em duas abas — e isso é reportado como erro,
+não como sucesso. Não achando a aba de inativos, ele recusa a operação e
+lista as abas existentes, em vez de criar uma.
 
 As três escrevem uma linha na aba **`Movimentações`** — quem fez, quando,
 de quem para quem e por quê. É essa aba que responde "o que aconteceu com o

@@ -23,6 +23,11 @@ const CAB_PENDENTES = ['N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Seg
  */
 function cenario() {
   return planilhaFalsa({
+    // A aba de inativos já existe na carteira do escritório — o app a usa,
+    // não a cria.
+    'Clientes Inativos': [['N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Segmento',
+      'Último responsável', 'Motivo', 'Observação', 'Competência da baixa', 'Baixado em',
+      'Baixado por', 'Status']],
     'Carteira Completa': [CAB_CARTEIRA,
       ['500', 'ANTIGA LTDA', '11.111.111/0001-11', 'Simples Nacional', 'Serviço',
         'Wellington', 'Auxiliar', 'OK']],
@@ -116,47 +121,142 @@ test('quem não está em pendentes não pode ser distribuído', () => {
 
 // ------------------------------------------------------------ 2. baixa
 
-test('baixa tira da carteira e guarda a linha em Baixados', () => {
-  const { ctx, aba } = cenario();
-  const r = ctx.baixarCliente('500', 'Encerramento de contrato (cliente pediu)', 'Distrato em 01/09');
+const CAB_INATIVOS = ['N° Cliente', 'Nome', 'CNPJ', 'Regime Tributário', 'Segmento',
+  'Último responsável', 'Motivo', 'Observação', 'Competência da baixa', 'Baixado em',
+  'Baixado por', 'Status'];
 
+/** A planilha do escritório: já tem a aba de inativos, e um banner na carteira. */
+function cenarioComInativos(nomeDaAba = 'Clientes Inativos') {
+  const dados = {
+    'Carteira Completa': [
+      ['Carteira Tributária Fiscal — Dep. Fiscal Moraex', '', '', '', '', '', '', ''],
+      ['Atualizado em: 30/09/2026', '', '', '', '', '', '', ''],
+      CAB_CARTEIRA,
+      ['500', 'ANTIGA LTDA', '11.111.111/0001-11', 'Simples Nacional', 'Serviço',
+        'Wellington', 'Auxiliar', 'OK'],
+      ['501', 'OUTRA LTDA', '22.222.222/0001-22', 'Lucro Presumido', 'Comércio',
+        'Dulce Neves', 'Sênior', 'OK']],
+    'Pendentes Daniela': [CAB_PENDENTES,
+      ['1091', 'C LORENA LTDA', '68.717.251/0001-25', 'Lucro Real', 'Comércio',
+        '', '🆕 Onboarding', '', '05/2026', '08/2026']]
+  };
+  dados[nomeDaAba] = [CAB_INATIVOS];
+  return planilhaFalsa(dados);
+}
+
+test('a baixa REMOVE da Carteira Completa e leva para a aba de inativos', () => {
+  const { ctx, aba } = cenarioComInativos();
+  const r = ctx.baixarCliente('500', 'Encerramento de contrato (cliente pediu)', 'Distrato 01/09');
+
+  assert.ok(!r.erro, `baixarCliente falhou: ${r.erro}`);
   assert.equal(r.baixado, true);
   assert.equal(r.de, 'Carteira Completa');
-  assert.equal(r.responsavel, 'Wellington');
-  assert.ok(!numeros(aba('Carteira Completa')).includes('500'));
+  assert.equal(r.para, 'Clientes Inativos');
 
-  const baixado = comoObjetos(aba('Baixados'))[0];
-  assert.equal(baixado['N° Cliente'], '500');
-  assert.equal(baixado['Nome'], 'ANTIGA LTDA');
-  assert.equal(baixado['Último responsável'], 'Wellington');
-  assert.equal(baixado['Saiu de'], 'Carteira Completa');
-  assert.equal(baixado['Motivo'], 'Encerramento de contrato (cliente pediu)');
-  assert.equal(baixado['Observação'], 'Distrato em 01/09');
-  assert.equal(baixado['Baixado por'], 'daniela@moraex.com.br');
-  assert.ok(baixado['Competência da baixa']);
+  // saiu mesmo da carteira — é o que não estava acontecendo
+  assert.deepEqual(planos(numeros(aba('Carteira Completa'))), ['501']);
+
+  const inativo = comoObjetos(aba('Clientes Inativos'))[0];
+  assert.equal(inativo['N° Cliente'], '500');
+  assert.equal(inativo['Nome'], 'ANTIGA LTDA');
+  assert.equal(inativo['CNPJ'], '11.111.111/0001-11');
+  assert.equal(inativo['Último responsável'], 'Wellington');
+  assert.equal(inativo['Motivo'], 'Encerramento de contrato (cliente pediu)');
+  assert.equal(inativo['Observação'], 'Distrato 01/09');
+  assert.equal(inativo['Baixado por'], 'daniela@moraex.com.br');
+  assert.equal(inativo['Status'], 'Inativo');
 });
 
-test('baixa de quem ainda está em carência registra que não tinha responsável', () => {
-  const { ctx, aba } = cenario();
+test('o banner acima do cabeçalho não atrapalha a remoção', () => {
+  // A carteira real tem título e data antes dos rótulos: se a linha for
+  // calculada errado, a baixa apagaria a empresa errada.
+  const { ctx, aba } = cenarioComInativos();
+  ctx.baixarCliente('501', 'Inadimplência', '');
+
+  const restantes = comoObjetos(aba('Carteira Completa'));
+  assert.equal(restantes.length, 1);
+  assert.equal(restantes[0]['N° Cliente'], '500', 'apagou a linha errada');
+});
+
+test('não cria aba nova: usa a que já existe, com o nome que ela tiver', () => {
+  for (const nome of ['Clientes Inativos', 'Inativos', 'CLIENTES INATIVOS', 'Clientes inativos']) {
+    const { ctx, planilha } = cenarioComInativos(nome);
+    const r = ctx.baixarCliente('500', 'Inadimplência', '');
+
+    assert.ok(!r.erro, `com a aba chamada "${nome}": ${r.erro}`);
+    assert.equal(r.para, nome, 'usa a aba com o nome que ela já tem');
+
+    // Movimentações é criada de propósito; nenhuma SEGUNDA aba de inativos
+    // pode aparecer ao lado da que já existe.
+    const comCaraDeInativos = planilha.getSheets()
+      .map((a) => a.getName())
+      .filter((n) => /inativ|baixad|encerrad/i.test(n));
+    assert.deepEqual(planos(comCaraDeInativos), [nome]);
+  }
+});
+
+test('sem aba de inativos, recusa e diz quais abas existem — não cria nada', () => {
+  const { ctx, aba, planilha } = planilhaFalsa({
+    'Carteira Completa': [CAB_CARTEIRA,
+      ['500', 'ANTIGA LTDA', '11.111.111/0001-11', 'Simples', 'Serviço', 'Wellington', 'Auxiliar', 'OK']],
+    'Pendentes Daniela': [CAB_PENDENTES]
+  });
+  const antes = planilha.getSheets().length;
+  const r = ctx.baixarCliente('500', 'Inadimplência', '');
+
+  assert.match(r.erro, /Não achei a aba de clientes inativos/);
+  assert.match(r.erro, /Carteira Completa/, 'deve listar as abas que existem');
+  assert.match(r.erro, /Nada foi movido/);
+  assert.equal(planilha.getSheets().length, antes, 'não pode criar a aba por conta própria');
+  assert.deepEqual(planos(numeros(aba('Carteira Completa'))), ['500'], 'o cliente fica onde estava');
+});
+
+test('baixa de quem está em carência sai de Pendentes', () => {
+  const { ctx, aba } = cenarioComInativos();
   const r = ctx.baixarCliente('1091', 'Baixa do CNPJ na Receita', '');
 
   assert.equal(r.de, 'Pendentes Daniela');
   assert.match(r.responsavel, /sem responsável/);
-  assert.ok(!numeros(aba('Pendentes Daniela')).includes('1091'));
-  assert.equal(comoObjetos(aba('Baixados'))[0]['Saiu de'], 'Pendentes Daniela');
+  assert.deepEqual(planos(numeros(aba('Pendentes Daniela'))), []);
+  assert.equal(comoObjetos(aba('Clientes Inativos'))[0]['N° Cliente'], '1091');
+});
+
+test('a baixa entra em Movimentações, com as duas abas', () => {
+  const { ctx, aba } = cenarioComInativos();
+  ctx.baixarCliente('500', 'Transferência para outro escritório', 'foi para a concorrência');
+
+  const mov = comoObjetos(aba('Movimentações'))[0];
+  assert.equal(mov['Operação'], 'Baixa');
+  assert.equal(mov['N° Cliente'], '500');
+  assert.equal(mov['De'], 'Carteira Completa');
+  assert.equal(mov['Para'], 'Clientes Inativos');
+  assert.match(mov['Motivo / observação'], /Transferência.*concorrência/);
+  assert.equal(mov['Quem'], 'daniela@moraex.com.br');
 });
 
 test('baixa exige motivo', () => {
-  const { ctx, aba } = cenario();
+  const { ctx, aba } = cenarioComInativos();
   assert.match(ctx.baixarCliente('500', '', 'sem motivo').erro, /Escolha o motivo/);
   assert.ok(numeros(aba('Carteira Completa')).includes('500'));
 });
 
 test('baixar quem não existe não apaga nada', () => {
-  const { ctx, aba } = cenario();
+  const { ctx, aba } = cenarioComInativos();
   assert.match(ctx.baixarCliente('9999', 'Inadimplência', '').erro, /não está nem em/);
-  assert.equal(numeros(aba('Carteira Completa')).length, 1);
-  assert.equal(numeros(aba('Pendentes Daniela')).length, 3);
+  assert.equal(numeros(aba('Carteira Completa')).length, 2);
+  assert.equal(comoObjetos(aba('Clientes Inativos')).length, 0);
+});
+
+test('aba de inativos sem coluna em comum é recusada, sem mover nada', () => {
+  const { ctx, aba } = planilhaFalsa({
+    'Carteira Completa': [CAB_CARTEIRA,
+      ['500', 'ANTIGA LTDA', '11.111.111/0001-11', 'Simples', 'Serviço', 'Wellington', 'Auxiliar', 'OK']],
+    'Pendentes Daniela': [CAB_PENDENTES],
+    'Clientes Inativos': [['Coluna Estranha', 'Outra Coisa']]
+  });
+  const r = ctx.baixarCliente('500', 'Inadimplência', '');
+  assert.match(r.erro, /nenhuma coluna em comum/);
+  assert.ok(numeros(aba('Carteira Completa')).includes('500'));
 });
 
 // ------------------------------------------------------------ 3. troca
@@ -217,7 +317,7 @@ test('cada operação vira uma linha em Movimentações', () => {
   assert.equal(mov[1]['Para'], 'Monica Oliveira (Júnior)');
   assert.match(mov[1]['Motivo / observação'], /Férias \/ afastamento — volta em 10\/2026/);
 
-  assert.equal(mov[2]['Para'], 'Baixados');
+  assert.equal(mov[2]['Para'], 'Clientes Inativos');
   for (const linha of mov) {
     assert.equal(linha['Quem'], 'daniela@moraex.com.br');
     assert.ok(linha['Quando'], 'toda movimentação tem data');
