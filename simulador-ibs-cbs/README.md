@@ -15,12 +15,19 @@ na planilha. Abre pelo menu da planilha ou por um link.
 
 → **[web-app/COMO-PUBLICAR.md](web-app/COMO-PUBLICAR.md)** — roteiro passo a passo.
 
+→ **`web-app/guia-instalacao.html`** — o mesmo roteiro como página, no formato do guia
+do Onboarding Fiscal, com um botão Copiar para cada arquivo. É gerado a partir dos
+arquivos por `node simulador-ibs-cbs/web-app/gerar-guia.js`; rode de novo sempre que
+mudar `Codigo.gs`, `pagina.html` ou `motor_js.html` (`--conferir` avisa se ficou para trás).
+
 ```
 web-app/
   Codigo.gs          serve a tela e guarda as simulações na planilha
   pagina.html        a tela inteira (HTML, CSS e JS)
   motor_js.html      o motor de cálculo, usado pela tela e pelos testes
   COMO-PUBLICAR.md   roteiro de instalação
+  gerar-guia.js      gera o guia-instalacao.html a partir dos três arquivos
+  guia-instalacao.html  guia com botão Copiar (gerado)
   testes/
     motor.test.js        cálculo: reduções, regimes, créditos, transição
     codigo.test.js       Codigo.gs sobre uma planilha simulada
