@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSAO = '1.0';
+const VERSAO = '1.1';
 const ler = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const linhas = (s) => s.replace(/\n$/, '').split('\n').length;
@@ -220,7 +220,7 @@ const guia = `<title>Simulador IBS/CBS na planilha</title>
         <thead><tr><th>Aba</th><th>O que tem</th></tr></thead>
         <tbody>
           <tr><td>Simular</td><td>Empresa e premissas, as vendas e as compras do período, e as simulações salvas</td></tr>
-          <tr><td>Resultado</td><td>Carga de hoje comparada com cada ano, gráfico, débitos e créditos de IBS/CBS e o detalhamento por atividade</td></tr>
+          <tr><td>Resultado</td><td>Carga de hoje comparada com cada ano, gráfico, preço e margem, débitos e créditos de IBS/CBS e o detalhamento por atividade</td></tr>
           <tr><td>Tabelas</td><td>O cronograma da transição (editável) e o catálogo de tratamentos por atividade, com busca</td></tr>
         </tbody>
       </table>
@@ -231,6 +231,21 @@ const guia = `<title>Simulador IBS/CBS na planilha</title>
       zero na cesta básica, 40% em bares, restaurantes e hotelaria, 50% e 70% em
       imóveis, alíquota própria nos serviços financeiros, exportação e mais. O
       formulário avisa o que informar em "Valor" e quando a compra não dá crédito.</p>
+    </div>
+    <h3 style="margin-top:26px">Para empresas de serviço</h3>
+    <p>Escolha <strong>Prestação de serviços</strong> em "Perfil da atividade", no
+    Passo 1 do simulador. Muda isto:</p>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>O quê</th><th>Como funciona</th></tr></thead>
+        <tbody>
+          <tr><td>ISS do município</td><td>Vira o padrão de cada serviço lançado. Cai a 90%, 80%, 70% e 60% de 2029 a 2032 e acaba em 2033.</td></tr>
+          <tr><td>ISS fixo</td><td>Para sociedade de profissionais, que paga ISS por profissional e não sobre o faturamento.</td></tr>
+          <tr><td>Folha e custos sem crédito</td><td>Entram no resultado. São o motivo de serviços terem pouco crédito de IBS/CBS para abater.</td></tr>
+          <tr><td>Clientes que se creditam</td><td>Empresa do regime regular recupera o IBS/CBS; pessoa física, Simples e consumidor final pagam cheio.</td></tr>
+          <tr><td>Preço e margem</td><td>Resultado antes de IR em cada ano, o reajuste para manter o resultado de hoje e quanto muda o preço para cada tipo de cliente.</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -299,7 +314,8 @@ ${cartoes}
         passou pela revisão pública do Google, não que tenha algo errado com ele.</p>
       </li>
       <li><p>Abra o menu de novo. Para testar, clique em <strong>Usar exemplo</strong>
-      e depois em <strong>Ver o resultado</strong>.</p></li>
+      e depois em <strong>Ver o resultado</strong>. Com o perfil "Prestação de serviços",
+      o exemplo é o de uma prestadora de serviços.</p></li>
     </ol>
     <h3 style="margin-top:26px">As permissões que ele pede</h3>
     <div class="rolagem">

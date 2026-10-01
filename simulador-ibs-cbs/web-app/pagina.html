@@ -322,6 +322,39 @@ td input[type="text"]{padding:6px 8px; font-size:13px; min-width:70px}
             <span class="hint">Fixado por ato conjunto anual.</span>
           </div>
         </div>
+        <div><span class="eyebrow">Atividade, custos e clientes</span></div>
+        <div class="grid-form">
+          <div class="field">
+            <label for="p-perfil">Perfil da atividade</label>
+            <select id="p-perfil"></select>
+            <span class="hint" id="p-perfil-hint"></span>
+          </div>
+          <div class="field so-servico">
+            <label for="p-iss">ISS do município</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-iss" inputmode="decimal"><span>%</span></div>
+            <span class="hint">De 2% a 5%. Vira o padrão dos serviços novos.</span>
+          </div>
+          <div class="field so-servico">
+            <label for="p-issfixo">ISS fixo do período</label>
+            <div class="prefixo"><input type="text" class="num-in" id="p-issfixo" inputmode="decimal" placeholder="0,00"><span>R$</span></div>
+            <span class="hint">Sociedade de profissionais, que paga ISS por profissional. Se paga sobre o faturamento, deixe em branco.</span>
+          </div>
+          <div class="field">
+            <label for="p-folha">Folha de pagamento e encargos</label>
+            <div class="prefixo"><input type="text" class="num-in" id="p-folha" inputmode="decimal" placeholder="0,00"><span>R$</span></div>
+            <span class="hint">No período. Não gera crédito de IBS/CBS.</span>
+          </div>
+          <div class="field">
+            <label for="p-outros">Outros custos sem crédito</label>
+            <div class="prefixo"><input type="text" class="num-in" id="p-outros" inputmode="decimal" placeholder="0,00"><span>R$</span></div>
+            <span class="hint">Pró-labore, tarifas, despesas não lançadas como compra.</span>
+          </div>
+          <div class="field">
+            <label for="p-b2b">Vendas a clientes que se creditam</label>
+            <div class="sufixo"><input type="text" class="num-in" id="p-b2b" inputmode="decimal"><span>%</span></div>
+            <span class="hint">Empresas do regime regular. Pessoa física, Simples e consumidor final não se creditam.</span>
+          </div>
+        </div>
         <div class="grid-form">
           <label class="check"><input type="checkbox" id="p-excl-icms">
             <span><b>Excluir o ICMS da base do PIS/COFINS</b><i>Tema 69 do STF.</i></span></label>
@@ -405,6 +438,13 @@ td input[type="text"]{padding:6px 8px; font-size:13px; min-width:70px}
       </div>
 
       <div class="card">
+        <div class="card-hd"><div class="grow"><h2>Preço e margem</h2>
+          <p class="small muted">O que sobra para a empresa com o preço de hoje e quanto o preço precisa mudar para manter o resultado.</p></div></div>
+        <div class="card-bd tight" id="margem-avisos"></div>
+        <div class="tbl-wrap" id="tab-margem"></div>
+      </div>
+
+      <div class="card">
         <div class="card-hd"><div class="grow"><h2>Detalhamento por tributo</h2></div></div>
         <div class="tbl-wrap" id="tab-tributos"></div>
       </div>
@@ -452,6 +492,8 @@ td input[type="text"]{padding:6px 8px; font-size:13px; min-width:70px}
             <label for="f-busca">Buscar</label>
             <input type="text" id="f-busca" placeholder="Ex.: advogado, aluguel, restaurante">
           </div>
+          <label class="check" style="align-self:end"><input type="checkbox" id="f-servicos">
+            <span><b>Só serviços</b><i>Tratamentos que se aplicam a prestadores de serviço.</i></span></label>
         </div>
       </div>
       <div class="tbl-wrap" id="trat-tabela"></div>
@@ -552,7 +594,7 @@ var E = {
   simulacoes: [],
   conectado: false
 };
-var S = { aba: 'simular', anoTrat: '2033', filtroGrupo: '', busca: '' };
+var S = { aba: 'simular', anoTrat: '2033', filtroGrupo: '', busca: '', soServicos: false };
 E.cronograma = M.cronogramaPadrao(E.parametros.cbsRef, E.parametros.ibsRef);
 
 function rascunho(){
@@ -599,8 +641,17 @@ function escreverParametros(){
   $('#p-rural').value = mostrarPct(p.credRural);
   $('#p-excl-icms').checked = !!p.excluiIcmsPC;
   $('#p-excl-base').checked = !!p.excluiTribBase;
+  $('#p-perfil').innerHTML = Object.keys(M.PERFIS).map(function(k){
+    return '<option value="' + k + '"' + (k === p.perfil ? ' selected' : '') + '>' + esc(M.PERFIS[k]) + '</option>';
+  }).join('');
+  $('#p-iss').value = mostrarPct(p.issPadrao);
+  $('#p-issfixo').value = mostrarMoeda(p.issFixo);
+  $('#p-folha').value = mostrarMoeda(p.folha);
+  $('#p-outros').value = mostrarMoeda(p.outrosCustos);
+  $('#p-b2b').value = mostrarPct(p.b2b);
   renderCabecalho();
 }
+function prestaServico(){ return E.parametros.perfil === 'servicos' || E.parametros.perfil === 'misto'; }
 function renderCabecalho(){
   var p = E.parametros, r = M.REGIMES[p.regime];
   $('#p-regime-hint').textContent = 'PIS ' + M.pct(r.pis) + ' + COFINS ' + M.pct(r.cofins, 1) +
@@ -608,6 +659,16 @@ function renderCabecalho(){
   $('#titulo-app').textContent = p.empresa ? p.empresa : 'Simulador IBS/CBS';
   $('#sub-app').textContent = p.empresa ? 'Simulador IBS/CBS · ' + (p.regime === 'real' ? 'Lucro Real' : 'Lucro Presumido')
     : 'Reforma tributária · regime regular';
+  $$('.so-servico').forEach(function(el){ el.hidden = !prestaServico(); });
+  $('#p-perfil-hint').textContent = ({
+    servicos: 'Serviços novos já vêm com ISS. O exemplo vira o de uma prestadora de serviços.',
+    misto: 'Mostra os campos de ISS e de mercadorias.',
+    comercio: 'Revenda de mercadorias, com ICMS.',
+    industria: 'Produção, com ICMS e IPI.'
+  })[p.perfil] || '';
+  var serv = p.perfil === 'servicos';
+  $('#btn-nova-venda').textContent = serv ? '+ Serviço prestado' : '+ Venda';
+  $('#btn-nova-compra').textContent = serv ? '+ Custo / compra' : '+ Compra';
 }
 function lerParametro(ev){
   var p = E.parametros, id = ev.target.id;
@@ -617,7 +678,18 @@ function lerParametro(ev){
   if(id === 'p-periodo') p.periodo = ev.target.value;
   if(id === 'p-excl-icms') p.excluiIcmsPC = ev.target.checked;
   if(id === 'p-excl-base') p.excluiTribBase = ev.target.checked;
-  var pcts = { 'p-cbs': 'cbsRef', 'p-ibs': 'ibsRef', 'p-simples': 'credSimples', 'p-rural': 'credRural' };
+  if(id === 'p-perfil') p.perfil = ev.target.value;
+  var reais = { 'p-issfixo': 'issFixo', 'p-folha': 'folha', 'p-outros': 'outrosCustos' };
+  if(reais[id]){
+    var r = M.numero(ev.target.value);
+    if(isNaN(r) || r < 0){
+      if(ev.type === 'change'){ toast('Informe um valor em reais, como 12.500,00.', true); ev.target.value = mostrarMoeda(p[reais[id]]); }
+      return;
+    }
+    p[reais[id]] = r;
+  }
+  var pcts = { 'p-cbs': 'cbsRef', 'p-ibs': 'ibsRef', 'p-simples': 'credSimples', 'p-rural': 'credRural',
+               'p-iss': 'issPadrao', 'p-b2b': 'b2b' };
   if(pcts[id]){
     var v = lerPct(ev.target.value);
     if(isNaN(v) || v < 0 || v > 1){
@@ -641,7 +713,8 @@ function renderOperacoes(){
   $('#resumo-ops').innerHTML =
     '<div><span class="eyebrow">Vendas</span><strong>' + esc(M.moeda(soma(vendas))) + '</strong><em>' + vendas.length + ' linha(s)</em></div>' +
     '<div><span class="eyebrow">Compras</span><strong>' + esc(M.moeda(soma(compras))) + '</strong><em>' + compras.length + ' linha(s)</em></div>' +
-    '<div><span class="eyebrow">Período</span><strong style="font-size:17px">' + esc(E.parametros.periodo) + '</strong><em>como lançado</em></div>';
+    '<div><span class="eyebrow">Folha e custos sem crédito</span><strong>' + esc(M.moeda(E.parametros.folha + E.parametros.outrosCustos)) +
+      '</strong><em>' + esc(E.parametros.periodo.toLowerCase()) + ', informados no Passo 1</em></div>';
 
   if(!ops.length){
     $('#ops-tabela').innerHTML = '<div class="vazio">Nenhuma operação ainda. Use <b>+ Venda</b> e <b>+ Compra</b>, ou comece pelo exemplo.</div>';
@@ -727,7 +800,7 @@ var rascunhoOp = null;
 
 function abrirOperacao(op, tipo){
   var nova = !op;
-  rascunhoOp = nova ? M.novaOperacao(tipo) : Object.assign({}, op);
+  rascunhoOp = nova ? M.novaOperacao(tipo, E.parametros) : Object.assign({}, op);
   var o = rascunhoOp;
   $('#modal-raiz').innerHTML =
     '<div class="modal-fundo" id="fundo"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-titulo">' +
@@ -979,9 +1052,13 @@ function renderResultado(){
     tile('Carga atual', M.moeda(atual.carga), M.pct(atual.cargaPct) + ' do faturamento', '') +
     tile('Em ' + r27.ano, M.moeda(r27.carga), sinalMoeda(r27.variacao) + ' (' + sinalPct(r27.variacaoPct) + ')', r27.variacao) +
     tile('Em ' + ultimo.ano + ' · modelo definitivo', M.moeda(ultimo.carga), sinalMoeda(ultimo.variacao) + ' (' + sinalPct(ultimo.variacaoPct) + ')', ultimo.variacao) +
-    tile('Ano de maior carga', maior.ano, M.moeda(maior.carga) + ' · ' + M.pct(maior.cargaPct), '');
+    (prestaServico() && ultimo.reajuste !== null
+      ? tile('Reajuste para manter o resultado · ' + ultimo.ano, sinalPct(ultimo.reajuste),
+          'cliente sem crédito ' + sinalPct(ultimo.varPrecoSemCredito) + ' · com crédito ' + sinalPct(ultimo.varPrecoComCredito), ultimo.reajuste)
+      : tile('Ano de maior carga', maior.ano, M.moeda(maior.carga) + ' · ' + M.pct(maior.cargaPct), ''));
 
   desenharGrafico(res);
+  renderMargem(res);
 
   $('#tab-tributos').innerHTML = '<table><thead><tr><th>Cenário</th><th class="n">Carga total</th><th class="n">% fat.</th><th class="n">Variação</th>' +
     '<th class="n">ICMS</th><th class="n">ISS</th><th class="n">IPI</th><th class="n">PIS</th><th class="n">COFINS</th><th class="n">Seletivo</th>' +
@@ -1018,6 +1095,52 @@ function renderResultado(){
   $('#res-premissas').innerHTML = prem.map(function(x){
     return '<div class="regra ' + x[0] + '"><span class="mk">' + (x[0] === 'avi' ? 'Atenção' : 'Nota') + '</span><span>' + esc(x[1]) + '</span></div>';
   }).join('');
+}
+
+function fmtVar(v){ return v === null || v === undefined ? '—' : sinalPct(v); }
+
+function renderMargem(res){
+  var p = E.parametros, hoje = res[0], ultimo = res[res.length - 1];
+  var b2bTxt = M.pct(p.b2b, 0);
+  $('#tab-margem').innerHTML = '<table><thead><tr><th>Cenário</th><th class="n">Resultado antes de IR</th><th class="n">Margem</th>' +
+    '<th class="n">Reajuste p/ manter</th><th class="n">Cliente sem crédito</th><th class="n">Cliente com crédito</th>' +
+    '<th class="n">Média (' + esc(b2bTxt) + ' c/ crédito)</th></tr></thead><tbody>' +
+    res.map(function(r, i){
+      return '<tr' + (i === 0 ? ' class="destaque"' : '') + '><td class="n" style="text-align:left">' + esc(r.ano) + '</td>' +
+        '<td class="n">' + esc(M.moeda(r.resultado)) + '</td><td class="n">' + esc(M.pct(r.margem, 1)) + '</td>' +
+        (i === 0 ? '<td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>' :
+          '<td class="n ' + classeVar(r.reajuste || 0) + '">' + esc(fmtVar(r.reajuste)) + '</td>' +
+          '<td class="n ' + classeVar(r.varPrecoSemCredito || 0) + '">' + esc(fmtVar(r.varPrecoSemCredito)) + '</td>' +
+          '<td class="n ' + classeVar(r.varPrecoComCredito || 0) + '">' + esc(fmtVar(r.varPrecoComCredito)) + '</td>' +
+          '<td class="n ' + classeVar(r.varPrecoMedio || 0) + '"><b>' + esc(fmtVar(r.varPrecoMedio)) + '</b></td>') + '</tr>';
+    }).join('') + '</tbody></table>';
+
+  var itens = [];
+  var semCredito = p.folha + p.outrosCustos;
+  var custos = semCredito + hoje.compras;
+  if(!semCredito){
+    itens.push(['avi', 'Atenção', 'Folha e outros custos estão zerados no Passo 1. Sem eles, o resultado e a margem saem maiores que os reais.']);
+  } else if(custos > 0){
+    itens.push(['inf', 'Nota', 'Folha e outros custos sem crédito: ' + M.moeda(semCredito) + ', ' + M.pct(semCredito / custos, 0) +
+      ' dos custos informados. Esse é o motivo de serviços terem pouco crédito de IBS/CBS para abater.']);
+  }
+  if(ultimo.reajuste !== null){
+    itens.push(['inf', ultimo.ano, 'Para manter o resultado de hoje, o valor das vendas ' +
+      (ultimo.reajuste >= 0 ? 'precisa subir ' : 'pode cair ') + M.pct(Math.abs(ultimo.reajuste), 1) +
+      '. Com isso, o cliente sem crédito paga ' + fmtVar(ultimo.varPrecoSemCredito) + ' e o que se credita paga ' +
+      fmtVar(ultimo.varPrecoComCredito) + ' em relação a hoje.']);
+  }
+  if(hoje.vendasServico > 0 || p.issFixo > 0){
+    itens.push(['inf', 'ISS', 'ISS de hoje: ' + M.moeda(hoje.iss) + '. Cai para 90%, 80%, 70% e 60% de 2029 a 2032 e deixa de existir em 2033.' +
+      (p.issFixo > 0 ? ' O ISS fixo da sociedade de profissionais acaba junto; no lugar, entra IBS/CBS sobre o faturamento (com redução de 30% para as profissões regulamentadas).' : '')]);
+  }
+  if(prestaServico() && p.regime === 'presumido'){
+    itens.push(['inf', 'Nota', 'No Lucro Presumido, ISS e PIS/COFINS cumulativos somam perto de 8,65% sobre o serviço hoje. A partir de 2027 entram IBS e CBS, que dão crédito a quem compra.']);
+  }
+  itens.push(['inf', 'Premissa', 'Compras, folha e custos ficam com o valor de hoje. O IBS/CBS cobrado por fornecedores do regime regular sem direito a crédito (refeições, hotel, uso pessoal) vira custo a partir de 2027.']);
+  $('#margem-avisos').innerHTML = '<div class="regras">' + itens.map(function(x){
+    return '<div class="regra ' + x[0] + '"><span class="mk">' + esc(x[1]) + '</span><span>' + esc(x[2]) + '</span></div>';
+  }).join('') + '</div>';
 }
 
 function tile(rotulo, valor, sub, variacao){
@@ -1093,6 +1216,12 @@ async function gravarNaPlanilha(){
       formatos: ['texto', 'texto', 'moeda', 'moeda', 'moeda', 'moeda'],
       linhas: Object.keys(ultimo.porTratamento).map(function(k){
         var t = ultimo.porTratamento[k]; return [t.nome, t.rotulo, t.vendas, t.debito, t.compras, t.credito]; }) },
+    { titulo: 'Preço e margem (folha e outros custos sem crédito: ' + M.moeda(p.folha + p.outrosCustos) + ')',
+      cabecalho: ['Cenário', 'Resultado antes de IR', 'Margem', 'Reajuste para manter o resultado', 'Cliente sem crédito', 'Cliente com crédito', 'Média ponderada'],
+      formatos: ['texto', 'moeda', 'pct', 'pct', 'pct', 'pct', 'pct'],
+      linhas: res.map(function(r, i){
+        return [r.ano, r.resultado, r.margem, i ? r.reajuste : '', i ? r.varPrecoSemCredito : '', i ? r.varPrecoComCredito : '', i ? r.varPrecoMedio : ''];
+      }) },
     { titulo: 'Operações',
       cabecalho: ['Tipo', 'Descrição', 'Valor', 'Tratamento', 'ICMS', 'ISS', 'IPI', 'Seletivo', 'PIS/COFINS hoje', 'Fornecedor', 'Crédito IBS/CBS'],
       formatos: ['texto', 'texto', 'moeda', 'texto', 'pct', 'pct', 'pct', 'pct', 'texto', 'texto', 'texto'],
@@ -1175,6 +1304,7 @@ function renderCatalogo(){
   var q = S.busca.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   var lista = M.TRATAMENTOS.filter(function(t){
     if(S.filtroGrupo && t.grupo !== S.filtroGrupo) return false;
+    if(S.soServicos && !t.servico) return false;
     if(!q) return true;
     return (t.nome + ' ' + t.nota + ' ' + t.grupo).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').indexOf(q) >= 0;
   });
@@ -1216,18 +1346,24 @@ function iniciar(){
   if(salvo){ try{ aplicarEstado(JSON.parse(salvo)); }catch(e){} }
 
   $$('.tab').forEach(function(t){ t.addEventListener('click', function(){ irPara(t.dataset.aba); }); });
-  ['#p-empresa', '#p-cnpj', '#p-cbs', '#p-ibs', '#p-simples', '#p-rural'].forEach(function(s){
+  ['#p-empresa', '#p-cnpj', '#p-cbs', '#p-ibs', '#p-simples', '#p-rural', '#p-iss', '#p-issfixo', '#p-folha', '#p-outros', '#p-b2b'].forEach(function(s){
     $(s).addEventListener('input', lerParametro);
     $(s).addEventListener('change', lerParametro);
   });
-  ['#p-regime', '#p-periodo', '#p-excl-icms', '#p-excl-base'].forEach(function(s){
+  ['#p-regime', '#p-periodo', '#p-perfil', '#p-excl-icms', '#p-excl-base'].forEach(function(s){
     $(s).addEventListener('change', function(ev){ lerParametro(ev); renderOperacoes(); });
   });
   $('#btn-nova-venda').addEventListener('click', function(){ abrirOperacao(null, 'venda'); });
   $('#btn-nova-compra').addEventListener('click', function(){ abrirOperacao(null, 'compra'); });
   $('#btn-exemplo').addEventListener('click', async function(){
     if(E.operacoes.length && !(await confirmar('Usar exemplo', 'Trocar as operações da tela pelas do exemplo?', 'Trocar'))) return;
-    E.operacoes = M.exemplo().map(function(o){ o.id = novoId(); return o; });
+    var servicos = E.parametros.perfil === 'servicos';
+    E.operacoes = (servicos ? M.exemploServicos() : M.exemplo()).map(function(o){ o.id = novoId(); return o; });
+    if(servicos && !E.parametros.folha){
+      E.parametros.folha = 70000;
+      escreverParametros();
+      toast('Exemplo de serviços carregado, com folha de R$ 70.000,00 no Passo 1.');
+    }
     if(!E.parametros.empresa){ E.parametros.empresa = 'Empresa exemplo'; escreverParametros(); }
     renderOperacoes(); rascunho();
   });
@@ -1251,6 +1387,7 @@ function iniciar(){
   $('#btn-crono-padrao').addEventListener('click', restaurarCronograma);
   $('#f-grupo').addEventListener('change', function(ev){ S.filtroGrupo = ev.target.value; renderCatalogo(); });
   $('#f-busca').addEventListener('input', function(ev){ S.busca = ev.target.value; renderCatalogo(); });
+  $('#f-servicos').addEventListener('change', function(ev){ S.soServicos = ev.target.checked; renderCatalogo(); });
   document.addEventListener('keydown', function(ev){
     if(ev.key === 'Escape' && rascunhoOp && !$('#confirma-raiz').innerHTML) fecharModal();
   });

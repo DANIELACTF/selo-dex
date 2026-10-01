@@ -98,3 +98,50 @@ assert.strictEqual(new Set(M.TRATAMENTOS.map((t) => t.id)).size, M.TRATAMENTOS.l
 
 console.log(`motor: OK — ${total} verificações numéricas e demais asserções passaram.`);
 res.forEach((x) => console.log('  ' + x.ano.padEnd(6), M.moeda(x.carga).padStart(14), M.pct(x.cargaPct)));
+
+// ---------------- Empresas de serviço: preço e margem ----------------
+{
+  const ps = Object.assign(M.parametrosPadrao(), { regime: 'presumido', perfil: 'servicos', folha: 500, b2b: 0.5 });
+  const cr = M.cronogramaPadrao(ps.cbsRef, ps.ibsRef);
+  const venda = Object.assign(M.novaOperacao('venda', ps), { valor: 1000 });
+  assert.strictEqual(venda.tratamento, 'servgeral', 'serviço novo usa "Serviços em geral"');
+  assert.strictEqual(venda.iss, 0.05, 'serviço novo usa o ISS do município');
+  const rs = M.simular([venda], ps, cr);
+  const ano = (a) => rs.find((x) => x.ano === a);
+  perto(rs[0].tribVendas, 86.5, 'hoje: ISS 5% + PIS/COFINS 3,65%');
+  perto(rs[0].resultado, 413.5, 'hoje: resultado antes de IR');
+  perto(ano('2033').resultado, 500, '2033 com preço atual: sem ISS e PIS/COFINS');
+  perto(ano('2033').reajuste, -0.0865, '2033: valor pode cair 8,65% e manter o resultado');
+  perto(ano('2033').varPrecoSemCredito, 0.9135 * 1.265 - 1, '2033: cliente sem crédito paga mais');
+  perto(ano('2033').varPrecoComCredito, -0.0865, '2033: cliente com crédito paga menos');
+  perto(ano('2033').varPrecoMedio, ((0.9135 * 1.265 - 1) + -0.0865) / 2, 'média pelos clientes com crédito');
+  perto(ano('2027').varPrecoSemCredito, (913.5 / 950) * (1000 + 950 * 0.088) / 1000 - 1, '2027: ISS fica, CBS entra');
+  perto(ano('2026').reajuste, 0, '2026 sem mudança');
+
+  // ISS fixo da sociedade de profissionais
+  const sup = Object.assign({}, ps, { issFixo: 300 });
+  const vs = Object.assign(M.novaOperacao('venda', sup), { valor: 1000, iss: 0, tratamento: 'prof30' });
+  perto(M.calcularCenario([vs], sup, M.cenarioAtual()).iss, 300, 'ISS fixo hoje');
+  perto(M.calcularCenario([vs], sup, cr.find((c) => c.ano === 2030)).iss, 240, 'ISS fixo a 80% em 2030');
+  perto(M.calcularCenario([vs], sup, cr.find((c) => c.ano === 2033)).iss, 0, 'ISS fixo extinto em 2033');
+
+  // Compra de fornecedor regular sem direito a crédito vira custo a partir de 2027
+  const almoco = Object.assign(M.novaOperacao('compra'), { valor: 1000, tratamento: 'bares40', credPisCofins: false });
+  const ra = M.simular([venda, almoco], ps, cr);
+  perto(ra.find((x) => x.ano === '2033').custoFixo - ano('2033').custoFixo, 1000 + 159, 'restaurante: IBS/CBS sem crédito vira custo');
+
+  // Avisos de serviço
+  assert.ok(M.conferirOperacao(Object.assign({}, venda, { iss: 0 }), ps).some((a) => /sem ISS/.test(a.t)), 'avisa serviço sem ISS');
+  assert.ok(!M.conferirOperacao(Object.assign({}, venda, { iss: 0 }), sup).some((a) => /sem ISS/.test(a.t)), 'ISS fixo dispensa o aviso');
+  assert.ok(M.exemploServicos().every((o) => M.tratamento(o.tratamento)), 'exemplo de serviços válido');
+  assert.ok(M.TRATAMENTOS.filter((t) => t.servico).length >= 15, 'catálogo marca os serviços');
+  console.log('serviços: OK — preço e margem conferidos à mão.');
+}
+{
+  const ps = Object.assign(M.parametrosPadrao(), { perfil: 'servicos' });
+  const energia = Object.assign(M.novaOperacao('compra', ps), { valor: 100, icms: 0.18 });
+  assert.ok(M.conferirOperacao(energia, ps).some((a) => /não se credita de ICMS/.test(a.t)), 'avisa crédito de ICMS em serviço');
+  const r = M.calcularCenario(M.exemploServicos(), ps, M.cenarioAtual());
+  assert.ok(r.icms >= 0 && r.ipi >= 0, 'exemplo de serviços sem ICMS negativo');
+  console.log('serviços: aviso de ICMS e exemplo OK.');
+}

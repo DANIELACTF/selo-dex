@@ -141,7 +141,7 @@
     Presumido. O código fica no Apps Script da própria planilha, e o simulador
     abre pelo menu.</p>
     <div class="capa-meta">
-      <span>versão 1.0</span>
+      <span>versão 1.1</span>
       <span>3 arquivos</span>
       <span>~10 minutos</span>
     </div>
@@ -168,7 +168,7 @@
         <thead><tr><th>Aba</th><th>O que tem</th></tr></thead>
         <tbody>
           <tr><td>Simular</td><td>Empresa e premissas, as vendas e as compras do período, e as simulações salvas</td></tr>
-          <tr><td>Resultado</td><td>Carga de hoje comparada com cada ano, gráfico, débitos e créditos de IBS/CBS e o detalhamento por atividade</td></tr>
+          <tr><td>Resultado</td><td>Carga de hoje comparada com cada ano, gráfico, preço e margem, débitos e créditos de IBS/CBS e o detalhamento por atividade</td></tr>
           <tr><td>Tabelas</td><td>O cronograma da transição (editável) e o catálogo de tratamentos por atividade, com busca</td></tr>
         </tbody>
       </table>
@@ -179,6 +179,21 @@
       zero na cesta básica, 40% em bares, restaurantes e hotelaria, 50% e 70% em
       imóveis, alíquota própria nos serviços financeiros, exportação e mais. O
       formulário avisa o que informar em "Valor" e quando a compra não dá crédito.</p>
+    </div>
+    <h3 style="margin-top:26px">Para empresas de serviço</h3>
+    <p>Escolha <strong>Prestação de serviços</strong> em "Perfil da atividade", no
+    Passo 1 do simulador. Muda isto:</p>
+    <div class="rolagem">
+      <table>
+        <thead><tr><th>O quê</th><th>Como funciona</th></tr></thead>
+        <tbody>
+          <tr><td>ISS do município</td><td>Vira o padrão de cada serviço lançado. Cai a 90%, 80%, 70% e 60% de 2029 a 2032 e acaba em 2033.</td></tr>
+          <tr><td>ISS fixo</td><td>Para sociedade de profissionais, que paga ISS por profissional e não sobre o faturamento.</td></tr>
+          <tr><td>Folha e custos sem crédito</td><td>Entram no resultado. São o motivo de serviços terem pouco crédito de IBS/CBS para abater.</td></tr>
+          <tr><td>Clientes que se creditam</td><td>Empresa do regime regular recupera o IBS/CBS; pessoa física, Simples e consumidor final pagam cheio.</td></tr>
+          <tr><td>Preço e margem</td><td>Resultado antes de IR em cada ano, o reajuste para manter o resultado de hoje e quanto muda o preço para cada tipo de cliente.</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -474,7 +489,7 @@ function linkDaPlanilha(){
         </div>
         <p class="arquivo-desc">A tela inteira: as abas Simular, Resultado e Tabelas, o formulário das operações e o gráfico.</p>
         <details>
-          <summary>Ver o código (1264 linhas)</summary>
+          <summary>Ver o código (1401 linhas)</summary>
           <pre id="src-2"><code>&lt;!-- Simulador IBS/CBS — tela no mesmo formato do Quadro de Férias.
      Sem &lt;html&gt;, &lt;head&gt; ou &lt;body&gt; de propósito: quem monta o documento é o
      HtmlService (título e viewport vêm do Codigo.gs). --&gt;
@@ -799,6 +814,39 @@ td input[type=&quot;text&quot;]{padding:6px 8px; font-size:13px; min-width:70px}
             &lt;span class=&quot;hint&quot;&gt;Fixado por ato conjunto anual.&lt;/span&gt;
           &lt;/div&gt;
         &lt;/div&gt;
+        &lt;div&gt;&lt;span class=&quot;eyebrow&quot;&gt;Atividade, custos e clientes&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;grid-form&quot;&gt;
+          &lt;div class=&quot;field&quot;&gt;
+            &lt;label for=&quot;p-perfil&quot;&gt;Perfil da atividade&lt;/label&gt;
+            &lt;select id=&quot;p-perfil&quot;&gt;&lt;/select&gt;
+            &lt;span class=&quot;hint&quot; id=&quot;p-perfil-hint&quot;&gt;&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;field so-servico&quot;&gt;
+            &lt;label for=&quot;p-iss&quot;&gt;ISS do município&lt;/label&gt;
+            &lt;div class=&quot;sufixo&quot;&gt;&lt;input type=&quot;text&quot; class=&quot;num-in&quot; id=&quot;p-iss&quot; inputmode=&quot;decimal&quot;&gt;&lt;span&gt;%&lt;/span&gt;&lt;/div&gt;
+            &lt;span class=&quot;hint&quot;&gt;De 2% a 5%. Vira o padrão dos serviços novos.&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;field so-servico&quot;&gt;
+            &lt;label for=&quot;p-issfixo&quot;&gt;ISS fixo do período&lt;/label&gt;
+            &lt;div class=&quot;prefixo&quot;&gt;&lt;input type=&quot;text&quot; class=&quot;num-in&quot; id=&quot;p-issfixo&quot; inputmode=&quot;decimal&quot; placeholder=&quot;0,00&quot;&gt;&lt;span&gt;R$&lt;/span&gt;&lt;/div&gt;
+            &lt;span class=&quot;hint&quot;&gt;Sociedade de profissionais, que paga ISS por profissional. Se paga sobre o faturamento, deixe em branco.&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;field&quot;&gt;
+            &lt;label for=&quot;p-folha&quot;&gt;Folha de pagamento e encargos&lt;/label&gt;
+            &lt;div class=&quot;prefixo&quot;&gt;&lt;input type=&quot;text&quot; class=&quot;num-in&quot; id=&quot;p-folha&quot; inputmode=&quot;decimal&quot; placeholder=&quot;0,00&quot;&gt;&lt;span&gt;R$&lt;/span&gt;&lt;/div&gt;
+            &lt;span class=&quot;hint&quot;&gt;No período. Não gera crédito de IBS/CBS.&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;field&quot;&gt;
+            &lt;label for=&quot;p-outros&quot;&gt;Outros custos sem crédito&lt;/label&gt;
+            &lt;div class=&quot;prefixo&quot;&gt;&lt;input type=&quot;text&quot; class=&quot;num-in&quot; id=&quot;p-outros&quot; inputmode=&quot;decimal&quot; placeholder=&quot;0,00&quot;&gt;&lt;span&gt;R$&lt;/span&gt;&lt;/div&gt;
+            &lt;span class=&quot;hint&quot;&gt;Pró-labore, tarifas, despesas não lançadas como compra.&lt;/span&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;field&quot;&gt;
+            &lt;label for=&quot;p-b2b&quot;&gt;Vendas a clientes que se creditam&lt;/label&gt;
+            &lt;div class=&quot;sufixo&quot;&gt;&lt;input type=&quot;text&quot; class=&quot;num-in&quot; id=&quot;p-b2b&quot; inputmode=&quot;decimal&quot;&gt;&lt;span&gt;%&lt;/span&gt;&lt;/div&gt;
+            &lt;span class=&quot;hint&quot;&gt;Empresas do regime regular. Pessoa física, Simples e consumidor final não se creditam.&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
         &lt;div class=&quot;grid-form&quot;&gt;
           &lt;label class=&quot;check&quot;&gt;&lt;input type=&quot;checkbox&quot; id=&quot;p-excl-icms&quot;&gt;
             &lt;span&gt;&lt;b&gt;Excluir o ICMS da base do PIS/COFINS&lt;/b&gt;&lt;i&gt;Tema 69 do STF.&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
@@ -882,6 +930,13 @@ td input[type=&quot;text&quot;]{padding:6px 8px; font-size:13px; min-width:70px}
       &lt;/div&gt;
 
       &lt;div class=&quot;card&quot;&gt;
+        &lt;div class=&quot;card-hd&quot;&gt;&lt;div class=&quot;grow&quot;&gt;&lt;h2&gt;Preço e margem&lt;/h2&gt;
+          &lt;p class=&quot;small muted&quot;&gt;O que sobra para a empresa com o preço de hoje e quanto o preço precisa mudar para manter o resultado.&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;card-bd tight&quot; id=&quot;margem-avisos&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;tbl-wrap&quot; id=&quot;tab-margem&quot;&gt;&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div class=&quot;card&quot;&gt;
         &lt;div class=&quot;card-hd&quot;&gt;&lt;div class=&quot;grow&quot;&gt;&lt;h2&gt;Detalhamento por tributo&lt;/h2&gt;&lt;/div&gt;&lt;/div&gt;
         &lt;div class=&quot;tbl-wrap&quot; id=&quot;tab-tributos&quot;&gt;&lt;/div&gt;
       &lt;/div&gt;
@@ -929,6 +984,8 @@ td input[type=&quot;text&quot;]{padding:6px 8px; font-size:13px; min-width:70px}
             &lt;label for=&quot;f-busca&quot;&gt;Buscar&lt;/label&gt;
             &lt;input type=&quot;text&quot; id=&quot;f-busca&quot; placeholder=&quot;Ex.: advogado, aluguel, restaurante&quot;&gt;
           &lt;/div&gt;
+          &lt;label class=&quot;check&quot; style=&quot;align-self:end&quot;&gt;&lt;input type=&quot;checkbox&quot; id=&quot;f-servicos&quot;&gt;
+            &lt;span&gt;&lt;b&gt;Só serviços&lt;/b&gt;&lt;i&gt;Tratamentos que se aplicam a prestadores de serviço.&lt;/i&gt;&lt;/span&gt;&lt;/label&gt;
         &lt;/div&gt;
       &lt;/div&gt;
       &lt;div class=&quot;tbl-wrap&quot; id=&quot;trat-tabela&quot;&gt;&lt;/div&gt;
@@ -1029,7 +1086,7 @@ var E = {
   simulacoes: [],
   conectado: false
 };
-var S = { aba: 'simular', anoTrat: '2033', filtroGrupo: '', busca: '' };
+var S = { aba: 'simular', anoTrat: '2033', filtroGrupo: '', busca: '', soServicos: false };
 E.cronograma = M.cronogramaPadrao(E.parametros.cbsRef, E.parametros.ibsRef);
 
 function rascunho(){
@@ -1076,8 +1133,17 @@ function escreverParametros(){
   $('#p-rural').value = mostrarPct(p.credRural);
   $('#p-excl-icms').checked = !!p.excluiIcmsPC;
   $('#p-excl-base').checked = !!p.excluiTribBase;
+  $('#p-perfil').innerHTML = Object.keys(M.PERFIS).map(function(k){
+    return '&lt;option value=&quot;' + k + '&quot;' + (k === p.perfil ? ' selected' : '') + '&gt;' + esc(M.PERFIS[k]) + '&lt;/option&gt;';
+  }).join('');
+  $('#p-iss').value = mostrarPct(p.issPadrao);
+  $('#p-issfixo').value = mostrarMoeda(p.issFixo);
+  $('#p-folha').value = mostrarMoeda(p.folha);
+  $('#p-outros').value = mostrarMoeda(p.outrosCustos);
+  $('#p-b2b').value = mostrarPct(p.b2b);
   renderCabecalho();
 }
+function prestaServico(){ return E.parametros.perfil === 'servicos' || E.parametros.perfil === 'misto'; }
 function renderCabecalho(){
   var p = E.parametros, r = M.REGIMES[p.regime];
   $('#p-regime-hint').textContent = 'PIS ' + M.pct(r.pis) + ' + COFINS ' + M.pct(r.cofins, 1) +
@@ -1085,6 +1151,16 @@ function renderCabecalho(){
   $('#titulo-app').textContent = p.empresa ? p.empresa : 'Simulador IBS/CBS';
   $('#sub-app').textContent = p.empresa ? 'Simulador IBS/CBS · ' + (p.regime === 'real' ? 'Lucro Real' : 'Lucro Presumido')
     : 'Reforma tributária · regime regular';
+  $$('.so-servico').forEach(function(el){ el.hidden = !prestaServico(); });
+  $('#p-perfil-hint').textContent = ({
+    servicos: 'Serviços novos já vêm com ISS. O exemplo vira o de uma prestadora de serviços.',
+    misto: 'Mostra os campos de ISS e de mercadorias.',
+    comercio: 'Revenda de mercadorias, com ICMS.',
+    industria: 'Produção, com ICMS e IPI.'
+  })[p.perfil] || '';
+  var serv = p.perfil === 'servicos';
+  $('#btn-nova-venda').textContent = serv ? '+ Serviço prestado' : '+ Venda';
+  $('#btn-nova-compra').textContent = serv ? '+ Custo / compra' : '+ Compra';
 }
 function lerParametro(ev){
   var p = E.parametros, id = ev.target.id;
@@ -1094,7 +1170,18 @@ function lerParametro(ev){
   if(id === 'p-periodo') p.periodo = ev.target.value;
   if(id === 'p-excl-icms') p.excluiIcmsPC = ev.target.checked;
   if(id === 'p-excl-base') p.excluiTribBase = ev.target.checked;
-  var pcts = { 'p-cbs': 'cbsRef', 'p-ibs': 'ibsRef', 'p-simples': 'credSimples', 'p-rural': 'credRural' };
+  if(id === 'p-perfil') p.perfil = ev.target.value;
+  var reais = { 'p-issfixo': 'issFixo', 'p-folha': 'folha', 'p-outros': 'outrosCustos' };
+  if(reais[id]){
+    var r = M.numero(ev.target.value);
+    if(isNaN(r) || r &lt; 0){
+      if(ev.type === 'change'){ toast('Informe um valor em reais, como 12.500,00.', true); ev.target.value = mostrarMoeda(p[reais[id]]); }
+      return;
+    }
+    p[reais[id]] = r;
+  }
+  var pcts = { 'p-cbs': 'cbsRef', 'p-ibs': 'ibsRef', 'p-simples': 'credSimples', 'p-rural': 'credRural',
+               'p-iss': 'issPadrao', 'p-b2b': 'b2b' };
   if(pcts[id]){
     var v = lerPct(ev.target.value);
     if(isNaN(v) || v &lt; 0 || v &gt; 1){
@@ -1118,7 +1205,8 @@ function renderOperacoes(){
   $('#resumo-ops').innerHTML =
     '&lt;div&gt;&lt;span class=&quot;eyebrow&quot;&gt;Vendas&lt;/span&gt;&lt;strong&gt;' + esc(M.moeda(soma(vendas))) + '&lt;/strong&gt;&lt;em&gt;' + vendas.length + ' linha(s)&lt;/em&gt;&lt;/div&gt;' +
     '&lt;div&gt;&lt;span class=&quot;eyebrow&quot;&gt;Compras&lt;/span&gt;&lt;strong&gt;' + esc(M.moeda(soma(compras))) + '&lt;/strong&gt;&lt;em&gt;' + compras.length + ' linha(s)&lt;/em&gt;&lt;/div&gt;' +
-    '&lt;div&gt;&lt;span class=&quot;eyebrow&quot;&gt;Período&lt;/span&gt;&lt;strong style=&quot;font-size:17px&quot;&gt;' + esc(E.parametros.periodo) + '&lt;/strong&gt;&lt;em&gt;como lançado&lt;/em&gt;&lt;/div&gt;';
+    '&lt;div&gt;&lt;span class=&quot;eyebrow&quot;&gt;Folha e custos sem crédito&lt;/span&gt;&lt;strong&gt;' + esc(M.moeda(E.parametros.folha + E.parametros.outrosCustos)) +
+      '&lt;/strong&gt;&lt;em&gt;' + esc(E.parametros.periodo.toLowerCase()) + ', informados no Passo 1&lt;/em&gt;&lt;/div&gt;';
 
   if(!ops.length){
     $('#ops-tabela').innerHTML = '&lt;div class=&quot;vazio&quot;&gt;Nenhuma operação ainda. Use &lt;b&gt;+ Venda&lt;/b&gt; e &lt;b&gt;+ Compra&lt;/b&gt;, ou comece pelo exemplo.&lt;/div&gt;';
@@ -1204,7 +1292,7 @@ var rascunhoOp = null;
 
 function abrirOperacao(op, tipo){
   var nova = !op;
-  rascunhoOp = nova ? M.novaOperacao(tipo) : Object.assign({}, op);
+  rascunhoOp = nova ? M.novaOperacao(tipo, E.parametros) : Object.assign({}, op);
   var o = rascunhoOp;
   $('#modal-raiz').innerHTML =
     '&lt;div class=&quot;modal-fundo&quot; id=&quot;fundo&quot;&gt;&lt;div class=&quot;modal&quot; role=&quot;dialog&quot; aria-modal=&quot;true&quot; aria-labelledby=&quot;m-titulo&quot;&gt;' +
@@ -1456,9 +1544,13 @@ function renderResultado(){
     tile('Carga atual', M.moeda(atual.carga), M.pct(atual.cargaPct) + ' do faturamento', '') +
     tile('Em ' + r27.ano, M.moeda(r27.carga), sinalMoeda(r27.variacao) + ' (' + sinalPct(r27.variacaoPct) + ')', r27.variacao) +
     tile('Em ' + ultimo.ano + ' · modelo definitivo', M.moeda(ultimo.carga), sinalMoeda(ultimo.variacao) + ' (' + sinalPct(ultimo.variacaoPct) + ')', ultimo.variacao) +
-    tile('Ano de maior carga', maior.ano, M.moeda(maior.carga) + ' · ' + M.pct(maior.cargaPct), '');
+    (prestaServico() &amp;&amp; ultimo.reajuste !== null
+      ? tile('Reajuste para manter o resultado · ' + ultimo.ano, sinalPct(ultimo.reajuste),
+          'cliente sem crédito ' + sinalPct(ultimo.varPrecoSemCredito) + ' · com crédito ' + sinalPct(ultimo.varPrecoComCredito), ultimo.reajuste)
+      : tile('Ano de maior carga', maior.ano, M.moeda(maior.carga) + ' · ' + M.pct(maior.cargaPct), ''));
 
   desenharGrafico(res);
+  renderMargem(res);
 
   $('#tab-tributos').innerHTML = '&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Cenário&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Carga total&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;% fat.&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Variação&lt;/th&gt;' +
     '&lt;th class=&quot;n&quot;&gt;ICMS&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;ISS&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;IPI&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;PIS&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;COFINS&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Seletivo&lt;/th&gt;' +
@@ -1495,6 +1587,52 @@ function renderResultado(){
   $('#res-premissas').innerHTML = prem.map(function(x){
     return '&lt;div class=&quot;regra ' + x[0] + '&quot;&gt;&lt;span class=&quot;mk&quot;&gt;' + (x[0] === 'avi' ? 'Atenção' : 'Nota') + '&lt;/span&gt;&lt;span&gt;' + esc(x[1]) + '&lt;/span&gt;&lt;/div&gt;';
   }).join('');
+}
+
+function fmtVar(v){ return v === null || v === undefined ? '—' : sinalPct(v); }
+
+function renderMargem(res){
+  var p = E.parametros, hoje = res[0], ultimo = res[res.length - 1];
+  var b2bTxt = M.pct(p.b2b, 0);
+  $('#tab-margem').innerHTML = '&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Cenário&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Resultado antes de IR&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Margem&lt;/th&gt;' +
+    '&lt;th class=&quot;n&quot;&gt;Reajuste p/ manter&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Cliente sem crédito&lt;/th&gt;&lt;th class=&quot;n&quot;&gt;Cliente com crédito&lt;/th&gt;' +
+    '&lt;th class=&quot;n&quot;&gt;Média (' + esc(b2bTxt) + ' c/ crédito)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;' +
+    res.map(function(r, i){
+      return '&lt;tr' + (i === 0 ? ' class=&quot;destaque&quot;' : '') + '&gt;&lt;td class=&quot;n&quot; style=&quot;text-align:left&quot;&gt;' + esc(r.ano) + '&lt;/td&gt;' +
+        '&lt;td class=&quot;n&quot;&gt;' + esc(M.moeda(r.resultado)) + '&lt;/td&gt;&lt;td class=&quot;n&quot;&gt;' + esc(M.pct(r.margem, 1)) + '&lt;/td&gt;' +
+        (i === 0 ? '&lt;td class=&quot;n&quot;&gt;—&lt;/td&gt;&lt;td class=&quot;n&quot;&gt;—&lt;/td&gt;&lt;td class=&quot;n&quot;&gt;—&lt;/td&gt;&lt;td class=&quot;n&quot;&gt;—&lt;/td&gt;' :
+          '&lt;td class=&quot;n ' + classeVar(r.reajuste || 0) + '&quot;&gt;' + esc(fmtVar(r.reajuste)) + '&lt;/td&gt;' +
+          '&lt;td class=&quot;n ' + classeVar(r.varPrecoSemCredito || 0) + '&quot;&gt;' + esc(fmtVar(r.varPrecoSemCredito)) + '&lt;/td&gt;' +
+          '&lt;td class=&quot;n ' + classeVar(r.varPrecoComCredito || 0) + '&quot;&gt;' + esc(fmtVar(r.varPrecoComCredito)) + '&lt;/td&gt;' +
+          '&lt;td class=&quot;n ' + classeVar(r.varPrecoMedio || 0) + '&quot;&gt;&lt;b&gt;' + esc(fmtVar(r.varPrecoMedio)) + '&lt;/b&gt;&lt;/td&gt;') + '&lt;/tr&gt;';
+    }).join('') + '&lt;/tbody&gt;&lt;/table&gt;';
+
+  var itens = [];
+  var semCredito = p.folha + p.outrosCustos;
+  var custos = semCredito + hoje.compras;
+  if(!semCredito){
+    itens.push(['avi', 'Atenção', 'Folha e outros custos estão zerados no Passo 1. Sem eles, o resultado e a margem saem maiores que os reais.']);
+  } else if(custos &gt; 0){
+    itens.push(['inf', 'Nota', 'Folha e outros custos sem crédito: ' + M.moeda(semCredito) + ', ' + M.pct(semCredito / custos, 0) +
+      ' dos custos informados. Esse é o motivo de serviços terem pouco crédito de IBS/CBS para abater.']);
+  }
+  if(ultimo.reajuste !== null){
+    itens.push(['inf', ultimo.ano, 'Para manter o resultado de hoje, o valor das vendas ' +
+      (ultimo.reajuste &gt;= 0 ? 'precisa subir ' : 'pode cair ') + M.pct(Math.abs(ultimo.reajuste), 1) +
+      '. Com isso, o cliente sem crédito paga ' + fmtVar(ultimo.varPrecoSemCredito) + ' e o que se credita paga ' +
+      fmtVar(ultimo.varPrecoComCredito) + ' em relação a hoje.']);
+  }
+  if(hoje.vendasServico &gt; 0 || p.issFixo &gt; 0){
+    itens.push(['inf', 'ISS', 'ISS de hoje: ' + M.moeda(hoje.iss) + '. Cai para 90%, 80%, 70% e 60% de 2029 a 2032 e deixa de existir em 2033.' +
+      (p.issFixo &gt; 0 ? ' O ISS fixo da sociedade de profissionais acaba junto; no lugar, entra IBS/CBS sobre o faturamento (com redução de 30% para as profissões regulamentadas).' : '')]);
+  }
+  if(prestaServico() &amp;&amp; p.regime === 'presumido'){
+    itens.push(['inf', 'Nota', 'No Lucro Presumido, ISS e PIS/COFINS cumulativos somam perto de 8,65% sobre o serviço hoje. A partir de 2027 entram IBS e CBS, que dão crédito a quem compra.']);
+  }
+  itens.push(['inf', 'Premissa', 'Compras, folha e custos ficam com o valor de hoje. O IBS/CBS cobrado por fornecedores do regime regular sem direito a crédito (refeições, hotel, uso pessoal) vira custo a partir de 2027.']);
+  $('#margem-avisos').innerHTML = '&lt;div class=&quot;regras&quot;&gt;' + itens.map(function(x){
+    return '&lt;div class=&quot;regra ' + x[0] + '&quot;&gt;&lt;span class=&quot;mk&quot;&gt;' + esc(x[1]) + '&lt;/span&gt;&lt;span&gt;' + esc(x[2]) + '&lt;/span&gt;&lt;/div&gt;';
+  }).join('') + '&lt;/div&gt;';
 }
 
 function tile(rotulo, valor, sub, variacao){
@@ -1570,6 +1708,12 @@ async function gravarNaPlanilha(){
       formatos: ['texto', 'texto', 'moeda', 'moeda', 'moeda', 'moeda'],
       linhas: Object.keys(ultimo.porTratamento).map(function(k){
         var t = ultimo.porTratamento[k]; return [t.nome, t.rotulo, t.vendas, t.debito, t.compras, t.credito]; }) },
+    { titulo: 'Preço e margem (folha e outros custos sem crédito: ' + M.moeda(p.folha + p.outrosCustos) + ')',
+      cabecalho: ['Cenário', 'Resultado antes de IR', 'Margem', 'Reajuste para manter o resultado', 'Cliente sem crédito', 'Cliente com crédito', 'Média ponderada'],
+      formatos: ['texto', 'moeda', 'pct', 'pct', 'pct', 'pct', 'pct'],
+      linhas: res.map(function(r, i){
+        return [r.ano, r.resultado, r.margem, i ? r.reajuste : '', i ? r.varPrecoSemCredito : '', i ? r.varPrecoComCredito : '', i ? r.varPrecoMedio : ''];
+      }) },
     { titulo: 'Operações',
       cabecalho: ['Tipo', 'Descrição', 'Valor', 'Tratamento', 'ICMS', 'ISS', 'IPI', 'Seletivo', 'PIS/COFINS hoje', 'Fornecedor', 'Crédito IBS/CBS'],
       formatos: ['texto', 'texto', 'moeda', 'texto', 'pct', 'pct', 'pct', 'pct', 'texto', 'texto', 'texto'],
@@ -1652,6 +1796,7 @@ function renderCatalogo(){
   var q = S.busca.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   var lista = M.TRATAMENTOS.filter(function(t){
     if(S.filtroGrupo &amp;&amp; t.grupo !== S.filtroGrupo) return false;
+    if(S.soServicos &amp;&amp; !t.servico) return false;
     if(!q) return true;
     return (t.nome + ' ' + t.nota + ' ' + t.grupo).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').indexOf(q) &gt;= 0;
   });
@@ -1693,18 +1838,24 @@ function iniciar(){
   if(salvo){ try{ aplicarEstado(JSON.parse(salvo)); }catch(e){} }
 
   $$('.tab').forEach(function(t){ t.addEventListener('click', function(){ irPara(t.dataset.aba); }); });
-  ['#p-empresa', '#p-cnpj', '#p-cbs', '#p-ibs', '#p-simples', '#p-rural'].forEach(function(s){
+  ['#p-empresa', '#p-cnpj', '#p-cbs', '#p-ibs', '#p-simples', '#p-rural', '#p-iss', '#p-issfixo', '#p-folha', '#p-outros', '#p-b2b'].forEach(function(s){
     $(s).addEventListener('input', lerParametro);
     $(s).addEventListener('change', lerParametro);
   });
-  ['#p-regime', '#p-periodo', '#p-excl-icms', '#p-excl-base'].forEach(function(s){
+  ['#p-regime', '#p-periodo', '#p-perfil', '#p-excl-icms', '#p-excl-base'].forEach(function(s){
     $(s).addEventListener('change', function(ev){ lerParametro(ev); renderOperacoes(); });
   });
   $('#btn-nova-venda').addEventListener('click', function(){ abrirOperacao(null, 'venda'); });
   $('#btn-nova-compra').addEventListener('click', function(){ abrirOperacao(null, 'compra'); });
   $('#btn-exemplo').addEventListener('click', async function(){
     if(E.operacoes.length &amp;&amp; !(await confirmar('Usar exemplo', 'Trocar as operações da tela pelas do exemplo?', 'Trocar'))) return;
-    E.operacoes = M.exemplo().map(function(o){ o.id = novoId(); return o; });
+    var servicos = E.parametros.perfil === 'servicos';
+    E.operacoes = (servicos ? M.exemploServicos() : M.exemplo()).map(function(o){ o.id = novoId(); return o; });
+    if(servicos &amp;&amp; !E.parametros.folha){
+      E.parametros.folha = 70000;
+      escreverParametros();
+      toast('Exemplo de serviços carregado, com folha de R$ 70.000,00 no Passo 1.');
+    }
     if(!E.parametros.empresa){ E.parametros.empresa = 'Empresa exemplo'; escreverParametros(); }
     renderOperacoes(); rascunho();
   });
@@ -1728,6 +1879,7 @@ function iniciar(){
   $('#btn-crono-padrao').addEventListener('click', restaurarCronograma);
   $('#f-grupo').addEventListener('change', function(ev){ S.filtroGrupo = ev.target.value; renderCatalogo(); });
   $('#f-busca').addEventListener('input', function(ev){ S.busca = ev.target.value; renderCatalogo(); });
+  $('#f-servicos').addEventListener('change', function(ev){ S.soServicos = ev.target.checked; renderCatalogo(); });
   document.addEventListener('keydown', function(ev){
     if(ev.key === 'Escape' &amp;&amp; rascunhoOp &amp;&amp; !$('#confirma-raiz').innerHTML) fecharModal();
   });
@@ -1756,7 +1908,7 @@ iniciar();
         </div>
         <p class="arquivo-desc">As contas: tratamentos por atividade, cronograma 2026–2033, créditos e o cálculo de cada ano.</p>
         <details>
-          <summary>Ver o código (349 linhas)</summary>
+          <summary>Ver o código (452 linhas)</summary>
           <pre id="src-3"><code>&lt;!-- Motor de cálculo do Simulador IBS/CBS. Usado pela tela (pagina.html) e
      pelos testes. Sem acesso à planilha: só recebe dados e devolve números. --&gt;
 &lt;script&gt;
@@ -1777,6 +1929,13 @@ function motorIbsCbs(){
     isento:     'Isento / suspenso / não incide'
   };
 
+  var PERFIS = {
+    servicos:  'Prestação de serviços',
+    comercio:  'Comércio',
+    industria: 'Indústria',
+    misto:     'Misto (vende e presta serviços)'
+  };
+
   var FORNECEDORES = {
     regular: 'Regime regular',
     simples: 'Simples Nacional',
@@ -1788,7 +1947,7 @@ function motorIbsCbs(){
      gravado nas simulações; o nome pode mudar sem quebrar nada. */
   function T(id, grupo, nome, reducao, extra){
     var t = { id: id, grupo: grupo, nome: nome, reducao: reducao, especial: '',
-              credito: true, exportacao: false, valor: 'Valor da operação', nota: '' };
+              credito: true, exportacao: false, servico: false, valor: 'Valor da operação', nota: '' };
     for(var k in (extra || {})) t[k] = extra[k];
     return t;
   }
@@ -1796,15 +1955,19 @@ function motorIbsCbs(){
   var TRATAMENTOS = [
     T('padrao', 'Geral', 'Padrão (tributação integral)', 0,
       { nota: 'Alíquota de referência. Inclui bebidas alcoólicas vendidas por bares e restaurantes.' }),
+    T('servgeral', 'Geral', 'Serviços em geral (tributação integral)', 0,
+      { servico: true, valor: 'Valor do serviço',
+        nota: 'Consultoria, TI, manutenção, limpeza, vigilância, marketing, intermediação e demais serviços sem ' +
+          'redução específica. ISS até 2032, reduzido aos poucos a partir de 2029; IBS e CBS integrais.' }),
     T('prof30', 'Redução de 30%', 'Profissões intelectuais regulamentadas', 0.3,
-      { valor: 'Valor do serviço',
+      { servico: true, valor: 'Valor do serviço',
         nota: 'LC 214/2025, art. 127: administradores, advogados, arquitetos e urbanistas, assistentes sociais, ' +
           'bibliotecários, biólogos, contabilistas, economistas, economistas domésticos, profissionais de educação ' +
           'física, engenheiros e agrônomos, estatísticos, médicos veterinários e zootecnistas, museólogos, químicos, ' +
           'profissionais de relações públicas, técnicos industriais e técnicos agrícolas. Prestado por PF ou ' +
           'sociedade de profissionais habilitados e fiscalizados por conselho.' }),
-    T('edu60', R60, 'Serviços de educação', 0.6, { valor: 'Valor do serviço', nota: 'Serviços de ensino listados em anexo da LC 214/2025.' }),
-    T('saude60', R60, 'Serviços de saúde humana', 0.6, { valor: 'Valor do serviço', nota: 'Serviços de saúde listados em anexo da LC 214/2025.' }),
+    T('edu60', R60, 'Serviços de educação', 0.6, { servico: true, valor: 'Valor do serviço', nota: 'Serviços de ensino listados em anexo da LC 214/2025.' }),
+    T('saude60', R60, 'Serviços de saúde humana', 0.6, { servico: true, valor: 'Valor do serviço', nota: 'Serviços de saúde listados em anexo da LC 214/2025.' }),
     T('dispmed60', R60, 'Dispositivos médicos', 0.6, { nota: 'Itens listados em anexo. Alguns têm alíquota zero.' }),
     T('acess60', R60, 'Dispositivos de acessibilidade para PcD', 0.6, { nota: 'Itens listados em anexo. Alguns têm alíquota zero.' }),
     T('med60', R60, 'Medicamentos', 0.6, { nota: 'Registrados na Anvisa ou manipulados. Os da lista específica têm alíquota zero.' }),
@@ -1814,46 +1977,47 @@ function motorIbsCbs(){
       { nota: 'Agropecuários, aquícolas, pesqueiros, florestais e extrativistas vegetais in natura.' }),
     T('insagro60', R60, 'Insumos agropecuários e aquícolas', 0.6, { nota: 'Insumos listados em anexo da LC 214/2025.' }),
     T('cult60', R60, 'Produções artísticas, culturais, jornalísticas e audiovisuais nacionais', 0.6,
-      { nota: 'Inclui eventos culturais conforme a LC 214/2025.' }),
-    T('comun60', R60, 'Comunicação institucional', 0.6, { valor: 'Valor do serviço' }),
-    T('desp60', R60, 'Atividades desportivas', 0.6),
+      { servico: true, nota: 'Inclui eventos culturais conforme a LC 214/2025.' }),
+    T('comun60', R60, 'Comunicação institucional', 0.6, { servico: true, valor: 'Valor do serviço' }),
+    T('desp60', R60, 'Atividades desportivas', 0.6, { servico: true }),
     T('sober60', R60, 'Soberania, segurança nacional, da informação e cibernética', 0.6),
     T('cesta0', ZERO, 'Cesta Básica Nacional', 1, { nota: 'Produtos listados em anexo da LC 214/2025.' }),
     T('horti0', ZERO, 'Hortícolas, frutas e ovos', 1),
     T('medzero', ZERO, 'Medicamentos e dispositivos da lista de alíquota zero', 1,
       { nota: 'Somente os itens listados nos anexos de alíquota zero.' }),
     T('transpurb0', ZERO, 'Transporte público coletivo urbano e metropolitano', 1,
-      { valor: 'Valor do serviço', nota: 'Rodoviário e metroviário urbano, semiurbano e metropolitano.' }),
+      { servico: true, valor: 'Valor do serviço', nota: 'Rodoviário e metroviário urbano, semiurbano e metropolitano.' }),
     T('bares40', ESP, 'Bares e restaurantes', 0.4,
-      { credito: false, valor: 'Valor da alimentação, sem gorjeta',
+      { servico: true, credito: false, valor: 'Valor da alimentação, sem gorjeta',
         nota: 'Alimentação e bebidas não alcoólicas preparadas no local. Bebidas alcoólicas: use Padrão. ' +
           'O adquirente não se credita.' }),
     T('hotel40', ESP, 'Hotelaria, parques de diversão e temáticos', 0.4,
-      { credito: false, nota: 'O adquirente não se credita.' }),
+      { servico: true, credito: false, nota: 'O adquirente não se credita.' }),
     T('turismo40', ESP, 'Agências de turismo', 0.4,
-      { valor: 'Valor da intermediação', nota: 'A base é o valor da intermediação, não o total do pacote.' }),
+      { servico: true, valor: 'Valor da intermediação', nota: 'A base é o valor da intermediação, não o total do pacote.' }),
     T('transpinter40', ESP, 'Transporte coletivo intermunicipal/interestadual de passageiros', 0.4,
-      { valor: 'Valor do serviço', nota: 'Rodoviário, ferroviário e hidroviário. Confira o direito de crédito do adquirente.' }),
+      { servico: true, valor: 'Valor do serviço', nota: 'Rodoviário, ferroviário e hidroviário. Confira o direito de crédito do adquirente.' }),
     T('imovel50', ESP, 'Operações com bens imóveis', 0.5,
       { valor: 'Valor da operação menos o redutor de ajuste',
         nota: 'Alienação, construção e demais operações com imóveis. Informe a base já líquida do redutor de ' +
           'ajuste (e do redutor social, se houver).' }),
     T('locacao70', ESP, 'Locação, cessão onerosa e arrendamento de imóveis', 0.7,
-      { valor: 'Aluguel menos o redutor social', nota: 'Na locação residencial, desconte o redutor social por imóvel.' }),
+      { servico: true, valor: 'Aluguel menos o redutor social', nota: 'Na locação residencial, desconte o redutor social por imóvel.' }),
     T('planosaude60', ESP, 'Planos de assistência à saúde', 0.6,
-      { credito: false, valor: 'Receitas menos indenizações',
+      { servico: true, credito: false, valor: 'Receitas menos indenizações',
         nota: 'Base: receitas dos planos menos as indenizações pagas. Planos contratados para empregados podem ' +
           'gerar crédito ao empregador; confira.' }),
     T('financeiro', ESP, 'Serviços financeiros', 0,
-      { especial: 'financeiro', credito: false, valor: 'Base do regime (spread: receitas menos deduções)',
+      { servico: true, especial: 'financeiro', credito: false, valor: 'Base do regime (spread: receitas menos deduções)',
         nota: 'Alíquota total de IBS+CBS própria, por ano (10,85% em 2027 até 12,5% em 2033), na aba Tabelas. ' +
           'Serviços sujeitos a ISS têm redução em pontos percentuais na transição, não simulada.' }),
     T('combust', ESP, 'Combustíveis — revenda (monofásico)', 1,
       { credito: false, nota: 'IBS/CBS monofásicos, com alíquota por unidade (ad rem) cobrada na produção ou ' +
           'importação. Revenda sem débito. A cobrança ad rem não é simulada.' }),
     T('export', 'Imunidade', 'Exportação (imune, mantém créditos)', 1,
-      { credito: false, exportacao: true,
-        nota: 'Sem ICMS, ISS, IPI, PIS/COFINS, IBS e CBS. Os créditos das aquisições são mantidos.' }),
+      { servico: true, credito: false, exportacao: true,
+        nota: 'Bens e serviços. Sem ICMS, ISS, IPI, PIS/COFINS, IBS e CBS. Os créditos das aquisições são mantidos. ' +
+          'Serviço só é exportação se o resultado se verificar no exterior.' }),
     T('isento', 'Não tributado', 'Isento / imune / não incidência', 1,
       { credito: false, nota: 'Pode exigir estorno de créditos das aquisições relacionadas (não simulado).' })
   ];
@@ -1872,10 +2036,15 @@ function motorIbsCbs(){
 
   function parametrosPadrao(){
     return {
-      empresa: '', cnpj: '', regime: 'real', periodo: 'Mensal',
+      empresa: '', cnpj: '', regime: 'real', periodo: 'Mensal', perfil: 'comercio',
       cbsRef: 0.088, ibsRef: 0.177,
       excluiIcmsPC: true, excluiTribBase: true,
-      credSimples: 0.03, credRural: 0
+      credSimples: 0.03, credRural: 0,
+      issPadrao: 0.05,      // ISS do município, usado como padrão nos serviços novos
+      issFixo: 0,           // ISS fixo do período (sociedade de profissionais), em R$
+      folha: 0,             // folha e encargos do período, em R$: não gera crédito de IBS/CBS
+      outrosCustos: 0,      // demais custos e despesas sem crédito, em R$
+      b2b: 0.5              // parte das vendas para clientes que se creditam do IBS/CBS
     };
   }
 
@@ -1906,11 +2075,12 @@ function motorIbsCbs(){
 
   /* ------------------------------------------------------------ operações */
 
-  function novaOperacao(tipo){
+  function novaOperacao(tipo, p){
+    var servico = !!p &amp;&amp; p.perfil === 'servicos' &amp;&amp; tipo !== 'compra';
     return {
       id: '', tipo: tipo === 'compra' ? 'compra' : 'venda', descricao: '', valor: 0,
-      tratamento: 'padrao', reducao: 0,
-      icms: 0, iss: 0, ipi: 0, is: 0, pisCofins: 'padrao',
+      tratamento: servico ? 'servgeral' : 'padrao', reducao: 0,
+      icms: 0, iss: servico ? p.issPadrao : 0, ipi: 0, is: 0, pisCofins: 'padrao',
       fornecedor: 'regular', credIbsCbs: true, credPisCofins: true, credIcmsIpi: true, credPct: null
     };
   }
@@ -1923,6 +2093,28 @@ function motorIbsCbs(){
         credito: true, exportacao: false, valor: 'Valor da operação', nota: '' };
     }
     return POR_ID[op.tratamento] || POR_ID.padrao;
+  }
+
+  /** Exemplo de prestadora de serviços: honorários, TI, treinamento; folha pesada. */
+  function exemploServicos(){
+    function op(tipo, descricao, valor, trat, x){
+      var o = novaOperacao(tipo);
+      o.descricao = descricao; o.valor = valor; o.tratamento = trat;
+      for(var k in (x || {})) o[k] = x[k];
+      return o;
+    }
+    return [
+      op('venda', 'Consultoria contábil e tributária', 80000, 'prof30', { iss: 0.05 }),
+      op('venda', 'Suporte e licenciamento de software', 40000, 'servgeral', { iss: 0.02 }),
+      op('venda', 'Treinamentos in company', 15000, 'servgeral', { iss: 0.05 }),
+      op('venda', 'Consultoria para cliente no exterior', 10000, 'export'),
+      op('compra', 'Aluguel do escritório', 9000, 'locacao70', { credPisCofins: true, credIcmsIpi: false }),
+      op('compra', 'Software e nuvem (SaaS)', 6000, 'servgeral', { iss: 0.02, credIcmsIpi: false }),
+      op('compra', 'Energia elétrica e telecomunicações', 3000, 'padrao', { icms: 0.18, credIcmsIpi: false }),
+      op('compra', 'Serviços jurídicos', 4000, 'prof30', { iss: 0.05, credIcmsIpi: false }),
+      op('compra', 'Freelancers do Simples Nacional', 5000, 'servgeral', { fornecedor: 'simples', iss: 0.02, credPisCofins: false, credIcmsIpi: false }),
+      op('compra', 'Refeições com clientes', 1500, 'bares40', { credPisCofins: false, credIcmsIpi: false })
+    ].map(function(o, i){ o.id = 'sv' + (i + 1); return o; });
   }
 
   function exemplo(){
@@ -1964,6 +2156,12 @@ function motorIbsCbs(){
       add('inf', 'Na exportação, as alíquotas informadas são ignoradas: não há ICMS, ISS, IPI, IBS nem CBS.');
     }
     if(op.icms &gt; 0 &amp;&amp; op.iss &gt; 0) add('avi', 'ICMS e ISS na mesma operação. Confira se não é o caso de separar em duas linhas.');
+    if(op.tipo === 'venda' &amp;&amp; t.servico &amp;&amp; !t.exportacao &amp;&amp; !(op.iss &gt; 0) &amp;&amp; t.id !== 'locacao70' &amp;&amp; t.especial !== 'financeiro' &amp;&amp; !(p &amp;&amp; p.issFixo &gt; 0)) {
+      add('avi', 'Serviço sem ISS. Informe a alíquota do município (2% a 5%), ou o ISS fixo no Passo 1 se for sociedade de profissionais.');
+    }
+    if(t.servico &amp;&amp; op.icms &gt; 0 &amp;&amp; t.id !== 'bares40' &amp;&amp; t.id !== 'hotel40') {
+      add('avi', 'ICMS em serviço: só vale para transporte intermunicipal e comunicação. Confira a alíquota.');
+    }
     if(op.tipo === 'compra'){
       if(op.credIbsCbs &amp;&amp; !t.credito &amp;&amp; op.fornecedor === 'regular') {
         add('avi', 'Este tratamento não dá crédito de IBS/CBS a quem compra. O crédito será zero.');
@@ -1973,6 +2171,9 @@ function motorIbsCbs(){
         add('avi', 'O crédito presumido do produtor rural está em 0%. Informe o percentual quando for publicado.');
       }
       if(op.credPisCofins &amp;&amp; p.regime === 'presumido') add('inf', 'No Lucro Presumido não há crédito de PIS/COFINS.');
+      if(op.credIcmsIpi &amp;&amp; (op.icms &gt; 0 || op.ipi &gt; 0) &amp;&amp; p.perfil === 'servicos') {
+        add('avi', 'Prestador de serviço que só paga ISS não se credita de ICMS nem de IPI. Desmarque o crédito de ICMS/IPI.');
+      }
     }
     if(op.is &gt; 0) add('inf', 'O Imposto Seletivo começa em 2027 e entra na base do IBS/CBS.');
     if(t.nota) add('inf', t.nota);
@@ -2011,7 +2212,10 @@ function motorIbsCbs(){
 
   function calcularCenario(ops, p, c){
     var r = { ano: String(c.ano), faturamento: 0, compras: 0, icms: 0, iss: 0, ipi: 0, pis: 0, cofins: 0, is: 0,
-              cbsDebito: 0, cbsCredito: 0, ibsDebito: 0, ibsCredito: 0, porTratamento: {} };
+              cbsDebito: 0, cbsCredito: 0, ibsDebito: 0, ibsCredito: 0, porTratamento: {},
+              // para a análise de preço e margem
+              tribVendas: 0, ipiVendas: 0, credAtuais: 0, ipiCompras: 0, ibsCbsCompras: 0,
+              vendasServico: 0 };
     var naoCumulativo = p.regime !== 'presumido';
 
     ops.forEach(function(op){
@@ -2035,15 +2239,21 @@ function motorIbsCbs(){
 
       if(op.tipo === 'venda'){
         r.faturamento += valor;
+        if(t.servico || op.iss &gt; 0) r.vendasServico += valor;
         r.icms += icms; r.iss += iss; r.ipi += ipi; r.is += isv; r.pis += pis; r.cofins += cofins;
+        r.tribVendas += icms + iss + pis + cofins;
+        r.ipiVendas += ipi;
         r.cbsDebito += cbs; r.ibsDebito += ibs;
         pt.vendas += valor; pt.debito += cbs + ibs;
         return;
       }
 
       r.compras += valor;
-      if(op.credIcmsIpi){ r.icms -= icms; r.ipi -= ipi; }
-      if(op.credPisCofins &amp;&amp; naoCumulativo){ r.pis -= pis; r.cofins -= cofins; }
+      r.ipiCompras += ipi;
+      if(op.credIcmsIpi){ r.icms -= icms; r.ipi -= ipi; r.credAtuais += icms + ipi; }
+      if(op.credPisCofins &amp;&amp; naoCumulativo){ r.pis -= pis; r.cofins -= cofins; r.credAtuais += pis + cofins; }
+      // Fornecedor do regime regular cobra IBS/CBS por fora; do Simples e do produtor rural, o preço já embute.
+      if(op.fornecedor === 'regular') r.ibsCbsCompras += cbs + ibs;
       var cred = { cbs: 0, ibs: 0 };
       if(op.credIbsCbs &amp;&amp; op.fornecedor !== 'sem'){
         if(op.fornecedor === 'simples') cred = creditoPercentual(op, p, c, p.credSimples);
@@ -2053,6 +2263,10 @@ function motorIbsCbs(){
       r.cbsCredito += cred.cbs; r.ibsCredito += cred.ibs;
       pt.compras += valor; pt.credito += cred.cbs + cred.ibs;
     });
+
+    // ISS fixo da sociedade de profissionais: devido por profissional, não pelo faturamento.
+    var issFixo = (Number(p.issFixo) || 0) * c.fator;
+    r.iss += issFixo; r.tribVendas += issFixo;
 
     r.cbs = r.cbsDebito - r.cbsCredito;
     r.ibs = r.ibsDebito - r.ibsCredito;
@@ -2070,6 +2284,47 @@ function motorIbsCbs(){
     res.forEach(function(r){
       r.variacao = r.carga - base;
       r.variacaoPct = base ? r.variacao / Math.abs(base) : 0;
+    });
+    precoEMargem(res, p);
+    return res;
+  }
+
+  /**
+   * Preço e margem: o que sobra para a empresa e quanto o preço precisa mudar.
+   *
+   * Com o preço de hoje mantido, o resultado antes de IRPJ/CSLL de cada ano é
+   *   vendas − tributos &quot;por dentro&quot; das vendas (ICMS, ISS, PIS, COFINS)
+   *   − compras − IPI e IBS/CBS cobrados por fora nas compras + créditos
+   *   − folha − outros custos sem crédito.
+   * IPI, Imposto Seletivo e IBS/CBS das vendas são cobrados do cliente e
+   * repassados ao governo, então não mexem no resultado; mexem no preço que
+   * o cliente paga. O &quot;reajuste&quot; é o quanto o valor das vendas precisa mudar
+   * para o resultado ficar igual ao de hoje (as compras ficam como estão).
+   */
+  function precoEMargem(res, p){
+    var folha = (Number(p.folha) || 0) + (Number(p.outrosCustos) || 0);
+    var b2b = Math.min(Math.max(Number(p.b2b) || 0, 0), 1);
+    res.forEach(function(r){
+      var ibsLiquido = r.efetivo ? (r.cbsCredito + r.ibsCredito) - r.ibsCbsCompras : 0;
+      r.custoFixo = r.compras + r.ipiCompras + folha - r.credAtuais - ibsLiquido;   // não muda com o preço
+      r.receitaLiquida = r.faturamento - r.tribVendas;                                // muda com o preço
+      r.resultado = r.receitaLiquida - r.custoFixo;
+      r.margem = r.faturamento ? r.resultado / r.faturamento : 0;
+      r.precoCliente = r.faturamento + r.ipiVendas + r.is + (r.efetivo ? r.cbsDebito + r.ibsDebito : 0);
+      r.precoClienteCredito = r.faturamento + r.ipiVendas + r.is;   // o IBS/CBS volta como crédito
+    });
+    var hoje = res[0];
+    res.forEach(function(r){
+      var fator = r.receitaLiquida &gt; 0 ? (hoje.resultado + r.custoFixo) / r.receitaLiquida : null;
+      r.reajuste = fator === null ? null : fator - 1;
+      if(fator === null || !hoje.precoCliente){
+        r.varPrecoSemCredito = r.varPrecoComCredito = r.varPrecoMedio = null;
+        return;
+      }
+      // Hoje o cliente paga o preço cheio (ISS e o PIS/COFINS cumulativo não voltam como crédito).
+      r.varPrecoSemCredito = fator * r.precoCliente / hoje.precoCliente - 1;
+      r.varPrecoComCredito = fator * r.precoClienteCredito / hoje.precoCliente - 1;
+      r.varPrecoMedio = b2b * r.varPrecoComCredito + (1 - b2b) * r.varPrecoSemCredito;
     });
     return res;
   }
@@ -2096,12 +2351,12 @@ function motorIbsCbs(){
   }
 
   return {
-    REGIMES: REGIMES, PIS_COFINS: PIS_COFINS, FORNECEDORES: FORNECEDORES,
+    REGIMES: REGIMES, PIS_COFINS: PIS_COFINS, FORNECEDORES: FORNECEDORES, PERFIS: PERFIS,
     TRATAMENTOS: TRATAMENTOS, tratamento: function(id){ return POR_ID[id] || null; },
     tratamentoDe: tratamentoDe, rotuloReducao: rotuloReducao,
     parametrosPadrao: parametrosPadrao, cronogramaPadrao: cronogramaPadrao, cenarioAtual: cenarioAtual,
-    novaOperacao: novaOperacao, exemplo: exemplo, conferirOperacao: conferirOperacao,
-    calcularCenario: calcularCenario, simular: simular,
+    novaOperacao: novaOperacao, exemplo: exemplo, exemploServicos: exemploServicos, conferirOperacao: conferirOperacao,
+    calcularCenario: calcularCenario, simular: simular, precoEMargem: precoEMargem,
     moeda: moeda, pct: pct, numero: numero
   };
 }
@@ -2139,7 +2394,8 @@ function motorIbsCbs(){
         passou pela revisão pública do Google, não que tenha algo errado com ele.</p>
       </li>
       <li><p>Abra o menu de novo. Para testar, clique em <strong>Usar exemplo</strong>
-      e depois em <strong>Ver o resultado</strong>.</p></li>
+      e depois em <strong>Ver o resultado</strong>. Com o perfil "Prestação de serviços",
+      o exemplo é o de uma prestadora de serviços.</p></li>
     </ol>
     <h3 style="margin-top:26px">As permissões que ele pede</h3>
     <div class="rolagem">
@@ -2222,7 +2478,7 @@ function motorIbsCbs(){
 <script>
 (function () {
   var TOTAL = 3;
-  var CHAVE = 'simulador-ibscbs-instalacao-v1.0';
+  var CHAVE = 'simulador-ibscbs-instalacao-v1.1';
   var feitos = {};
   try { feitos = JSON.parse(localStorage.getItem(CHAVE) || '{}') || {}; } catch (e) { feitos = {}; }
   function salvar() {

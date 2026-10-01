@@ -93,6 +93,12 @@ Faça esta parte se quiser abrir o simulador numa aba própria do navegador ou n
   atividade: redução de 30% ou 60%, alíquota zero, bares e restaurantes, imóveis,
   serviços financeiros, exportação etc. O formulário avisa o que informar em
   "Valor" e quando a compra não gera crédito.
+- **Empresas de serviço:** no Passo 1, escolha o perfil **Prestação de serviços**.
+  Aparecem o ISS do município (vira o padrão dos serviços lançados) e o ISS fixo da
+  sociedade de profissionais. Informe a folha e os outros custos sem crédito e a parte
+  das vendas para clientes que se creditam. O Resultado ganha o cartão **Preço e
+  margem**: resultado antes de IR em cada ano, o reajuste para manter o resultado de
+  hoje e quanto o preço muda para o cliente com e sem crédito.
 - **Resultado:** carga de hoje comparada com cada ano de 2026 a 2033, um gráfico,
   os débitos e créditos de IBS/CBS e o detalhamento por tratamento. **Gravar na
   planilha** cria a aba *Resultado*, que dá para filtrar, imprimir ou baixar em Excel.

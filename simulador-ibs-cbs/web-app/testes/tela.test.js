@@ -105,6 +105,31 @@ execFileSync(process.execPath, [path.join(__dirname, 'montar-ensaio.js'), arquiv
   await pg.waitForSelector('#ops-tabela tbody tr');
   ok((await pg.$$('#ops-tabela tbody tr')).length === 13, 'rascunho preservado ao recarregar');
 
+  // Empresa de serviços: perfil, exemplo, preço e margem
+  await pg.click('#tab-simular');
+  await pg.selectOption('#p-perfil', 'servicos');
+  ok(await pg.isVisible('#p-iss'), 'perfil serviços mostra o ISS do município');
+  ok((await pg.textContent('#btn-nova-venda')).includes('Serviço prestado'), 'botão vira "+ Serviço prestado"');
+  await pg.click('#btn-nova-venda');
+  ok((await pg.inputValue('#o-iss')) === '5', 'serviço novo já vem com ISS de 5%');
+  ok((await pg.inputValue('#o-trat')) === 'servgeral', 'serviço novo usa "Serviços em geral"');
+  await pg.click('[data-fechar]');
+  await pg.click('#btn-exemplo');
+  await pg.click('#confirma-raiz [data-r="1"]');
+  ok((await pg.$$('#ops-tabela tbody tr')).length === 10, 'exemplo de serviços com 10 operações');
+  ok((await pg.inputValue('#p-folha')) === '70.000,00', 'exemplo de serviços preenche a folha');
+  await pg.click('#btn-calcular');
+  await pg.waitForSelector('#aba-resultado:not([hidden])');
+  ok((await pg.textContent('#tiles')).includes('Reajuste para manter o resultado'), 'cartão de reajuste para serviços');
+  ok((await pg.$$('#tab-margem tbody tr')).length === 9, 'tabela de preço e margem');
+  ok((await pg.textContent('#margem-avisos')).includes('ISS de hoje'), 'aviso de ISS');
+  await pg.screenshot({ path: path.join(pasta, '7-servicos-resultado.png'), fullPage: true });
+  await pg.click('#tab-tabelas');
+  await pg.check('#f-servicos');
+  const soServ = (await pg.$$('#trat-tabela tbody tr')).length;
+  ok(soServ >= 15 && soServ < 32, 'filtro só serviços (' + soServ + ')');
+  await pg.uncheck('#f-servicos');
+
   // Celular e tema escuro
   const cel = await navegador.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'dark', locale: 'pt-BR', ignoreHTTPSErrors: true });
   const pc = await cel.newPage();
