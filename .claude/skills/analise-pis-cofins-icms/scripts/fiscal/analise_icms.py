@@ -300,12 +300,15 @@ def testes(esc, linhas, apuracao, recomposicao, ctx):
             interestadual = l.cfop.startswith("6") and trib in tabelas.CST_ICMS_COM_DEBITO_PROPRIO
             if interestadual and l.aliq_icms > 0:
                 if origem in ORIGENS_IMPORTADAS:
-                    if l.aliq_icms != ALIQ_INTERESTADUAL_IMPORTADO:
+                    if not tabelas.aliquota_equivale(
+                            l.aliq_icms, ALIQ_INTERESTADUAL_IMPORTADO):
                         esperado = _q(l.bc_icms * ALIQ_INTERESTADUAL_IMPORTADO / Decimal("100"))
                         d.adicionar(l, abs(esperado - l.vl_icms),
                                     "origem %s com aliquota %s%% (esperado 4%%)" %
                                     (origem, l.aliq_icms))
-                elif l.aliq_icms not in (ALIQ_INTERESTADUAL_GERAL, ALIQ_INTERESTADUAL_REDUZIDA):
+                elif not tabelas.alguma_aliquota_equivale(
+                        l.aliq_icms, (ALIQ_INTERESTADUAL_GERAL,
+                                      ALIQ_INTERESTADUAL_REDUZIDA)):
                     g.adicionar(l, ZERO, "aliquota %s%% em CFOP %s" % (l.aliq_icms, l.cfop))
 
     achados.extend([c, d, e, f, g])

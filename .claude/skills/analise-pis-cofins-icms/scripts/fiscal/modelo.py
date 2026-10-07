@@ -116,11 +116,17 @@ class Achado(object):
         self.amostras = []
         self.detalhes = []               # todas as linhas, para exportacao em CSV
 
-    def adicionar(self, linha, valor=ZERO, obs=""):
+    def adicionar(self, linha, valor=ZERO, obs="", confianca=""):
+        """Registra uma ocorrencia.
+
+        `confianca` e a confiabilidade da classificacao que motivou o apontamento
+        (a coluna da tabela de NCM). Fica guardada para o relatorio poder separar
+        o que e defensavel do que depende de conferencia, em vez de somar tudo.
+        """
         self.quantidade += 1
         self.valor += valor or ZERO
         registro = {"ref": linha.ref() if hasattr(linha, "ref") else str(linha),
-                    "valor": valor or ZERO, "obs": obs}
+                    "valor": valor or ZERO, "obs": obs, "confianca": confianca}
         if hasattr(linha, "como_dict"):
             registro["linha"] = linha.como_dict()
         self.detalhes.append(registro)
@@ -131,6 +137,14 @@ class Achado(object):
     @property
     def relevante(self):
         return self.quantidade > 0
+
+    def valor_por_confianca(self):
+        """{confianca: valor} das ocorrencias. Chave vazia = sem classificacao."""
+        saida = {}
+        for d in self.detalhes:
+            chave = d.get("confianca") or ""
+            saida[chave] = saida.get(chave, ZERO) + (d.get("valor") or ZERO)
+        return saida
 
     def como_dict(self):
         return {

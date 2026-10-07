@@ -12,6 +12,8 @@ from .modelo import Achado, SEV_ALTA, SEV_MEDIA, SEV_BAIXA, SEV_INFO, ZERO
 TOL_ITEM = Decimal("0.05")       # tolerancia de centavos por item
 TOL_REL = Decimal("0.005")       # 0,5% de tolerancia em confrontos agregados
 CENTAVO = Decimal("0.01")
+# piso para nao transformar arredondamento em apontamento
+PISO_MONETARIO = Decimal("1.00")
 
 
 def _q(valor):
@@ -448,6 +450,24 @@ def testes_por_item(linhas, tabela, ctx):
                 "Corrigir a escrituracao: ou o CST esta errado, ou o valor foi destacado a maior.",
                 "RECUPERAR", ctx)
 
+    a18 = _novo("PC-18", "Saida de PRODUCAO PROPRIA de produto em regime monofasico",
+                SEV_MEDIA,
+                "Itens de producao propria do estabelecimento (CFOP 5101/6101/5401/6401) "
+                "cujo NCM esta em regime monofasico, vendidos com CST de aliquota basica. "
+                "Aqui a conclusao e oposta a do PC-01: o industrial e o proprio "
+                "contribuinte do regime concentrado e deve apurar pelas aliquotas "
+                "especificas do regime (CST 02 ou 03), nao pela aliquota basica. "
+                "A diferenca pode ser a maior ou a menor - depende das aliquotas do "
+                "regime aplicavel ao produto.",
+                "Lei 13.097/2015 (bebidas frias); Lei 10.147/2000; Lei 10.485/2002 - "
+                "em cada regime, a lei fixa quem e o contribuinte concentrado e com que "
+                "aliquota. Conferir o enquadramento do produto e a aliquota vigente na "
+                "competencia.",
+                "Separar producao propria de revenda antes de qualquer calculo. "
+                "Confirmado o enquadramento, recalcular o debito pela aliquota do regime "
+                "e apurar a diferenca nos dois sentidos.",
+                "AVALIAR", ctx)
+
     a17 = _novo("PC-17", "Parcela do ICMS destacado mantida na base de PIS/COFINS",
                 SEV_MEDIA,
                 "Itens de saida em que a base de PIS/COFINS e menor que o valor da "
@@ -504,24 +524,36 @@ def testes_por_item(linhas, tabela, ctx):
                 if tributado and classif and regime_item in (
                         mod_ncm.REGIME_MONOFASICO, mod_ncm.REGIME_ALIQUOTA_ZERO,
                         mod_ncm.REGIME_ST):
-                    a1.adicionar(l, l.vl_pis + l.vl_cofins,
-                                 "NCM %s - %s (%s) - confianca %s" %
-                                 (l.ncm, regime_item, classif["grupo"], classif["confianca"]))
+                    # producao propria e revenda tem conclusoes opostas: o industrial
+                    # e o contribuinte do regime, o revendedor nao deve debito
+                    alvo = a18 if tabelas.eh_producao_propria(l.cfop) else a1
+                    alvo.adicionar(
+                        l, l.vl_pis + l.vl_cofins,
+                        "NCM %s - %s (%s) - CFOP %s" %
+                        (l.ncm, regime_item, classif["grupo"], l.cfop),
+                        confianca=classif["confianca"])
                 # PC-03 desonerado sem enquadramento
                 elif desonerado and l.ncm and (
                         classif is None or regime_item == mod_ncm.REGIME_TRIBUTADO):
                     a3.adicionar(l, _q(valor_liquido * soma_aliq),
                                  "NCM %s sem enquadramento na tabela" % l.ncm)
 
-            # PC-04 aliquota divergente
+            # PC-04 aliquota divergente. Exige tolerancia em pontos percentuais e
+            # piso monetario: sem isso, aliquota derivada de valor/base enche o
+            # relatorio de apontamentos de centavo.
             if cst_p == "01" and l.bc_pis > 0 and l.aliq_pis > 0:
-                if not regime_misto and abs(l.aliq_pis - aliq_pis) > Decimal("0.01"):
+                if not regime_misto and not tabelas.aliquota_equivale(l.aliq_pis, aliq_pis):
                     esperado = l.bc_pis * aliq_pis / Decimal("100")
-                    a4.adicionar(l, abs(esperado - l.vl_pis),
-                                 "PIS: aliquota %s%% x esperada %s%%" % (l.aliq_pis, aliq_pis))
-                elif regime_misto and l.aliq_pis not in (
-                        tabelas.ALIQ_PIS_CUMULATIVO, tabelas.ALIQ_PIS_NAO_CUMULATIVO):
-                    a4.adicionar(l, ZERO, "PIS: aliquota %s%% fora de 0,65%% e 1,65%%" % l.aliq_pis)
+                    diferenca = abs(esperado - l.vl_pis)
+                    if diferenca > PISO_MONETARIO:
+                        a4.adicionar(l, diferenca,
+                                     "PIS: aliquota %s%% x esperada %s%%" %
+                                     (l.aliq_pis, aliq_pis))
+                elif regime_misto and not tabelas.alguma_aliquota_equivale(
+                        l.aliq_pis, (tabelas.ALIQ_PIS_CUMULATIVO,
+                                     tabelas.ALIQ_PIS_NAO_CUMULATIVO)):
+                    a4.adicionar(l, ZERO,
+                                 "PIS: aliquota %s%% fora de 0,65%% e 1,65%%" % l.aliq_pis)
 
             # PC-07 / PC-17 - ICMS na base de calculo.
             # PC-07: nada foi excluido. PC-17: excluiu-se menos que o destacado,
@@ -555,12 +587,15 @@ def testes_por_item(linhas, tabela, ctx):
                 detalhe = "NCM %s - %s (%s), CFOP %s" % (
                     l.ncm, regime_item, classif["grupo"], l.cfop)
                 if destino == "COMBUSTIVEL" or classif["grupo"] == "COMBUSTIVEIS":
-                    a15.adicionar(l, l.vl_pis + l.vl_cofins, detalhe)
+                    a15.adicionar(l, l.vl_pis + l.vl_cofins, detalhe,
+                                  confianca=classif["confianca"])
                 elif destino == "INSUMO":
-                    a14.adicionar(l, l.vl_pis + l.vl_cofins, detalhe)
+                    a14.adicionar(l, l.vl_pis + l.vl_cofins, detalhe,
+                                  confianca=classif["confianca"])
                 else:
                     a2.adicionar(l, l.vl_pis + l.vl_cofins,
-                                 detalhe + " - destino %s" % destino)
+                                 detalhe + " - destino %s" % destino,
+                                 confianca=classif["confianca"])
 
             # PC-08 ICMS-ST fora da base do credito
             if com_credito and l.vl_icms_st > TOL_ITEM and l.bc_pis > 0:
@@ -586,7 +621,8 @@ def testes_por_item(linhas, tabela, ctx):
                 a11.adicionar(l, _q(valor_liquido * soma_aliq),
                               "CFOP %s sem credito" % l.cfop)
 
-    return [a1, a2, a14, a15, a3, a4, a5, a6, a7, a17, a8, a9, a10, a11, a12, a13]
+    return [a1, a18, a2, a14, a15, a3, a4, a5, a6, a7, a17, a8, a9, a10, a11,
+            a12, a13]
 
 
 def testes_de_base_x_aliquota(linhas, ctx, achado):

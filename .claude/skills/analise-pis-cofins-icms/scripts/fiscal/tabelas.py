@@ -173,6 +173,25 @@ CFOP_EXPORTACAO_PREFIXO = "7"
 CFOP_IMPORTACAO_PREFIXO = "3"
 
 
+TOLERANCIA_ALIQUOTA = Decimal("0.05")
+
+
+def aliquota_equivale(a, b, tolerancia=TOLERANCIA_ALIQUOTA):
+    """Compara aliquotas com tolerancia de pontos percentuais.
+
+    Quando a aliquota nao vem informada e precisa ser derivada de valor/base, o
+    arredondamento de centavos produz 11,9998% onde o documento diz 12%. Comparar
+    por igualdade exata nesse caso gera centenas de apontamentos de R$ 0,00.
+    """
+    if a is None or b is None:
+        return False
+    return abs(Decimal(a) - Decimal(b)) <= tolerancia
+
+
+def alguma_aliquota_equivale(a, candidatas, tolerancia=TOLERANCIA_ALIQUOTA):
+    return any(aliquota_equivale(a, c, tolerancia) for c in candidatas)
+
+
 def normaliza_cfop(cfop):
     return "".join(ch for ch in str(cfop or "") if ch.isdigit())[:4]
 
@@ -265,6 +284,25 @@ CFOP_COMPRA_USO_CONSUMO = {"1556", "2556", "3556", "1407", "2407"}
 CFOP_COMPRA_ATIVO = {"1551", "2551", "3551", "1406", "2406"}
 CFOP_COMPRA_COMBUSTIVEL = {"1651", "1652", "1653", "2651", "2652", "2653",
                            "3651", "3652", "3653"}
+
+
+CFOP_PRODUCAO_PROPRIA = {
+    "5101", "5105", "5106", "5109", "5110", "5111", "5113", "5116", "5118",
+    "5120", "5122", "5401", "5551", "5651", "5653", "5655", "5656",
+    "6101", "6105", "6107", "6109", "6111", "6113", "6116", "6118", "6120",
+    "6122", "6401", "6551", "6651", "6653", "6655", "6656",
+    "7101", "7105",
+}
+
+
+def eh_producao_propria(cfop):
+    """Saida de mercadoria produzida pelo proprio estabelecimento.
+
+    Separa o industrial do revendedor. Em regime monofasico a distincao inverte a
+    conclusao: o industrial e o contribuinte concentrado, o revendedor nao deve
+    debito na saida.
+    """
+    return normaliza_cfop(cfop) in CFOP_PRODUCAO_PROPRIA
 
 
 def destino_da_compra(cfop):

@@ -129,6 +129,20 @@ def montar_markdown(resultado):
     a("| Indicador | Valor (R$) |")
     a("|---|---|")
     a("| Potencial a **recuperar** | %s |" % brl(totais["RECUPERAR"]))
+    # separa o que esta ancorado em classificacao de NCM confiavel do que depende
+    # de conferencia: somar os dois num total unico induz a erro
+    nucleo = pendente = ZERO
+    for item in achados:
+        if item.sentido != "RECUPERAR" or item.natureza_valor != NATUREZA_TRIBUTARIA:
+            continue
+        for confianca, valor in item.valor_por_confianca().items():
+            if confianca == "media":
+                pendente += valor
+            else:
+                nucleo += valor
+    if pendente:
+        a("| — ancorado em classificacao de confianca alta | %s |" % brl(nucleo))
+        a("| — **dependente de conferencia** (NCM de confianca media) | %s |" % brl(pendente))
     a("| Potencial a **recolher** (exposicao) | %s |" % brl(totais["RECOLHER"]))
     if totais["AVALIAR"]:
         a("| Em **avaliacao** (posicao a definir com o cliente) | %s |" % brl(totais["AVALIAR"]))
@@ -411,6 +425,13 @@ def montar_markdown(resultado):
         if item.recomendacao:
             a("**Encaminhamento.** %s" % item.recomendacao)
             a("")
+        porc = item.valor_por_confianca()
+        if porc.get("media"):
+            a("ATENCAO: R$ %s deste achado vem de NCM classificado com confianca "
+              "**media** na tabela de apoio. Confira o enquadramento na legislacao da "
+              "competencia antes de tratar o valor como apurado."
+              % brl(porc["media"]))
+            a("")
         if item.amostras:
             a("Amostras:")
             a("")
@@ -481,7 +502,7 @@ def montar_xlsx(resultado, caminho):
                 a.codigo, a.severidade, a.competencia,
                 formata_cnpj(cnpj_est), tipo_estabelecimento(cnpj_est),
                 linha.get("estabelecimento", ""), linha.get("uf_estabelecimento", ""),
-                d["ref"], d["valor"], d["obs"],
+                d["ref"], d["valor"], d.get("confianca", ""), d["obs"],
                 linha.get("origem", ""), linha.get("doc", ""), linha.get("data", ""),
                 linha.get("cod_item", ""), linha.get("ncm", ""), linha.get("cfop", ""),
                 linha.get("cst_pis", ""), linha.get("cst_cofins", ""),
@@ -492,7 +513,7 @@ def montar_xlsx(resultado, caminho):
     abas.append(("Detalhe dos achados",
                  ["Achado", "Severidade", "Competencia",
                   "CNPJ do estabelecimento", "Matriz/Filial", "Cod. estab.", "UF",
-                  "Referencia", "Valor (R$)",
+                  "Referencia", "Valor (R$)", "Confianca da classificacao",
                   "Observacao", "Registro", "Documento", "Data", "Cod. item", "NCM",
                   "CFOP", "CST PIS", "CST COFINS", "CST ICMS", "Valor do item",
                   "PIS", "COFINS", "ICMS", "Arquivo"],

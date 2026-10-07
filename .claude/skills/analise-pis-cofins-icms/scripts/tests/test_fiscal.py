@@ -949,3 +949,119 @@ class TestApuracaoCalculada(unittest.TestCase):
             self.assertEqual(l.vl_cofins, Decimal("60.80"))
         finally:
             shutil.rmtree(destino)
+
+
+class TestRuidoDeAliquotaDerivada(unittest.TestCase):
+    """Aliquota derivada de valor/base nao pode virar apontamento de centavo.
+
+    A planilha do cliente nem sempre traz a aliquota; quando ela e calculada, o
+    arredondamento produz 11,9998% onde o documento diz 12%. Comparacao exata
+    gerava centenas de achados de R$ 0,00.
+    """
+
+    def test_comparacao_com_tolerancia(self):
+        self.assertTrue(tabelas.aliquota_equivale(Decimal("11.9998"), Decimal("12")))
+        self.assertTrue(tabelas.aliquota_equivale(Decimal("1.6503"), Decimal("1.65")))
+        self.assertFalse(tabelas.aliquota_equivale(Decimal("7"), Decimal("12")))
+        self.assertTrue(tabelas.alguma_aliquota_equivale(
+            Decimal("6.9999"), (Decimal("12"), Decimal("7"))))
+
+    def test_pc04_nao_dispara_por_arredondamento(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        from fiscal.modelo import LinhaFiscal
+        linhas = [LinhaFiscal(
+            origem="PLANILHA", tipo="SAIDA", doc=str(i), cfop="5102", ncm="94013000",
+            vl_item=Decimal("10.00"), cst_pis="01", cst_cofins="01",
+            bc_pis=Decimal("10.00"), aliq_pis=Decimal("1.6400"),
+            vl_pis=Decimal("0.16"), bc_cofins=Decimal("10.00"),
+            aliq_cofins=Decimal("7.6"), vl_cofins=Decimal("0.76")) for i in range(50)]
+        por = {a.codigo: a for a in analisar_linhas(linhas, ncm.carregar())["achados"]}
+        self.assertFalse(por["PC-04"].relevante,
+                         "50 linhas de centavos nao podem virar achado")
+
+    def test_pc04_dispara_quando_a_aliquota_e_realmente_outra(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        from fiscal.modelo import LinhaFiscal
+        linha = LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="1", cfop="5102",
+                            ncm="94013000", vl_item=Decimal("100000"),
+                            cst_pis="01", cst_cofins="01",
+                            bc_pis=Decimal("100000"), aliq_pis=Decimal("0.65"),
+                            vl_pis=Decimal("650"), bc_cofins=Decimal("100000"),
+                            aliq_cofins=Decimal("3.0"), vl_cofins=Decimal("3000"))
+        por = {a.codigo: a for a in analisar_linhas([linha], ncm.carregar())["achados"]}
+        self.assertTrue(por["PC-04"].relevante)
+        self.assertEqual(por["PC-04"].valor, Decimal("1000.00"))
+
+    def test_ic07_nao_dispara_para_12_por_cento_derivado(self):
+        from fiscal.analise_icms import analisar_linhas
+        from fiscal.modelo import LinhaFiscal
+        linha = LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="1", cfop="6403",
+                            vl_item=Decimal("1000"), cst_icms="000",
+                            bc_icms=Decimal("1000"), aliq_icms=Decimal("11.9998"),
+                            vl_icms=Decimal("120"))
+        por = {a.codigo: a for a in analisar_linhas([linha], {"uf": "RJ"})["achados"]}
+        self.assertFalse(por["IC-07"].relevante)
+
+
+class TestProducaoPropriaVersusRevenda(unittest.TestCase):
+    """Em regime monofasico, industrial e revendedor tem conclusoes opostas."""
+
+    def _linha(self, cfop):
+        from fiscal.modelo import LinhaFiscal
+        return LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="1", cfop=cfop,
+                           ncm="22021000", vl_item=Decimal("1000"), cst_pis="01",
+                           cst_cofins="01", bc_pis=Decimal("1000"),
+                           aliq_pis=Decimal("1.65"), vl_pis=Decimal("16.50"),
+                           bc_cofins=Decimal("1000"), aliq_cofins=Decimal("7.6"),
+                           vl_cofins=Decimal("76.00"))
+
+    def test_classificacao_do_cfop(self):
+        self.assertTrue(tabelas.eh_producao_propria("5101"))
+        self.assertTrue(tabelas.eh_producao_propria("5401"))
+        self.assertTrue(tabelas.eh_producao_propria("6101"))
+        self.assertFalse(tabelas.eh_producao_propria("5102"))
+        self.assertFalse(tabelas.eh_producao_propria("5405"))
+        self.assertFalse(tabelas.eh_producao_propria("6403"))
+
+    def test_revenda_vai_para_pc01(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        por = {a.codigo: a for a in
+               analisar_linhas([self._linha("5102")], ncm.carregar())["achados"]}
+        self.assertTrue(por["PC-01"].relevante)
+        self.assertFalse(por["PC-18"].relevante)
+        self.assertEqual(por["PC-01"].sentido, "RECUPERAR")
+
+    def test_producao_propria_vai_para_pc18(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        por = {a.codigo: a for a in
+               analisar_linhas([self._linha("5401")], ncm.carregar())["achados"]}
+        self.assertFalse(por["PC-01"].relevante)
+        self.assertTrue(por["PC-18"].relevante)
+        self.assertEqual(por["PC-18"].sentido, "AVALIAR",
+                         "producao propria nao e recuperacao: e recalculo nos dois sentidos")
+
+    def test_confianca_fica_registrada_e_separavel(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        por = {a.codigo: a for a in
+               analisar_linhas([self._linha("5102")], ncm.carregar())["achados"]}
+        # 2202.10.00 esta na tabela com confianca media
+        self.assertEqual(por["PC-01"].valor_por_confianca(),
+                         {"media": Decimal("92.50")})
+
+    def test_sintese_separa_nucleo_de_pendente(self):
+        from fiscal.analise_pis_cofins import analisar_linhas
+        from fiscal.modelo import LinhaFiscal, ordenar_achados
+        alta = LinhaFiscal(origem="PLANILHA", tipo="SAIDA", doc="2", cfop="5102",
+                           ncm="02013000", vl_item=Decimal("1000"), cst_pis="01",
+                           cst_cofins="01", bc_pis=Decimal("1000"),
+                           aliq_pis=Decimal("1.65"), vl_pis=Decimal("16.50"),
+                           bc_cofins=Decimal("1000"), aliq_cofins=Decimal("7.6"),
+                           vl_cofins=Decimal("76.00"))
+        r = analisar_linhas([self._linha("5102"), alta], ncm.carregar())
+        pc01 = {a.codigo: a for a in r["achados"]}["PC-01"]
+        porc = pc01.valor_por_confianca()
+        self.assertEqual(porc["alta"], Decimal("92.50"))
+        self.assertEqual(porc["media"], Decimal("92.50"))
+        texto = relatorio.montar_markdown({
+            "identificacao": {}, "achados": r["achados"], "ressalvas": []})
+        self.assertIn("dependente de conferencia", texto)
