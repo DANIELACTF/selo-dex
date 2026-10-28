@@ -376,6 +376,17 @@ const servidor = http.createServer(async (req, res) => {
   }
 });
 
+/* Esqueceu o PIN? Ele é guardado embaralhado, então não há como lê-lo de volta —
+   só apagar e escolher outro:  node servidor.js --redefinir-pin  */
+if(require.main === module && process.argv.includes('--redefinir-pin')){
+  const apagadas = db.prepare("DELETE FROM config WHERE chave LIKE 'pin_%'").run();
+  sessoes.clear();
+  console.log(apagadas.changes
+    ? 'PIN apagado. Suba o servidor e abra a aba Gestão para escolher um novo.'
+    : 'Não havia PIN definido. Abra a aba Gestão para escolher um.');
+  process.exit(0);
+}
+
 if(require.main === module){
   servidor.listen(PORTA, () => {
     console.log('Quadro de Férias no ar em http://localhost:' + PORTA);

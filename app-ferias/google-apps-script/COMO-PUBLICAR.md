@@ -133,6 +133,32 @@ que digitar direto na planilha.
 O PIN não fica na planilha — é guardado em separado, embaralhado, e não aparece
 nem para quem abrir o arquivo.
 
+## Esqueci o PIN
+
+Ele é guardado embaralhado de propósito, então ninguém consegue lê-lo de volta —
+nem você, nem eu, nem o Google. O que dá para fazer é apagar e escolher outro.
+
+**Abra a planilha** (não o link do app) e vá em
+**Quadro de Férias → Redefinir o PIN**, no menu de cima. Confirme, e pronto:
+na próxima vez que alguém abrir a aba Gestão, o app pede um PIN novo.
+
+Três observações:
+
+- **Nada se perde.** A equipe cadastrada, as solicitações e as autorizações já
+  registradas continuam na planilha.
+- Quem estiver logado na aba Gestão naquele momento é desconectado.
+- **Escolha o PIN novo antes de avisar a equipe**, porque quem chegar primeiro na
+  aba Gestão é quem define.
+
+Só quem consegue abrir a planilha vê esse menu — a equipe enxerga apenas o link
+do app. É esse o limite certo para quem pode redefinir.
+
+> Se o menu não aparecer, é porque o seu projeto ainda está com uma versão antiga
+> do código. Atualize os três arquivos e publique a nova versão (veja acima), ou
+> faça pelo caminho manual: no editor do Apps Script, **Configurações do projeto**
+> (a engrenagem na barra da esquerda) → role até **Propriedades do script** →
+> apague as linhas `pin_gestor_hash` e `pin_gestor_sal` → **Salvar**.
+
 ## Se alguma coisa não sair como o esperado
 
 **"Quem pode acessar" não tem a opção "Qualquer pessoa".**

@@ -9,6 +9,7 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ferias-teste-'));
 process.env.FERIAS_DADOS = temp;
 
 const { servidor } = require('../servidor.js');
+const D = require('./datas.js');
 
 let testes = 0, falhas = 0;
 function ok(cond, nome, extra){
@@ -77,20 +78,20 @@ function ok(cond, nome, extra){
      JSON.stringify(Object.keys(e.funcionarios[0])));
 
   /* ---------- o servidor refaz a conferência ---------- */
-  r = await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:'2026-10-09', dias:20 });
+  r = await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:D.SEX, dias:20 });
   ok(r.status === 400 && /sexta/.test(r.dados.erro), 'servidor recusa início na sexta', r.dados.erro);
-  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:'2026-10-05', dias:45 })).status === 400, 'servidor recusa mais de 30 dias');
-  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId:'nada', inicio:'2026-10-05', dias:10 })).status === 400, 'funcionário inexistente é recusado');
+  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:D.SEG, dias:45 })).status === 400, 'servidor recusa mais de 30 dias');
+  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId:'nada', inicio:D.SEG, dias:10 })).status === 400, 'funcionário inexistente é recusado');
 
   /* ---------- pedido sem login ---------- */
-  r = await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:'2026-10-05', dias:20, obs:'Viagem marcada.' });
+  r = await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:D.SEG, dias:20, obs:'Viagem marcada.' });
   ok(r.status === 200 && r.dados.id, 'funcionário envia pedido sem login', r.dados.erro);
   const pedido = r.dados.id;
   let s = (await estado()).solicitacoes.find(x => x.id === pedido);
   ok(s && s.status === 'pendente' && s.nome === 'Ana Souza Lima' && s.setor === 'Fiscal', 'pedido gravado com nome e setor', JSON.stringify(s));
   ok(s.aut_gestor === '' && s.aut_dp === undefined && s.aut_diretor === undefined,
      'nasce sem assinatura e sem os campos de DP e diretor');
-  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:'2026-12-07', dias:30 })).status === 200, 'segundo período longo é aceito');
+  ok((await chamar('/api/solicitacoes', 'POST', { funcionarioId: ana, inicio:D.SEG_LONGE, dias:30 })).status === 200, 'segundo período longo é aceito');
 
   /* ---------- uma assinatura basta ---------- */
   ok((await chamar('/api/solicitacoes/' + pedido + '/autorizar', 'POST', {})).status === 401, 'autorizar exige sessão');
@@ -101,7 +102,7 @@ function ok(cond, nome, extra){
   ok((await chamar('/api/solicitacoes/' + pedido + '/autorizar', 'POST', {}, tk)).status === 400, 'não autoriza o que já está autorizado');
 
   /* ---------- recusa ---------- */
-  const pCarla = (await chamar('/api/solicitacoes', 'POST', { funcionarioId: carla, inicio:'2027-02-01', dias:20 })).dados.id;
+  const pCarla = (await chamar('/api/solicitacoes', 'POST', { funcionarioId: carla, inicio:D.SEG_MAIS_7, dias:20 })).dados.id;
   ok((await chamar('/api/solicitacoes/' + pCarla + '/recusar', 'POST', { motivo:'' }, tk)).status === 400, 'recusar sem motivo é bloqueado');
   ok((await chamar('/api/solicitacoes/' + pCarla + '/recusar', 'POST', { motivo:'Setor descoberto.' }, tk)).status === 200, 'gestor recusa');
   s = (await estado()).solicitacoes.find(x => x.id === pCarla);
@@ -109,15 +110,15 @@ function ok(cond, nome, extra){
   ok((await chamar('/api/solicitacoes/' + pCarla + '/autorizar', 'POST', {}, tk)).status === 400, 'não autoriza pedido recusado');
 
   /* ---------- cancelamento pelo funcionário ---------- */
-  const pBruno = (await chamar('/api/solicitacoes', 'POST', { funcionarioId: bruno, inicio:'2027-03-01', dias:10 })).dados.id;
+  const pBruno = (await chamar('/api/solicitacoes', 'POST', { funcionarioId: bruno, inicio:D.SEG_LONGE, dias:10 })).dados.id;
   ok((await chamar('/api/solicitacoes/' + pBruno + '/cancelar', 'POST', { funcionarioId: ana })).status === 403, 'ninguém cancela pedido alheio');
   ok((await chamar('/api/solicitacoes/' + pBruno + '/cancelar', 'POST', { funcionarioId: bruno })).status === 200, 'funcionário cancela o próprio pedido');
   ok((await chamar('/api/solicitacoes/' + pBruno + '/cancelar', 'POST', { funcionarioId: bruno })).status === 400, 'não cancela duas vezes');
   ok((await chamar('/api/solicitacoes/' + pedido + '/cancelar', 'POST', { funcionarioId: ana })).status === 400, 'não cancela pedido já autorizado');
 
   /* ---------- histórico e ajustes ---------- */
-  ok((await chamar('/api/historico', 'POST', { funcionarioId: carla, inicio:'2025-05-05', dias:30 })).status === 401, 'histórico exige sessão');
-  ok((await chamar('/api/historico', 'POST', { funcionarioId: carla, inicio:'2025-05-05', dias:30 }, tk)).status === 200, 'gestor lança férias já combinadas');
+  ok((await chamar('/api/historico', 'POST', { funcionarioId: carla, inicio:D.PASSADO, dias:30 })).status === 401, 'histórico exige sessão');
+  ok((await chamar('/api/historico', 'POST', { funcionarioId: carla, inicio:D.PASSADO, dias:30 }, tk)).status === 200, 'gestor lança férias já combinadas');
   s = (await estado()).solicitacoes.filter(x => x.funcionarioId === carla && x.status === 'autorizada')[0];
   ok(s && s.aut_gestor && s.aut_gestor_nome === 'Paulo Ribeiro', 'lançamento entra já assinado');
   ok((await chamar('/api/empresa', 'POST', { nome:'Contabilidade Selo Ltda' }, tk)).status === 200, 'grava o nome da empresa');
@@ -137,6 +138,19 @@ function ok(cond, nome, extra){
   ok((await chamar('/api/solicitacoes/' + pCarla, 'DELETE')).status === 401, 'excluir exige sessão');
   ok((await chamar('/api/solicitacoes/' + pCarla, 'DELETE', null, tk)).status === 200, 'gestor exclui registro');
   ok((await chamar('/api/funcionarios/' + bruno, 'DELETE', null, tk)).status === 200, 'gestor remove funcionário');
+
+  /* ---------- esqueci o PIN ---------- */
+  ok((await estado()).configurado === true, 'antes de redefinir, o PIN está definido');
+  const { execFileSync } = require('node:child_process');
+  execFileSync(process.execPath, [path.join(__dirname, '..', 'servidor.js'), '--redefinir-pin'],
+               { env: Object.assign({}, process.env, { FERIAS_DADOS: temp }), stdio:'pipe' });
+  ok((await estado()).configurado === false, 'o comando de redefinir apaga o PIN');
+  ok((await chamar('/api/pin', 'POST', { pin:'8888' })).status === 400, 'o PIN antigo não entra mais');
+  ok((await estado()).funcionarios.length > 0, 'a equipe continua cadastrada depois de redefinir');
+  ok((await estado()).solicitacoes.length > 0, 'as solicitações continuam no banco');
+  r = await chamar('/api/configurar', 'POST', { gestor:{ nome:'Daniela Carvalho', pin:'4321' } });
+  ok(r.status === 200 && r.dados.papel === 'gestor', 'dá para definir um PIN novo depois de redefinir', r.dados.erro);
+  ok((await chamar('/api/pin', 'POST', { pin:'4321' })).status === 200, 'entra com o PIN novo');
 
   /* ---------- entradas ruins ---------- */
   ok((await chamar('/api/nada')).status === 404, 'rota desconhecida devolve 404');

@@ -80,6 +80,25 @@ autorizar um pedido já recusado ou cancelado, nem cadastrar, excluir ou trocar 
 PIN sem sessão válida. Na versão servidor, dez erros seguidos do mesmo endereço
 travam as tentativas por 5 minutos.
 
+## Esqueci o PIN
+
+Ele é guardado embaralhado, então não há como lê-lo de volta — só apagar e
+escolher outro. Em qualquer um dos dois casos a equipe, as solicitações e as
+autorizações já registradas continuam intactas, e quem estiver logado cai.
+
+**Versão Google:** abra a planilha e use o menu
+**Quadro de Férias → Redefinir o PIN**. Só quem consegue abrir a planilha vê esse
+menu, o que é o limite certo — a equipe enxerga apenas o link do app.
+
+**Versão servidor:**
+
+```bash
+npm run redefinir-pin     # ou: node servidor.js --redefinir-pin
+```
+
+Nos dois casos, na próxima vez que alguém abrir a aba Gestão o app pede um PIN
+novo — e quem chegar primeiro é quem define.
+
 ---
 
 ## Versão servidor
@@ -141,9 +160,10 @@ app-ferias/
     regras_js.html         gerado a partir de publico/regras.js
     gerar.js               o gerador dos dois arquivos acima
   testes/
-    regras.test.js          42 testes das regras
-    api.test.js             56 testes do servidor, com banco temporário
-    apps-script.test.js     68 testes do Codigo.gs, com a planilha simulada
+    datas.js                datas de teste calculadas a partir de hoje
+    regras.test.js          44 testes das regras
+    api.test.js             63 testes do servidor, com banco temporário
+    apps-script.test.js     81 testes do Codigo.gs, com a planilha simulada
 ```
 
 As regras e a tela têm **uma fonte só**: `publico/regras.js` e

@@ -58,7 +58,37 @@ function onOpen(){
   SpreadsheetApp.getUi()
     .createMenu('Quadro de Férias')
     .addItem('Preparar as abas', 'garantirAbas')
+    .addItem('Redefinir o PIN', 'redefinirPIN')
     .addToUi();
+}
+
+/**
+ * Esqueceu o PIN? Ele é guardado embaralhado, então não há como lê-lo de volta —
+ * só apagar e escolher outro. Quem abre esta planilha é quem pode fazer isso, e
+ * é esse o limite certo: a equipe só enxerga o link do app, nunca a planilha.
+ *
+ * Roda pelo menu "Quadro de Férias → Redefinir o PIN", com a planilha aberta.
+ */
+function redefinirPIN(){
+  var ui = SpreadsheetApp.getUi();
+  var resposta = ui.alert(
+    'Redefinir o PIN',
+    'O PIN atual será apagado. Na próxima vez que alguém abrir a aba Gestão, o app vai pedir um PIN novo.\n\n' +
+    'A equipe cadastrada, as solicitações e as autorizações já registradas não são afetadas.\n\n' +
+    'Quer continuar?',
+    ui.ButtonSet.YES_NO);
+  if(resposta !== ui.Button.YES) return;
+
+  var guardadas = props().getProperties();
+  Object.keys(guardadas).forEach(function(chave){
+    if(/^pin_.+_(sal|hash)$/.test(chave)) props().deleteProperty(chave);
+  });
+  props().deleteProperty('sessoes');   // derruba quem estiver logado
+
+  ui.alert('PIN apagado',
+    'Abra o link do app, vá na aba Gestão e escolha o PIN novo. ' +
+    'Quem chegar primeiro é quem define — faça isso antes de avisar a equipe.',
+    ui.ButtonSet.OK);
 }
 
 /* ------------------------------------------------------------------ planilha */

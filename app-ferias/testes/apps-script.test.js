@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
+const D = require('./datas.js');
 
 const pastaGas = path.join(__dirname, '..', 'google-apps-script');
 
@@ -63,6 +64,8 @@ function novaAba(nome){
 }
 
 const abas = {};
+let respostaDaJanela = 'YES';          // o que o usuário clica na confirmação do menu
+const janelasVistas = [];
 const SpreadsheetApp = {
   getActive(){
     return {
@@ -71,14 +74,23 @@ const SpreadsheetApp = {
       getUrl: () => 'https://docs.google.com/spreadsheets/d/FAKE/edit'
     };
   },
-  getUi(){ return { createMenu(){ return { addItem(){ return this; }, addToUi(){} }; } }; }
+  getUi(){
+    return {
+      createMenu(){ return { addItem(){ return this; }, addToUi(){} }; },
+      alert(titulo, texto, botoes){ janelasVistas.push({ titulo, texto, botoes }); return respostaDaJanela; },
+      ButtonSet: { YES_NO:'YES_NO', OK:'OK' },
+      Button: { YES:'YES', NO:'NO', OK:'OK' }
+    };
+  }
 };
 
 const guardados = {};
 const PropertiesService = {
   getScriptProperties: () => ({
     getProperty: k => (k in guardados ? guardados[k] : null),
-    setProperty: (k,v) => { guardados[k] = String(v); }
+    setProperty: (k,v) => { guardados[k] = String(v); },
+    getProperties: () => Object.assign({}, guardados),
+    deleteProperty: k => { delete guardados[k]; }
   })
 };
 
@@ -174,20 +186,20 @@ const carla = e.funcionarios.filter(f => f.nome === 'Carla Monteiro')[0];
 ok(ana && ana.setor === 'Fiscal' && ana.ativo === true, 'lê o funcionário de volta certo', JSON.stringify(ana));
 
 /* --- o servidor refaz a conferência --- */
-recusa(() => G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-10-09', dias:20 }), 'sexta', 'recusa início na sexta');
-recusa(() => G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-10-05', dias:45 }), 'não pode passar de 30', 'recusa mais de 30 dias');
-recusa(() => G.enviarSolicitacao({ funcionarioId:'nada', inicio:'2026-10-05', dias:10 }), 'não encontrado', 'recusa funcionário inexistente');
+recusa(() => G.enviarSolicitacao({ funcionarioId: ana.id, inicio:D.SEX, dias:20 }), 'sexta', 'recusa início na sexta');
+recusa(() => G.enviarSolicitacao({ funcionarioId: ana.id, inicio:D.SEG, dias:45 }), 'não pode passar de 30', 'recusa mais de 30 dias');
+recusa(() => G.enviarSolicitacao({ funcionarioId:'nada', inicio:D.SEG, dias:10 }), 'não encontrado', 'recusa funcionário inexistente');
 
 /* --- pedido válido, sem login --- */
-ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-10-05', dias:20, obs:'Viagem marcada.' }).ok, 'funcionário envia pedido sem login');
+ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:D.SEG, dias:20, obs:'Viagem marcada.' }).ok, 'funcionário envia pedido sem login');
 let sol = estado().solicitacoes[0];
-ok(sol.status === 'pendente' && sol.nome === 'Ana Souza Lima' && sol.inicio === '2026-10-05' && sol.dias === 20,
+ok(sol.status === 'pendente' && sol.nome === 'Ana Souza Lima' && sol.inicio === D.SEG && sol.dias === 20,
    'pedido gravado com nome e datas', JSON.stringify(sol));
 ok(!sol.aut_gestor, 'nasce sem assinatura');
 const linha = abas['Solicitações']._celulas[1];
-ok(linha[3] === '05/10/2026 a 24/10/2026' && linha[5] === '25/10/2026',
+ok(linha[3] === D.dia(D.SEG) + ' a ' + D.fim(D.SEG, 20) && linha[5] === D.retorno(D.SEG, 20),
    'planilha mostra período e retorno em português', String(linha[3]) + ' / ' + String(linha[5]));
-ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:'2026-12-07', dias:30 }).ok, 'segundo período longo é aceito');
+ok(G.enviarSolicitacao({ funcionarioId: ana.id, inicio:D.SEG_LONGE, dias:30 }).ok, 'segundo período longo é aceito');
 
 /* --- uma assinatura basta --- */
 recusa(() => G.autorizarSolicitacao('', sol.id), 'sessão', 'autorizar exige sessão');
@@ -201,7 +213,7 @@ ok(/^\d{2}\/\d{2}\/\d{4}$/.test(String(abas['Solicitações']._celulas[1][8])),
 recusa(() => G.autorizarSolicitacao(tk, sol.id), 'não está mais em análise', 'não autoriza o que já está autorizado');
 
 /* --- recusa --- */
-G.enviarSolicitacao({ funcionarioId: carla.id, inicio:'2027-02-01', dias:20 });
+G.enviarSolicitacao({ funcionarioId: carla.id, inicio:D.SEG_MAIS_7, dias:20 });
 let daCarla = estado().solicitacoes.filter(s => s.funcionarioId === carla.id)[0];
 recusa(() => G.recusarSolicitacao(tk, daCarla.id, ''), 'motivo', 'recusar sem motivo é bloqueado');
 ok(G.recusarSolicitacao(tk, daCarla.id, 'Setor descoberto.').ok, 'gestor recusa');
@@ -210,7 +222,7 @@ ok(daCarla.status === 'recusada' && daCarla.recusadaPor === 'Paulo Ribeiro', 're
 recusa(() => G.autorizarSolicitacao(tk, daCarla.id), 'não está mais em análise', 'não autoriza pedido recusado');
 
 /* --- cancelamento pelo funcionário --- */
-G.enviarSolicitacao({ funcionarioId: carla.id, inicio:'2027-05-03', dias:10 });
+G.enviarSolicitacao({ funcionarioId: carla.id, inicio:D.SEG_LONGE, dias:10 });
 let outra = estado().solicitacoes.filter(s => s.funcionarioId === carla.id && s.status === 'pendente')[0];
 recusa(() => G.cancelarSolicitacao(outra.id, ana.id, ''), 'outra pessoa', 'ninguém cancela pedido alheio');
 ok(G.cancelarSolicitacao(outra.id, carla.id, '').ok, 'funcionário cancela o próprio pedido');
@@ -218,8 +230,8 @@ recusa(() => G.cancelarSolicitacao(outra.id, carla.id, ''), 'em análise', 'não
 recusa(() => G.cancelarSolicitacao(sol.id, ana.id, ''), 'em análise', 'não cancela pedido já autorizado');
 
 /* --- histórico --- */
-recusa(() => G.lancarHistorico('', { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }), 'sessão', 'histórico exige sessão');
-ok(G.lancarHistorico(tk, { funcionarioId: carla.id, inicio:'2025-05-05', dias:30 }).ok, 'gestor lança férias já combinadas');
+recusa(() => G.lancarHistorico('', { funcionarioId: carla.id, inicio:D.PASSADO, dias:30 }), 'sessão', 'histórico exige sessão');
+ok(G.lancarHistorico(tk, { funcionarioId: carla.id, inicio:D.PASSADO, dias:30 }).ok, 'gestor lança férias já combinadas');
 const lancada = estado().solicitacoes.filter(s => s.obs.indexOf('Lançado') === 0)[0];
 ok(lancada && lancada.status === 'autorizada' && lancada.aut_gestor_nome === 'Paulo Ribeiro', 'lançamento entra já assinado');
 
@@ -232,8 +244,9 @@ ok(e.solicitacoes.filter(s => s.funcionarioId === ana.id).every(s => s.nome === 
 ok(e.funcionarios.filter(f => f.id === ana.id).length === 1, 'editar não duplica o funcionário');
 
 /* --- planilha devolvendo Date em vez de texto --- */
-abas['Solicitações']._celulas[1][13] = new Date(2026, 9, 5);
-ok(estado().solicitacoes.filter(s => s.id === sol.id)[0].inicio === '2026-10-05', 'converte data devolvida como Date pelo Sheets');
+const comoData = D.SEG.split('-').map(Number);
+abas['Solicitações']._celulas[1][13] = new Date(comoData[0], comoData[1] - 1, comoData[2]);
+ok(estado().solicitacoes.filter(s => s.id === sol.id)[0].inicio === D.SEG, 'converte data devolvida como Date pelo Sheets');
 
 /* --- ajustes e PIN --- */
 ok(G.salvarEmpresa(tk, 'Contabilidade Selo Ltda').ok, 'grava o nome da empresa');
@@ -254,6 +267,34 @@ ok(G.excluirSolicitacao(tk, daCarla.id).ok, 'gestor exclui registro');
 ok(estado().solicitacoes.length === antes - 1, 'registro sumiu da planilha');
 recusa(() => G.excluirSolicitacao(tk, 'nao-existe'), 'não encontrada', 'excluir inexistente avisa');
 ok(G.removerFuncionario(tk, carla.id).ok, 'gestor remove funcionário');
+
+/* --- esqueci o PIN --- */
+ok(typeof G.redefinirPIN === 'function', 'existe a função de redefinir o PIN para o menu da planilha');
+ok(estado().configurado === true, 'antes de redefinir, o PIN está definido');
+
+janelasVistas.length = 0;
+respostaDaJanela = 'NO';
+G.redefinirPIN();
+ok(estado().configurado === true, 'cancelar na confirmação não apaga o PIN');
+ok(janelasVistas.length === 1 && /não são afetadas/.test(janelasVistas[0].texto),
+   'a confirmação avisa que os dados não são afetados');
+
+janelasVistas.length = 0;
+respostaDaJanela = 'YES';
+const equipeAntes = estado().funcionarios.length;
+const pedidosAntes = estado().solicitacoes.length;
+G.redefinirPIN();
+ok(estado().configurado === false, 'confirmar apaga o PIN');
+ok(estado('nao-importa').papel === '' && estado(tk).papel === '', 'quem estava logado é derrubado');
+recusa(() => G.entrarGestao('8888'), 'ainda não foi definido', 'o PIN antigo não entra mais');
+ok(estado().funcionarios.length === equipeAntes, 'a equipe continua cadastrada', estado().funcionarios.length + ' de ' + equipeAntes);
+ok(estado().solicitacoes.length === pedidosAntes, 'as solicitações continuam na planilha');
+ok(janelasVistas.length === 2 && /PIN apagado/.test(janelasVistas[1].titulo), 'avisa que foi apagado e o que fazer agora');
+
+const novo = G.configurarPins({ gestor:{ nome:'Daniela Carvalho', pin:'4321' } });
+ok(novo.papel === 'gestor' && novo.token, 'dá para definir um PIN novo depois de redefinir');
+ok(G.entrarGestao('4321').papel === 'gestor', 'entra com o PIN novo');
+ok(estado(novo.token).funcionarios.length === equipeAntes, 'a equipe continua lá com o PIN novo');
 
 console.log((falhas ? '\n' : '') + testes + ' testes do Apps Script, ' + falhas + ' falha(s)');
 process.exit(falhas ? 1 : 0);
