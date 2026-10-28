@@ -99,6 +99,10 @@ npm run redefinir-pin     # ou: node servidor.js --redefinir-pin
 Nos dois casos, na próxima vez que alguém abrir a aba Gestão o app pede um PIN
 novo — e quem chegar primeiro é quem define.
 
+Para reduzir a chance de esquecer, os campos de PIN ficam dentro de um `<form>`
+com `autocomplete` de senha, o que faz o navegador oferecer para guardá-los.
+Dentro do iframe do Apps Script isso depende do navegador e nem sempre acontece.
+
 ---
 
 ## Versão servidor

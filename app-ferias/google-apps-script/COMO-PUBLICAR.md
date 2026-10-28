@@ -153,6 +153,12 @@ Três observações:
 Só quem consegue abrir a planilha vê esse menu — a equipe enxerga apenas o link
 do app. É esse o limite certo para quem pode redefinir.
 
+**Para não esquecer de novo:** o campo do PIN é um campo de senha dentro de um
+formulário, então o navegador costuma oferecer para guardá-lo na primeira vez que
+você entra. Aceite — da próxima ele preenche sozinho. Dentro do app do Google
+isso depende do navegador e nem sempre acontece; se não oferecer, anote o PIN
+onde você guarda as suas outras senhas.
+
 > Se o menu não aparecer, é porque o seu projeto ainda está com uma versão antiga
 > do código. Atualize os três arquivos e publique a nova versão (veja acima), ou
 > faça pelo caminho manual: no editor do Apps Script, **Configurações do projeto**

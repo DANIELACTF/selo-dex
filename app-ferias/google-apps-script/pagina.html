@@ -393,10 +393,12 @@ td.acoes .btn{margin-left:5px}
       <div class="card-hd"><div class="grow"><h2>Definir quem autoriza</h2></div></div>
       <div class="card-bd stack">
         <p class="small muted" style="max-width:62ch">Toda solicitação de férias passa pelo gestor do departamento. Diga quem é e escolha um PIN — é com ele que se entra nesta aba para autorizar, cadastrar a equipe e mexer nos ajustes.</p>
-        <div id="campos-configurar" class="stack"></div>
-        <div class="row" style="justify-content:flex-end">
-          <button class="btn btn-primary" type="button" id="btn-configurar">Definir o PIN</button>
-        </div>
+        <form id="form-configurar" class="stack">
+          <div id="campos-configurar" class="stack"></div>
+          <div class="row" style="justify-content:flex-end">
+            <button class="btn btn-primary" type="submit" id="btn-configurar">Definir o PIN</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -404,12 +406,14 @@ td.acoes .btn{margin-left:5px}
       <div class="card-hd"><div class="grow"><h2>Entrar na gestão</h2></div></div>
       <div class="card-bd stack" style="max-width:420px">
         <p class="small muted">Digite o PIN do gestor do departamento para autorizar as solicitações e cuidar do cadastro.</p>
-        <div class="field">
-          <label for="in-pin">PIN</label>
-          <input type="password" id="in-pin" inputmode="numeric" autocomplete="current-password" placeholder="••••">
-        </div>
-        <div class="row"><button class="btn btn-primary" type="button" id="btn-pin">Entrar</button></div>
-        <p class="small" style="color:var(--ink-3)">O PIN é conferido no servidor e a sessão vale 12 horas.</p>
+        <form id="form-pin" class="stack">
+          <div class="field">
+            <label for="in-pin">PIN</label>
+            <input type="password" id="in-pin" name="pin-da-gestao" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+          </div>
+          <div class="row"><button class="btn btn-primary" type="submit" id="btn-pin">Entrar</button></div>
+        </form>
+        <p class="small" style="color:var(--ink-3)">O PIN é conferido no servidor e a sessão vale 12 horas. Se o navegador oferecer para guardá-lo, aceite — assim ele preenche sozinho da próxima vez.</p>
       </div>
     </div>
 
@@ -1102,7 +1106,8 @@ function renderConfigurar(){
   $('#campos-configurar').innerHTML = R.PAPEIS.map(function(p){
     return '<div class="grid-form">' +
       campo('cf-nome-' + p.chave, p.titulo, 'text', '', 'Nome de quem assina. Aparece no aviso de retorno.') +
-      campo('cf-pin-' + p.chave, 'PIN', 'password', '', 'Ao menos 4 caracteres.', ' autocomplete="off"') +
+      campo('cf-pin-' + p.chave, 'PIN', 'password', '', 'Ao menos 4 caracteres. Deixe o navegador guardá-lo quando ele oferecer.',
+            ' name="pin-da-gestao" autocomplete="new-password"') +
     '</div>';
   }).join('');
 }
@@ -1186,7 +1191,8 @@ $('#btn-salvar-cfg').addEventListener('click', async function(){
   }catch(e){ toast(e.message, true); }
 });
 
-$('#btn-configurar').addEventListener('click', async function(){
+$('#form-configurar').addEventListener('submit', async function(e){
+  e.preventDefault();
   var corpo = {};
   for(var i = 0; i < R.PAPEIS.length; i++){
     var chave = R.PAPEIS[i].chave;
@@ -1201,7 +1207,8 @@ $('#btn-configurar').addEventListener('click', async function(){
   }catch(e){ toast(e.message, true); }
 });
 
-$('#btn-pin').addEventListener('click', async function(){
+$('#form-pin').addEventListener('submit', async function(e){
+  e.preventDefault();
   var pin = $('#in-pin').value.trim();
   if(pin.length < 4){ toast('Use pelo menos 4 caracteres no PIN.', true); return; }
   try{
@@ -1213,7 +1220,6 @@ $('#btn-pin').addEventListener('click', async function(){
     toast('Você entrou como ' + tituloPapel(d.papel).toLowerCase() + '.');
   }catch(e){ toast(e.message, true); }
 });
-$('#in-pin').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('#btn-pin').click(); });
 
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape' && $('#modal-raiz').firstChild) fecharModal();
